@@ -84,6 +84,8 @@ const TwoLineMenu = ({ className }) => (
   </svg>
 );
 
+const ADMIN_ID = '54ac00e5-b3d3-4ce8-bd8b-a8e2d502e9bb';
+
 export default function App() {
 
   const [alKafiData, setAlKafiData] = useState([]);
@@ -153,6 +155,7 @@ export default function App() {
   const globalSearchRef = useRef(null);
 
   const [user, setUser] = useState(null);
+  const isAdmin = user?.id === ADMIN_ID;
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
