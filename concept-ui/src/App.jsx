@@ -1727,6 +1727,7 @@ export default function App() {
               handleFindSimilar={handleFindSimilar}
               HadithCard={HadithCard}
               KisaLogo={KisaLogo}
+              isAdmin={isAdmin} // <--- ADD THIS LINE
             />
           </div>
         )}
@@ -1799,6 +1800,7 @@ export default function App() {
             <HadithLibrary
               hadithData={alKafiData}
               externalTarget={hadithTarget}
+              isAdmin={isAdmin}
             />
           )
         )}
@@ -2144,7 +2146,7 @@ export default function App() {
                     <div className="flex flex-col items-center justify-center h-full text-[#5C4A3D]/50 dark:text-[#c6a87c]/40 italic"><LibraryBig className="w-12 h-12 mb-4 opacity-20" /><p>No hadiths found in the database referencing this specific verse.</p></div>
                   ) : (
                     <div className="flex flex-col gap-4">
-                      {(tafsirData.clusters || []).flatMap(c => c.items || []).map((item, idx) => (<HadithCard key={idx} item={item} searchMode="keyword" handleCopyHadith={handleCopyHadith} onFindSimilar={handleFindSimilar} vaultItems={vaultItems} />))}
+                      {(tafsirData.clusters || []).flatMap(c => c.items || []).map((item, idx) => (<HadithCard key={idx} item={item} searchMode="keyword" handleCopyHadith={handleCopyHadith} onFindSimilar={handleFindSimilar} vaultItems={vaultItems} isAdmin={isAdmin} />))}
                     </div>
                   )}
                 </div>

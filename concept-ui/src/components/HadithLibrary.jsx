@@ -72,7 +72,7 @@ const formatHadithText = (text) => {
 };
 
 // --- THE NEW ADMIN-ENABLED LIBRARY NODE ---
-const LibraryHadithNode = ({ hadith, copiedId, handleCopyId }) => {
+const LibraryHadithNode = ({ hadith, copiedId, handleCopyId, isAdmin }) => {
     const [showArabic, setShowArabic] = useState(false);
     const [showChain, setShowChain] = useState(false);
 
@@ -267,7 +267,8 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId }) => {
             </AnimatePresence>
 
             <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-20 flex items-center gap-1 sm:gap-2">
-                {!isEditing && (
+                {/* --- THE ADMIN LOCK --- */}
+                {!isEditing && isAdmin && (
                     <button onClick={() => setIsEditing(true)} className="p-1.5 sm:p-2 bg-slate-50 dark:bg-[#1c1c20] rounded-md sm:rounded-lg border border-slate-200 dark:border-[#2d2d33] opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-slate-500 hover:text-[#c6a87c] cursor-pointer shadow-sm">
                         <Edit3 className="w-4 h-4" />
                     </button>
@@ -370,7 +371,6 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId }) => {
                             className="w-full bg-white dark:bg-[#1c1c20] border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-lg sm:text-xl leading-relaxed font-serif text-slate-900 dark:text-[#f8f8f8] focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-y min-h-[300px]"
                         />
                     </div>
-                    {/* FIXED: Replaced onClick with onPointerDown to beat the mobile keyboard bug, and made the bar gracefully sticky so you never lose it on huge hadiths! */}
                     <div className="sticky bottom-4 sm:bottom-6 z-50 flex justify-end gap-3 mt-4 p-3 bg-white/90 dark:bg-[#1c1c20]/90 backdrop-blur-xl border border-amber-200 dark:border-amber-800/80 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
                         <button
                             onPointerDown={(e) => { e.preventDefault(); handleCancel(); }}
@@ -420,7 +420,8 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId }) => {
     );
 };
 
-const HadithLibrary = ({ hadithData = [], externalTarget }) => {
+// --- LIBRARY COMPONENT ACCEPTS isAdmin ---
+const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => {
     const [currentView, setCurrentView] = useState(() => localStorage.getItem('kisa_hl_view') || 'home');
     useEffect(() => { localStorage.setItem('kisa_hl_view', currentView); }, [currentView]);
 
@@ -1228,6 +1229,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget }) => {
                                 <LibraryHadithNode
                                     key={hadith.id || index}
                                     hadith={hadith}
+                                    isAdmin={isAdmin} // <--- PASS ADMIN FLAG DOWN HERE
                                 />
                             ))}
                         </div>
