@@ -6,7 +6,15 @@ import { ChevronUp, ChevronDown, Sparkles, Check, Bookmark, Copy, PenLine } from
 import { supabase } from '../supabaseClient';
 import quranData from '../quran.json';
 
-const HadithCard = ({ item, handleCopyHadith, searchMode, onVerseClick, onFindSimilar, vaultItems, isAdmin = false = [] }) => {
+const HadithCard = ({
+    item,
+    handleCopyHadith,
+    searchMode,
+    onVerseClick,
+    onFindSimilar,
+    vaultItems = [],
+    isAdmin = false
+}) => {
     const [showArabic, setShowArabic] = useState(false);
     const [showChain, setShowChain] = useState(false);
     const [copied, setCopied] = useState(false);
