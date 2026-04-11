@@ -68,7 +68,13 @@ const HadithCard = ({ item, handleCopyHadith, searchMode, onVerseClick, onFindSi
         return { chain: null, body: text };
     };
 
-    const { chain, body } = splitText(engText);
+    const { chain: parsedChain, body: parsedBody } = splitText(engText);
+
+    // OVERRIDE LOGIC: Prioritize Admin edits over the regex parser
+    // We use !== null to allow for intentional empty strings (if you deleted the chain)
+    const finalBody = (item.manual_body !== null && item.manual_body !== undefined) ? item.manual_body : parsedBody;
+    const finalChain = (item.manual_chain !== null && item.manual_chain !== undefined) ? item.manual_chain : parsedChain;
+
     const formatParagraphs = (text) => {
         if (!text) return [];
         if (text.includes('\n')) return text.split('\n').filter(p => p.trim());
@@ -92,8 +98,8 @@ const HadithCard = ({ item, handleCopyHadith, searchMode, onVerseClick, onFindSi
         if (currentPara.trim()) paragraphs.push(currentPara.trim());
         return paragraphs;
     };
-    const paragraphs = formatParagraphs(body);
-    const textToCopy = chain ? `${chain}\n\n${paragraphs.join('\n\n')}` : paragraphs.join('\n\n');
+    const paragraphs = formatParagraphs(finalBody);
+    const textToCopy = finalChain ? `${finalChain}\n\n${paragraphs.join('\n\n')}` : paragraphs.join('\n\n');
 
     // --- PERSISTENT SAVE STATE LOGIC ---
     const sourceRef = `Book: ${item.book}, Vol: ${item.volume}, ${item.sub_book}, Chapter: ${item.chapter} ${displayNum !== "Unknown" ? `Hadith ${displayNum}` : ''}`;
@@ -129,7 +135,7 @@ const HadithCard = ({ item, handleCopyHadith, searchMode, onVerseClick, onFindSi
             user_id: session.user.id,
             content: textToCopy,
             arabic_text: araText || null,
-            chain: chain || null,
+            chain: finalChain || null, // FIX: Updated to finalChain
             source: sourceRef,
             type: 'hadith',
             note: ''
@@ -193,7 +199,8 @@ const HadithCard = ({ item, handleCopyHadith, searchMode, onVerseClick, onFindSi
                 <AnimatePresence>
                     {showChain && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                            <p className={`mt-2 p-3 rounded-lg text-sm italic font-sans border ${isKeyword ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400' : 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400'}`}>{chain ? chain : "Chain information not explicitly found in English text."}</p>
+                            {/* FIX: Updated to display finalChain */}
+                            <p className={`mt-2 p-3 rounded-lg text-sm italic font-sans border ${isKeyword ? 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400' : 'bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400'}`}>{finalChain ? finalChain : "Chain information not explicitly found in English text."}</p>
                         </motion.div>
                     )}
                 </AnimatePresence>

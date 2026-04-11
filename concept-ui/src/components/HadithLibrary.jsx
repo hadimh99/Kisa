@@ -1,30 +1,495 @@
 // src/components/HadithLibrary.jsx
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Book, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Menu, X, Copy, Check, PenTool, History, Clock, Search, List, MapPin, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
+import { supabase } from '../supabaseClient';
+import { Book, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Menu, X, Copy, Check, PenTool, History, Clock, Search, List, MapPin, Sparkles, Edit3, Save, MoreHorizontal, Share2, Link, BookmarkPlus } from 'lucide-react';
+import ChapterTitleHeading from './ChapterTitleHeading';
 
-const HadithLibrary = ({ hadithData = [] }) => {
-    // --- CORE ROUTING STATE ---
-    const [currentView, setCurrentView] = useState('home');
+// --- CORE TEXT PARSING ENGINE ---
+const splitText = (text) => {
+    const markers = ["in a marfu‘ manner who has narrated the following:", "in a marfu' manner who has narrated the following:", "in a marfu‘ manner the following:", "in a marfu' manner the following:", "who has narrated the following:", "said the following:", "who said:", "who has said:", "is narrated from", "narrated that:", "following Hadith:", "the following is narrated:", "said:"];
+    for (let marker of markers) {
+        if (text.includes(marker)) {
+            const parts = text.split(marker);
+            let rawChain = parts[0] + marker;
+            let bodyPart = parts.slice(1).join(marker).trim();
+            const segments = rawChain.split(/(\s+(?:from|narrated that|narrated from|who heard|who has said that|who said that|has said that|said that)\s+)/i);
+            let chainSegments = [], bodySegments = [], foundNonImam = false;
+            const blessingRegex = /\(\s*(as|a\.s\.?|s\.a\.?|sawa|s\.a\.w\.w\.?|r\.a\.?)\s*\)/i;
+            for (let i = segments.length - 1; i >= 0; i -= 2) {
+                let chunk = segments[i], delimiter = i > 0 ? segments[i - 1] : "", hasBlessing = blessingRegex.test(chunk);
+                if (hasBlessing && !foundNonImam) {
+                    bodySegments.unshift(chunk);
+                    let prevChunk = i >= 2 ? segments[i - 2] : null;
+                    if (prevChunk && blessingRegex.test(prevChunk)) { if (delimiter) bodySegments.unshift(delimiter); }
+                    else { if (delimiter) chainSegments.unshift(delimiter); }
+                } else {
+                    foundNonImam = true;
+                    chainSegments.unshift(chunk);
+                    if (delimiter) chainSegments.unshift(delimiter);
+                }
+            }
+            let finalChain = chainSegments.join("").trim().replace(/(?:(?:from|narrated that|narrated from|who heard|who has said that|who said that|has said that|said that)\s*|,\s*)+$/i, "").trim();
+            let finalBodyPrefix = bodySegments.join("").trim();
+            let finalBody = finalBodyPrefix ? (finalBodyPrefix + " " + bodyPart) : bodyPart;
+            finalBody = finalBody.replace(/^[:\s,‘'"]+/, "");
+            if (finalBody.length > 0) finalBody = finalBody.charAt(0).toUpperCase() + finalBody.slice(1);
+            return { chain: finalChain || null, body: finalBody };
+        }
+    }
+    return { chain: null, body: text };
+};
+
+const formatParagraphs = (text) => {
+    if (!text) return [];
+    if (text.includes('\n')) return text.split('\n').filter(p => p.trim());
+    if (text.length < 500) return [text];
+    const rawSegments = text.split(/([.!?]["'”’]*\s*(?:\(\s*\d+\s*:\s*\d+\s*\))?\s+)/);
+    const sentences = [];
+    for (let i = 0; i < rawSegments.length; i += 2) {
+        let sentence = rawSegments[i];
+        if (rawSegments[i + 1]) sentence += rawSegments[i + 1];
+        if (sentence.trim()) sentences.push(sentence);
+    }
+    let paragraphs = [], currentPara = "";
+    sentences.forEach(sentence => {
+        currentPara += sentence;
+        const endsWithAcronym = /(a\.s\.\s*|s\.a\.\s*|a\.j\.\s*|r\.a\.\s*|sawa\s*)$/i.test(sentence);
+        const insideQuote = ((currentPara.match(/[“‘]/g) || []).length > (currentPara.match(/[”’]/g) || []).length) || ((currentPara.match(/"/g) || []).length % 2 !== 0);
+        if (((currentPara.length > 600 && !insideQuote) || currentPara.length > 1200) && !endsWithAcronym) {
+            paragraphs.push(currentPara.trim()); currentPara = "";
+        }
+    });
+    if (currentPara.trim()) paragraphs.push(currentPara.trim());
+    return paragraphs;
+};
+
+const formatHadithText = (text) => {
+    if (!text) return "";
+    const { body } = splitText(text);
+    return body;
+};
+
+// --- THE NEW ADMIN-ENABLED LIBRARY NODE ---
+const LibraryHadithNode = ({ hadith, copiedId, handleCopyId }) => {
+    const [showArabic, setShowArabic] = useState(false);
+    const [showChain, setShowChain] = useState(false);
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const arabicText = hadith.arabicText || hadith.ar || "";
+    let englishText = hadith.englishText || hadith.en || "";
+
+    let displayNum = hadith.hadith_number || hadith.id || "Unknown";
+    const engMatch = String(englishText).match(/^[\s"'‘“\[\(]*(?:Unknown[\.\s]*)?(\d+)[\.\-:]?\s/i);
+    if (engMatch) displayNum = engMatch[1];
+
+    englishText = String(englishText).replace(/^[\s"'‘“\[\(]*(?:Unknown[\.\s]*)?(?:\d+[\.\-:]?\s*)?/i, "").trim();
+    englishText = englishText.replace(/(who has said the following|said the following|who said|the following is narrated|who has narrated the following|in a marfu['‘] manner the following|in a marfu['‘] manner who has narrated the following)(?!\s*:)/gi, "$1:");
+    if (englishText.length > 0) englishText = englishText.charAt(0).toUpperCase() + englishText.slice(1);
+
+    const { chain: parsedChain, body: parsedBody } = splitText(englishText);
+
+    const [currentBody, setCurrentBody] = useState(hadith.manual_body || parsedBody);
+    const [currentChain, setCurrentChain] = useState(hadith.manual_chain || parsedChain || "");
+
+    const [draftBody, setDraftBody] = useState(currentBody);
+    const [draftChain, setDraftChain] = useState(currentChain);
+
+    const paragraphs = formatParagraphs(currentBody);
+
+    const isIntro = String(hadith.chapter || "").toLowerCase().includes('introduction');
+    const isValidNum = displayNum && String(displayNum).toLowerCase() !== "unknown";
+    const showNumber = isValidNum && !isIntro;
+
+    const handleSaveEdit = async () => {
+        setIsSaving(true);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) {
+            alert("Authentication Error: You must be Signed In from the top menu to save edits to the global database.");
+            setIsSaving(false);
+            return;
+        }
+
+        const { data, error } = await supabase
+            .from('kisa_hadiths')
+            .update({ manual_body: draftBody, manual_chain: draftChain })
+            .eq('id', String(hadith.id))
+            .select();
+
+        if (error || !data || data.length === 0) {
+            console.error("Failed to save edit:", error);
+            alert("Database Error: Failed to save edit to the cloud. Please check your permissions.");
+        } else {
+            setCurrentBody(draftBody);
+            setCurrentChain(draftChain);
+            hadith.manual_body = draftBody;
+            hadith.manual_chain = draftChain;
+            setIsEditing(false);
+        }
+        setIsSaving(false);
+    };
+
+    const handleCancel = () => {
+        setDraftBody(currentBody);
+        setDraftChain(currentChain);
+        setIsEditing(false);
+    };
+
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [copyMode, setCopyMode] = useState(null);
+    const [copiedAction, setCopiedAction] = useState(null);
+    const [toastMessage, setToastMessage] = useState(null);
+
+    const bookStr = hadith.book || hadith.book_number || 'Unknown Book';
+    const volStr = hadith.volume_number ? `Vol. ${hadith.volume_number}` : (hadith.volume ? `Vol. ${hadith.volume}` : '');
+    const catStr = hadith.category || '';
+    const chapStr = hadith.chapter || hadith.chapter_number || '';
+
+    const cleanChapNum = chapStr.match(/\d+/);
+    const formattedChap = cleanChapNum ? `Ch. ${cleanChapNum[0]}` : chapStr;
+
+    const preciseReference = [bookStr, volStr, catStr, formattedChap, `Hadith ${displayNum}`].filter(Boolean).join(', ');
+
+    const deepLink = `${window.location.origin}${window.location.pathname}?tab=hadith&book=${encodeURIComponent(bookStr)}&volume=${encodeURIComponent(volStr)}&category=${encodeURIComponent(catStr)}&chapter=${encodeURIComponent(chapStr)}`;
+
+    const safeCopyToClipboard = (text) => {
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).catch(err => console.error('Clipboard failed', err));
+        } else {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            textArea.style.top = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try { document.execCommand('copy'); } catch (error) { console.error('Fallback failed', error); }
+            textArea.remove();
+        }
+    };
+
+    const triggerActionFeedback = (actionKey, message) => {
+        setCopiedAction(actionKey);
+        if (message) setToastMessage(message);
+
+        setTimeout(() => {
+            setIsMenuOpen(false);
+            setCopyMode(null);
+            setCopiedAction(null);
+        }, 800);
+
+        if (message) {
+            setTimeout(() => {
+                setToastMessage(null);
+            }, 3000);
+        }
+    };
+
+    const handleAddToVault = async (e) => {
+        e.stopPropagation();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.user) return alert("Please Sign In from the top menu to save to your Vault.");
+
+        const { error } = await supabase.from('vault_items').insert([{
+            user_id: session.user.id, content: currentBody, arabic_text: arabicText,
+            source: preciseReference, type: 'hadith', chain: currentChain
+        }]);
+
+        if (!error) {
+            window.dispatchEvent(new Event('vault-updated'));
+            triggerActionFeedback('vault', 'Added to Vault successfully!');
+        } else {
+            setIsMenuOpen(false);
+        }
+    };
+
+    const handleShare = async (e) => {
+        e.stopPropagation();
+        const shareData = { title: 'Al-Kisa Hadith Library', text: `Read this Hadith from ${bookStr}:\n\n"${currentBody.substring(0, 100)}..."`, url: deepLink };
+        if (navigator.share && window.isSecureContext) {
+            try { await navigator.share(shareData); } catch (err) { }
+            setIsMenuOpen(false);
+        } else {
+            safeCopyToClipboard(deepLink);
+            triggerActionFeedback('share', 'Link copied to clipboard');
+        }
+    };
+
+    const handleCopyLink = (e) => {
+        e.stopPropagation();
+        safeCopyToClipboard(deepLink);
+        triggerActionFeedback('link', 'Link copied to clipboard');
+    };
+
+    const handleCopyFormat = (e, format) => {
+        e.stopPropagation();
+        let textToCopy = "";
+
+        const LRM = '\u200E';
+        const separator = "──────────";
+        const ltrBody = `${LRM}${currentBody}`;
+        const ltrChain = currentChain ? `${LRM}${currentChain}` : "";
+        const ltrRef = `${LRM}${preciseReference}`;
+
+        if (format === 'ar') {
+            textToCopy = `${arabicText}\n\n${ltrRef}`;
+        } else if (format === 'en') {
+            textToCopy = `${ltrBody}\n\n${ltrRef}`;
+        } else if (format === 'ar_en') {
+            textToCopy = `${arabicText}\n\n${separator}\n\n${ltrBody}\n\n${ltrRef}`;
+        } else if (format === 'full') {
+            const chainPart = ltrChain ? `${ltrChain}\n\n${separator}\n\n` : "";
+            textToCopy = `${arabicText}\n\n${separator}\n\n${chainPart}${ltrBody}\n\n${ltrRef}`;
+        }
+
+        safeCopyToClipboard(textToCopy);
+        triggerActionFeedback(format, 'Copied to clipboard');
+    };
+
+    return (
+        <div className={`hadith-block group sm:border sm:rounded-2xl p-5 sm:p-6 sm:shadow-sm relative transition-all ${isEditing ? 'bg-amber-50/30 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800' : 'bg-white dark:bg-[#151518] border-slate-200 dark:border-[#2d2d33] hover:border-[#c6a87c]/30'}`}>
+
+            <AnimatePresence>
+                {toastMessage && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -20, scale: 0.95 }}
+                        className="fixed bottom-12 left-1/2 -translate-x-1/2 z-[9999] bg-[#2D241C]/90 dark:bg-[#FAFAFA]/95 backdrop-blur-xl text-[#FDFBF7] dark:text-[#0A120E] px-6 py-3.5 rounded-full shadow-[0_10px_40px_rgba(0,0,0,0.2)] text-[13px] sm:text-sm font-medium tracking-wide flex items-center gap-3 whitespace-nowrap"
+                    >
+                        <Check className="w-4 h-4 text-[#c6a87c] dark:text-[#5C4A3D]" /> {toastMessage}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            <div className="absolute top-4 right-4 sm:top-5 sm:right-5 z-20 flex items-center gap-1 sm:gap-2">
+                {!isEditing && (
+                    <button onClick={() => setIsEditing(true)} className="p-1.5 sm:p-2 bg-slate-50 dark:bg-[#1c1c20] rounded-md sm:rounded-lg border border-slate-200 dark:border-[#2d2d33] opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity flex items-center text-slate-500 hover:text-[#c6a87c] cursor-pointer shadow-sm">
+                        <Edit3 className="w-4 h-4" />
+                    </button>
+                )}
+
+                <div className="relative">
+                    <button onClick={() => { setIsMenuOpen(!isMenuOpen); setCopyMode(null); }} className="p-1.5 sm:p-2 rounded-md sm:rounded-lg border border-transparent hover:border-slate-200 dark:hover:border-[#2d2d33] transition-colors text-slate-400 hover:bg-slate-50 dark:hover:bg-[#1c1c20] hover:text-slate-800 dark:hover:text-[#FAFAFA] cursor-pointer">
+                        <MoreHorizontal className="w-6 h-6" />
+                    </button>
+
+                    <AnimatePresence>
+                        {isMenuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-30" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setCopyMode(null); }} />
+                                <motion.div initial={{ opacity: 0, scale: 0.95, y: 5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 5 }} className="absolute right-0 top-full mt-2 w-64 sm:w-72 bg-white dark:bg-[#1c1c20] border border-slate-200 dark:border-[#2d2d33] rounded-xl shadow-2xl z-40 overflow-hidden flex flex-col p-2">
+
+                                    {copyMode === 'selecting' ? (
+                                        <>
+                                            <button onClick={(e) => { e.stopPropagation(); setCopyMode(null); }} className="w-full text-left px-3 py-3 text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-slate-700 dark:hover:text-[#FAFAFA] rounded-md transition-colors flex items-center gap-2 mb-1 cursor-pointer">
+                                                <ChevronLeft className="w-5 h-5" /> Back
+                                            </button>
+                                            <div className="h-px w-full bg-slate-100 dark:bg-[#2d2d33] mb-1" />
+                                            <button onClick={(e) => handleCopyFormat(e, 'ar')} className="w-full text-left px-3 py-3 text-sm font-medium text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between cursor-pointer">
+                                                <span>Arabic Only</span>
+                                                {copiedAction === 'ar' && <Check className="w-5 h-5 text-emerald-500" />}
+                                            </button>
+                                            <button onClick={(e) => handleCopyFormat(e, 'en')} className="w-full text-left px-3 py-3 text-sm font-medium text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between cursor-pointer">
+                                                <span>English Only</span>
+                                                {copiedAction === 'en' && <Check className="w-5 h-5 text-emerald-500" />}
+                                            </button>
+                                            <button onClick={(e) => handleCopyFormat(e, 'ar_en')} className="w-full text-left px-3 py-3 text-sm font-medium text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between cursor-pointer">
+                                                <span>Arabic & English</span>
+                                                {copiedAction === 'ar_en' && <Check className="w-5 h-5 text-emerald-500" />}
+                                            </button>
+                                            <button onClick={(e) => handleCopyFormat(e, 'full')} className="w-full text-left px-3 py-3 text-sm font-medium text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between cursor-pointer">
+                                                <span>All</span>
+                                                {copiedAction === 'full' && <Check className="w-5 h-5 text-emerald-500" />}
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button onClick={handleAddToVault} className="w-full text-left px-3 py-3 text-sm font-medium text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between cursor-pointer">
+                                                <span className="flex items-center gap-3"><BookmarkPlus className="w-5 h-5 opacity-60" /> Add to Vault</span>
+                                                {copiedAction === 'vault' && <Check className="w-5 h-5 text-emerald-500" />}
+                                            </button>
+                                            <button onClick={(e) => { e.stopPropagation(); setCopyMode('selecting'); }} className="w-full text-left px-3 py-3 text-sm font-medium text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between cursor-pointer">
+                                                <span className="flex items-center gap-3"><Copy className="w-5 h-5 opacity-60" /> Copy Hadith</span>
+                                                <ChevronRight className="w-4 h-4 opacity-40" />
+                                            </button>
+                                            <button onClick={handleCopyLink} className="w-full text-left px-3 py-3 text-sm font-medium text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between cursor-pointer">
+                                                <span className="flex items-center gap-3"><Link className="w-5 h-5 opacity-60" /> Copy Link</span>
+                                                {copiedAction === 'link' && <Check className="w-5 h-5 text-emerald-500" />}
+                                            </button>
+                                            <button onClick={handleShare} className="w-full text-left px-3 py-3 text-sm font-medium text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between cursor-pointer">
+                                                <span className="flex items-center gap-3"><Share2 className="w-5 h-5 opacity-60" /> Share...</span>
+                                                {copiedAction === 'share' && <Check className="w-5 h-5 text-emerald-500" />}
+                                            </button>
+                                        </>
+                                    )}
+                                </motion.div>
+                            </>
+                        )}
+                    </AnimatePresence>
+                </div>
+            </div>
+
+            <div className="mb-3 mt-1">
+                <button onClick={(e) => { e.stopPropagation(); setShowArabic(!showArabic); }} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer text-slate-500 hover:text-[#c6a87c] dark:text-slate-400">
+                    {showArabic ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} {showArabic ? "Hide Original Arabic" : "View Original Arabic"}
+                </button>
+                <AnimatePresence>
+                    {showArabic && arabicText && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                            <div className="p-4 sm:p-5 rounded-lg mt-2 mb-2 border bg-slate-50 dark:bg-slate-900/50 border-slate-100 dark:border-slate-800">
+                                <p className="font-arabic text-xl md:text-2xl text-right leading-[2.2] text-slate-700 dark:text-slate-300" dir="rtl" lang="ar">
+                                    {arabicText}
+                                </p>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
+
+            {isEditing ? (
+                <div className="mt-6 border-t border-amber-200/50 dark:border-amber-800/50 pt-5 flex flex-col gap-4">
+                    <div>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-500 mb-2 block">Edit Chain of Narrators</label>
+                        <textarea
+                            value={draftChain}
+                            onChange={(e) => setDraftChain(e.target.value)}
+                            className="w-full bg-white dark:bg-[#1c1c20] border border-amber-200 dark:border-amber-800 rounded-lg p-3 text-sm italic font-sans text-slate-600 dark:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-y min-h-[80px]"
+                            placeholder="Paste the extracted chain here..."
+                        />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-amber-600 dark:text-amber-500 mb-2 block">Edit English Matn (Core Text)</label>
+                        <textarea
+                            value={draftBody}
+                            onChange={(e) => setDraftBody(e.target.value)}
+                            className="w-full bg-white dark:bg-[#1c1c20] border border-amber-200 dark:border-amber-800 rounded-lg p-4 text-lg sm:text-xl leading-relaxed font-serif text-slate-900 dark:text-[#f8f8f8] focus:outline-none focus:ring-2 focus:ring-amber-500/50 resize-y min-h-[300px]"
+                        />
+                    </div>
+                    {/* FIXED: Replaced onClick with onPointerDown to beat the mobile keyboard bug, and made the bar gracefully sticky so you never lose it on huge hadiths! */}
+                    <div className="sticky bottom-4 sm:bottom-6 z-50 flex justify-end gap-3 mt-4 p-3 bg-white/90 dark:bg-[#1c1c20]/90 backdrop-blur-xl border border-amber-200 dark:border-amber-800/80 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.5)]">
+                        <button
+                            onPointerDown={(e) => { e.preventDefault(); handleCancel(); }}
+                            className="px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onPointerDown={(e) => { e.preventDefault(); if (!isSaving) handleSaveEdit(); }}
+                            disabled={isSaving}
+                            className="px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest bg-amber-500 hover:bg-amber-600 text-white transition-colors cursor-pointer flex items-center gap-2 shadow-md"
+                        >
+                            {isSaving ? "Saving..." : <><Save className="w-4 h-4" /> Save</>}
+                        </button>
+                    </div>
+                </div>
+            ) : (
+                <>
+                    <div className="mb-5">
+                        <button onClick={(e) => { e.stopPropagation(); setShowChain(!showChain); }} className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer text-slate-500 hover:text-[#c6a87c] dark:text-slate-400">
+                            {showChain ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />} {showChain ? "Hide Chain of Narrators" : "View Chain of Narrators"}
+                        </button>
+                        <AnimatePresence>
+                            {showChain && (
+                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                                    <p className="mt-2 p-3 rounded-lg text-sm italic font-sans border bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 whitespace-pre-wrap">
+                                        {currentChain ? currentChain : "Chain information not explicitly found in English text."}
+                                    </p>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-[#2d2d33] pt-5">
+                        {paragraphs.map((para, idx) => (
+                            <p key={idx} dir="ltr" className={`text-left text-lg sm:text-xl text-slate-900 dark:text-[#f8f8f8] leading-relaxed font-serif antialiased ${idx !== paragraphs.length - 1 ? 'mb-3' : ''}`}>
+                                {(idx === 0 && showNumber) && (
+                                    <span className="font-bold text-[#c6a87c] dark:text-[#d4b78f] text-xl sm:text-2xl mr-2 select-none">{displayNum}.</span>
+                                )}
+                                {para}
+                            </p>
+                        ))}
+                    </div>
+                </>
+            )}
+        </div>
+    );
+};
+
+const HadithLibrary = ({ hadithData = [], externalTarget }) => {
+    const [currentView, setCurrentView] = useState(() => localStorage.getItem('kisa_hl_view') || 'home');
+    useEffect(() => { localStorage.setItem('kisa_hl_view', currentView); }, [currentView]);
+
     const [searchQuery, setSearchQuery] = useState('');
     const [dashExpanded, setDashExpanded] = useState({});
 
-    // --- READER STATE ---
     const [sidebarOpen, setSidebarOpen] = useState(true);
     const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
-    const [activeLocation, setActiveLocation] = useState({ book: null, volume: null, category: null, chapter: null });
+
+    const [isFabVisible, setIsFabVisible] = useState(true);
+    const { scrollY } = useScroll();
+
+    useMotionValueEvent(scrollY, "change", (latest) => {
+        if (currentView !== 'reader' || isMobileDrawerOpen) return;
+        const previous = scrollY.getPrevious();
+        if (latest > previous && latest > 150) {
+            setIsFabVisible(false);
+        } else if (previous > latest) {
+            setIsFabVisible(true);
+        }
+    });
+
+    useEffect(() => {
+        const header = document.querySelector('header');
+        if (isMobileDrawerOpen) {
+            if (header) header.classList.add('force-header-visible');
+            document.body.style.overflow = 'hidden';
+        } else {
+            if (header) header.classList.remove('force-header-visible');
+            document.body.style.overflow = '';
+        }
+        return () => {
+            if (header) header.classList.remove('force-header-visible');
+            document.body.style.overflow = '';
+        };
+    }, [isMobileDrawerOpen]);
+
+    const [activeLocation, setActiveLocation] = useState(() => {
+        const saved = localStorage.getItem('kisa_hl_loc');
+        return saved ? JSON.parse(saved) : { book: null, volume: null, category: null, chapter: null };
+    });
+    useEffect(() => { localStorage.setItem('kisa_hl_loc', JSON.stringify(activeLocation)); }, [activeLocation]);
+
     const [expandedBooks, setExpandedBooks] = useState({});
     const [expandedVolumes, setExpandedVolumes] = useState({});
     const [expandedCategories, setExpandedCategories] = useState({});
-    const [copiedId, setCopiedId] = useState(null);
     const topRef = useRef(null);
 
-    // --- PROGRESS & PHYSICS STATE ---
     const [readingProgress, setReadingProgress] = useState(() => {
         const saved = localStorage.getItem('kisa_hadith_progress');
         return saved ? JSON.parse(saved) : {};
     });
+
+    useEffect(() => {
+        try {
+            const savedData = JSON.parse(localStorage.getItem('kisa_hadith_progress') || '{}');
+            let hasCorruption = false;
+            Object.keys(savedData).forEach(key => {
+                if (key.includes('undefined')) {
+                    delete savedData[key];
+                    hasCorruption = true;
+                }
+            });
+            if (hasCorruption) {
+                localStorage.setItem('kisa_hadith_progress', JSON.stringify(savedData));
+                setReadingProgress(savedData);
+            }
+        } catch (e) { }
+    }, []);
 
     const [isExploding, setIsExploding] = useState(false);
     const [resumeToast, setResumeToast] = useState(false);
@@ -32,7 +497,6 @@ const HadithLibrary = ({ hadithData = [] }) => {
 
     const getChapterKey = (loc) => `${loc.book}|${loc.volume}|${loc.category}|${loc.chapter}`;
 
-    // --- BULLETPROOF DATA ENGINE ---
     const { hierarchy, flatChapters, dashboardData } = useMemo(() => {
         const tree = {};
         const chaptersList = [];
@@ -48,7 +512,6 @@ const HadithLibrary = ({ hadithData = [] }) => {
             const chap = String(h.chapter || h.chapter_number || 'Unknown Chapter');
             const chapKey = `${b}|${v}|${cat}|${chap}`;
 
-            // Build Sidebar Hierarchy
             if (!tree[b]) tree[b] = {};
             if (!tree[b][v]) tree[b][v] = {};
             if (!tree[b][v][cat]) tree[b][v][cat] = {};
@@ -58,7 +521,6 @@ const HadithLibrary = ({ hadithData = [] }) => {
             }
             tree[b][v][cat][chap].push(h);
 
-            // Build High-Performance Dashboard Data
             if (!dashboard[b]) dashboard[b] = { volumes: {} };
             if (!dashboard[b].volumes[v]) {
                 dashboard[b].volumes[v] = {
@@ -72,7 +534,6 @@ const HadithLibrary = ({ hadithData = [] }) => {
             dashboard[b].volumes[v].chapterKeys.add(chapKey);
         });
 
-        // Convert Sets to Arrays for fast React rendering and calculate chapter totals
         Object.values(dashboard).forEach(bData => {
             Object.values(bData.volumes).forEach(vData => {
                 vData.chapterKeys = Array.from(vData.chapterKeys);
@@ -82,6 +543,51 @@ const HadithLibrary = ({ hadithData = [] }) => {
 
         return { hierarchy: tree, flatChapters: chaptersList, dashboardData: dashboard };
     }, [hadithData]);
+
+    const lastOpenedTargetRef = useRef(null);
+
+    useEffect(() => {
+        if (externalTarget && externalTarget.book && Object.keys(hierarchy).length > 0) {
+            if (lastOpenedTargetRef.current === externalTarget) return;
+
+            const findFuzzyKey = (obj, searchStrings) => {
+                const keys = Object.keys(obj);
+                for (let str of searchStrings) {
+                    if (!str) continue;
+                    const match = keys.find(k => k.toLowerCase().includes(str.toLowerCase()));
+                    if (match) return match;
+                }
+                return keys[0];
+            };
+
+            const targetBookKey = findFuzzyKey(hierarchy, [externalTarget.book, 'kafi']);
+            const bookNode = hierarchy[targetBookKey];
+
+            if (bookNode) {
+                const targetVolKey = findFuzzyKey(bookNode, [externalTarget.volume, '1']);
+                const volNode = bookNode[targetVolKey];
+
+                if (volNode) {
+                    const targetCatKey = findFuzzyKey(volNode, [externalTarget.category, externalTarget.sub_book, 'intell', 'ignor']);
+                    const catNode = volNode[targetCatKey];
+
+                    if (catNode) {
+                        const targetChapKey = findFuzzyKey(catNode, [externalTarget.chapter, externalTarget.category, 'intell', 'ignor']);
+
+                        if (targetChapKey) {
+                            lastOpenedTargetRef.current = externalTarget;
+                            openReader({
+                                book: targetBookKey,
+                                volume: targetVolKey,
+                                category: targetCatKey,
+                                chapter: targetChapKey
+                            });
+                        }
+                    }
+                }
+            }
+        }
+    }, [externalTarget, hierarchy]);
 
     const searchResults = useMemo(() => {
         if (!searchQuery.trim()) return [];
@@ -94,12 +600,10 @@ const HadithLibrary = ({ hadithData = [] }) => {
         ).slice(0, 50);
     }, [searchQuery, hadithData]);
 
-    // --- AUTO-RESUME MEMOIZATION ---
     const resumeLocation = useMemo(() => {
         const progressEntries = Object.entries(readingProgress);
         if (progressEntries.length === 0) return null;
 
-        // Sort by most recently accessed
         progressEntries.sort((a, b) => (b[1].lastAccessed || 0) - (a[1].lastAccessed || 0));
         const lastId = progressEntries[0][0];
         const lastStatus = progressEntries[0][1].status;
@@ -111,20 +615,36 @@ const HadithLibrary = ({ hadithData = [] }) => {
         return null;
     }, [readingProgress]);
 
-    // --- NAVIGATION LOGIC ---
     const openReader = (loc) => {
         if (!loc || !loc.book) return;
+
+        const chapterKey = getChapterKey(loc);
+        const currentSavedData = JSON.parse(localStorage.getItem('kisa_hadith_progress') || '{}');
+        const currentStatus = currentSavedData[chapterKey]?.status || 'in-progress';
+
+        const newData = {
+            ...currentSavedData,
+            [chapterKey]: {
+                position: 0,
+                percentage: 0,
+                ...currentSavedData[chapterKey],
+                status: currentStatus === 'completed' ? 'completed' : 'in-progress',
+                lastAccessed: Date.now()
+            }
+        };
+
+        localStorage.setItem('kisa_hadith_progress', JSON.stringify(newData));
+        setReadingProgress(newData);
+
         setActiveLocation(loc);
         setCurrentView('reader');
 
-        // Force reset the expanded state so ONLY the newly selected route is open.
         setExpandedBooks({ [loc.book]: true });
         setExpandedVolumes({ [`${loc.book}-${loc.volume}`]: true });
         setExpandedCategories({ [`${loc.book}-${loc.volume}-${loc.category}`]: true });
     };
 
     const closeReader = () => {
-        // 1. Instantly capture the final scroll position the millisecond they click back
         if (activeLocation && activeLocation.chapter) {
             const chapterKey = getChapterKey(activeLocation);
             const currentSavedData = JSON.parse(localStorage.getItem('kisa_hadith_progress') || '{}');
@@ -133,9 +653,8 @@ const HadithLibrary = ({ hadithData = [] }) => {
             const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
             const scrolled = height > 0 ? (y / height) * 100 : 0;
 
-            const currentStatus = currentSavedData[chapterKey]?.status || 'unread';
-            // Ensure they actually scrolled past 2% to trigger the "Continue" banner
-            const newStatus = currentStatus === 'completed' ? 'completed' : (scrolled > 2 ? 'in-progress' : 'unread');
+            const currentStatus = currentSavedData[chapterKey]?.status || 'in-progress';
+            const newStatus = currentStatus === 'completed' ? 'completed' : 'in-progress';
 
             currentSavedData[chapterKey] = {
                 ...currentSavedData[chapterKey],
@@ -145,17 +664,14 @@ const HadithLibrary = ({ hadithData = [] }) => {
                 lastAccessed: Date.now()
             };
 
-            // 2. Force save to database AND force React state to update immediately
             localStorage.setItem('kisa_hadith_progress', JSON.stringify(currentSavedData));
             setReadingProgress(currentSavedData);
         }
 
-        // 3. Now return to the dashboard
         setCurrentView('home');
         setSearchQuery('');
     };
 
-    // --- CINEMATIC AUTO-RESUME & SCROLL PHYSICS ENGINE ---
     useEffect(() => {
         if (currentView !== 'reader' || !activeLocation.chapter) return;
 
@@ -163,18 +679,14 @@ const HadithLibrary = ({ hadithData = [] }) => {
         const savedData = JSON.parse(localStorage.getItem('kisa_hadith_progress') || '{}');
         const docData = savedData[chapterKey];
 
-        // 1. Layout Stabilization & Cinematic Warp
         if (docData && docData.position > 300) {
-            // Force the view to the top first so the user actually sees the descent
             window.scrollTo(0, 0);
 
-            // Wait 300ms for the DOM and heavy Arabic fonts to paint completely
             setTimeout(() => {
                 const startY = 0;
                 const targetY = docData.position;
                 const distance = targetY - startY;
 
-                // Calculate dynamic duration: minimum 800ms, maximum 1800ms depending on scroll depth
                 const duration = Math.min(1800, Math.max(800, Math.abs(distance) * 0.15));
                 let start = null;
 
@@ -183,21 +695,18 @@ const HadithLibrary = ({ hadithData = [] }) => {
                     const progress = timestamp - start;
                     const t = Math.min(progress / duration, 1);
 
-                    // The magic Ease-Out-Quart formula for buttery smooth deceleration
                     const easeOut = 1 - Math.pow(1 - t, 4);
                     window.scrollTo(0, startY + (distance * easeOut));
 
                     if (progress < duration) {
                         window.requestAnimationFrame(cinematicScroll);
                     } else {
-                        // We arrived! Find the exact Hadith card currently sitting in the viewport
                         const elements = Array.from(document.querySelectorAll('.hadith-block'));
                         const targetEl = elements.find(el => {
                             const rect = el.getBoundingClientRect();
                             return rect.top >= 0 && rect.top < window.innerHeight / 2;
                         }) || elements[0];
 
-                        // Trigger the illuminating highlight flash
                         if (targetEl) {
                             targetEl.classList.add('bg-[#c6a87c]/20', 'dark:bg-[#c6a87c]/20', 'transition-colors', 'duration-1000');
                             setTimeout(() => targetEl.classList.remove('bg-[#c6a87c]/20', 'dark:bg-[#c6a87c]/20'), 2500);
@@ -213,7 +722,6 @@ const HadithLibrary = ({ hadithData = [] }) => {
             window.scrollTo(0, 0);
         }
 
-        // 2. Scroll Tracking Telemetry
         let ticking = false;
         const handleScroll = () => {
             if (!ticking) {
@@ -227,7 +735,7 @@ const HadithLibrary = ({ hadithData = [] }) => {
                         const currentSavedData = JSON.parse(localStorage.getItem('kisa_hadith_progress') || '{}');
                         const currentStatus = currentSavedData[chapterKey]?.status;
 
-                        const newStatus = currentStatus === 'completed' ? 'completed' : (scrolled > 2 ? 'in-progress' : 'unread');
+                        const newStatus = currentStatus === 'completed' ? 'completed' : 'in-progress';
 
                         currentSavedData[chapterKey] = {
                             ...currentSavedData[chapterKey],
@@ -238,7 +746,7 @@ const HadithLibrary = ({ hadithData = [] }) => {
                         };
 
                         localStorage.setItem('kisa_hadith_progress', JSON.stringify(currentSavedData));
-                        setReadingProgress(currentSavedData); // Always keep React in perfect sync
+                        setReadingProgress(currentSavedData);
                         lastSaveTimeRef.current = now;
                     }
                     ticking = false;
@@ -251,7 +759,6 @@ const HadithLibrary = ({ hadithData = [] }) => {
         return () => window.removeEventListener('scroll', handleScroll);
     }, [currentView, activeLocation]);
 
-    // --- SEAMLESS PREV / NEXT LOGIC ---
     const currentIndex = flatChapters.findIndex(c =>
         c.book === activeLocation.book && c.volume === activeLocation.volume &&
         c.category === activeLocation.category && c.chapter === activeLocation.chapter
@@ -261,7 +768,6 @@ const HadithLibrary = ({ hadithData = [] }) => {
 
     const handleNext = () => {
         if (!nextChapterInfo) return;
-        // Silently mark current chapter as complete
         const chapterKey = getChapterKey(activeLocation);
         const newProg = {
             ...readingProgress,
@@ -277,47 +783,22 @@ const HadithLibrary = ({ hadithData = [] }) => {
         openReader(prevChapterInfo);
     };
 
-    const handleCopyId = (id) => {
-        navigator.clipboard.writeText(id);
-        setCopiedId(id);
-        setTimeout(() => setCopiedId(null), 2000);
-    };
-
-    const formatHadithText = (text) => {
-        if (!text) return "";
-        const safeText = String(text);
-        const match = safeText.match(/^(\s*\d+\.\s*)(.*)/);
-        if (match) {
-            return (
-                <span className="block">
-                    <span className="font-bold text-[#c6a87c] dark:text-[#d4b78f] text-lg sm:text-xl mr-2 select-none">
-                        {match[1].trim()}
-                    </span>
-                    {match[2]}
-                </span>
-            );
-        }
-        return safeText;
-    };
-
     const toggleBook = (bookName) => setExpandedBooks(prev => ({ ...prev, [bookName]: !prev[bookName] }));
     const toggleVolume = (volumeKey) => setExpandedVolumes(prev => ({ ...prev, [volumeKey]: !prev[volumeKey] }));
     const toggleCategory = (categoryKey) => setExpandedCategories(prev => ({ ...prev, [categoryKey]: !prev[categoryKey] }));
 
     const renderSidebarContent = (isMobile) => (
         <div className="flex flex-col h-full bg-[#f7f7f9] dark:bg-[#151518]">
-            <div className="p-5 border-b border-slate-200 dark:border-[#2d2d33] flex justify-between items-center bg-white dark:bg-[#252528] shrink-0">
-                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                    <Book className="w-4 h-4 text-[#c6a87c]" /> Collection Index
-                </h2>
-                {isMobile ? (
-                    <button onClick={() => setIsMobileDrawerOpen(false)} className="p-1"><X className="w-5 h-5 text-slate-500" /></button>
-                ) : (
+            {!isMobile && (
+                <div className="p-5 border-b border-slate-200 dark:border-[#2d2d33] flex justify-between items-center bg-white dark:bg-[#252528] shrink-0">
+                    <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                        <Book className="w-4 h-4 text-[#c6a87c]" /> Collection Index
+                    </h2>
                     <button onClick={() => setSidebarOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-zinc-800 rounded-full transition-colors cursor-pointer"><X className="w-4 h-4 text-slate-500" /></button>
-                )}
-            </div>
+                </div>
+            )}
 
-            <div className="p-4 overflow-y-auto flex-1 smart-scrollbar">
+            <div className={`px-4 pb-4 overflow-y-auto flex-1 smart-scrollbar ${isMobile ? 'pt-6' : 'pt-4'}`}>
                 {Object.entries(hierarchy).map(([bookName, volumes]) => {
                     const isBookExpanded = expandedBooks[bookName];
                     const isActiveBook = activeLocation.book === bookName;
@@ -380,7 +861,7 @@ const HadithLibrary = ({ hadithData = [] }) => {
                                                                             <AnimatePresence initial={false}>
                                                                                 {isCategoryExpanded && (
                                                                                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden flex flex-col gap-0.5 border-l-2 border-slate-200 dark:border-[#2d2d33] ml-2 pl-2 mt-1">
-                                                                                        {Object.keys(chapters).map(chapterName => {
+                                                                                        {Object.keys(chapters).map((chapterName, chapterIdx) => {
                                                                                             const isActiveChapter = isActiveCategory && activeLocation.chapter === chapterName;
                                                                                             return (
                                                                                                 <button
@@ -389,9 +870,10 @@ const HadithLibrary = ({ hadithData = [] }) => {
                                                                                                         openReader({ book: bookName, volume: volumeName, category: categoryName, chapter: chapterName });
                                                                                                         if (isMobile) setIsMobileDrawerOpen(false);
                                                                                                     }}
-                                                                                                    className={`text-left text-xs py-2.5 px-3 rounded-lg transition-colors cursor-pointer ${isActiveChapter ? 'bg-[#c6a87c]/10 text-[#c6a87c] font-bold border border-[#c6a87c]/20' : 'text-slate-500 hover:text-slate-800 dark:text-[#9a9a9f] dark:hover:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#1c1c20]'}`}
+                                                                                                    className={`text-left text-xs py-2.5 px-3 rounded-lg transition-colors cursor-pointer flex items-start gap-2 ${isActiveChapter ? 'bg-[#c6a87c]/10 text-[#c6a87c] font-bold border border-[#c6a87c]/20' : 'text-slate-500 hover:text-slate-800 dark:text-[#9a9a9f] dark:hover:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#1c1c20]'}`}
                                                                                                 >
-                                                                                                    {chapterName}
+                                                                                                    <span className="font-mono opacity-50 pt-[1px] shrink-0">{chapterIdx + 1}.</span>
+                                                                                                    <span>{chapterName}</span>
                                                                                                 </button>
                                                                                             )
                                                                                         })}
@@ -421,15 +903,19 @@ const HadithLibrary = ({ hadithData = [] }) => {
     // VIEW 1: THE DASHBOARD
     // ============================================================================
     if (currentView === 'home') {
+        let resumeChapIdx = -1;
+        if (resumeLocation) {
+            const catObj = hierarchy[resumeLocation.book]?.[resumeLocation.volume]?.[resumeLocation.category] || {};
+            resumeChapIdx = Object.keys(catObj).indexOf(resumeLocation.chapter);
+        }
+
         return (
             <div className="w-full min-h-screen pt-24 sm:pt-32 pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col pointer-events-auto relative z-10">
-
                 <div className="mb-10 text-center sm:text-left">
                     <h1 className="text-4xl sm:text-5xl font-serif font-bold text-zinc-900 dark:text-white mb-3">Hadith Library</h1>
                     <p className="text-zinc-500 dark:text-zinc-400 text-lg">Explore foundational Twelver Shia collections.</p>
                 </div>
 
-                {/* --- NEW: CINEMATIC AUTO-RESUME BANNER --- */}
                 {resumeLocation && !searchQuery.trim() && (
                     <motion.div
                         initial={{ opacity: 0, y: 10 }}
@@ -451,9 +937,11 @@ const HadithLibrary = ({ hadithData = [] }) => {
                                 </span>
                             </div>
 
-                            <h2 className="text-xl sm:text-2xl font-bold text-zinc-900 dark:text-white transition-colors group-hover:text-[#c6a87c] mb-2 leading-snug line-clamp-2">
-                                {resumeLocation.chapter}
-                            </h2>
+                            <ChapterTitleHeading
+                                chapterNumber={resumeChapIdx !== -1 ? resumeChapIdx + 1 : null}
+                                chapterTitle={resumeLocation.chapter}
+                                className="text-xl sm:text-2xl transition-colors group-hover:text-[#c6a87c] mb-2 line-clamp-2"
+                            />
                             <p className="text-xs sm:text-sm font-serif text-zinc-500 dark:text-zinc-400">
                                 {resumeLocation.volume} • {resumeLocation.category}
                             </p>
@@ -509,7 +997,7 @@ const HadithLibrary = ({ hadithData = [] }) => {
                                             <span>{v}</span> <ChevronRight className="w-3 h-3" />
                                             <span className="text-[#c6a87c]">{chap}</span>
                                         </div>
-                                        <p className="text-lg text-zinc-700 dark:text-zinc-300 font-serif leading-relaxed line-clamp-3">
+                                        <p dir="ltr" className="text-left text-lg text-zinc-700 dark:text-zinc-300 font-serif leading-relaxed line-clamp-3">
                                             {formatHadithText(hadith.englishText)}
                                         </p>
                                     </div>
@@ -603,12 +1091,16 @@ const HadithLibrary = ({ hadithData = [] }) => {
 
     const rawHadiths = hierarchy[activeLocation.book]?.[activeLocation.volume]?.[activeLocation.category]?.[activeLocation.chapter];
     const currentHadiths = Array.isArray(rawHadiths) ? rawHadiths : [];
-    const currentAuthor = currentHadiths.length > 0 ? String(currentHadiths[0].author || 'Shaykh Muḥammad b. Yaʿqūb al-Kulaynī') : 'Shaykh Muḥammad b. Yaʿqūb al-Kulaynī';
+
+    const currentCategoryChapters = hierarchy[activeLocation.book]?.[activeLocation.volume]?.[activeLocation.category] || {};
+    const displayChapterIndex = Object.keys(currentCategoryChapters).indexOf(activeLocation.chapter);
 
     return (
         <div className="w-full min-h-screen pt-20 sm:pt-32 pb-32 flex flex-col items-center font-sans relative px-0 sm:px-6 lg:px-8" ref={topRef}>
+            <style>{`
+                .force-header-visible { transform: translateY(0) !important; }
+            `}</style>
 
-            {/* THE RESUMED TOAST */}
             <AnimatePresence>
                 {resumeToast && (
                     <motion.div
@@ -636,15 +1128,25 @@ const HadithLibrary = ({ hadithData = [] }) => {
                 </AnimatePresence>
             </div>
 
-            <button onClick={() => setIsMobileDrawerOpen(true)} className="md:hidden fixed bottom-6 right-3 z-[210] w-12 h-12 bg-white dark:bg-[#252528] text-[#c6a87c] border border-slate-200 dark:border-[#2d2d33] rounded-full shadow-2xl flex items-center justify-center cursor-pointer transition-all">
-                <Menu className="w-5 h-5" />
-            </button>
+            <AnimatePresence>
+                {isFabVisible && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                        onClick={() => setIsMobileDrawerOpen(!isMobileDrawerOpen)}
+                        className="md:hidden fixed bottom-6 right-3 z-[250] w-12 h-12 bg-white dark:bg-[#252528] text-[#c6a87c] border border-slate-200 dark:border-[#2d2d33] rounded-full shadow-2xl flex items-center justify-center cursor-pointer transition-colors"
+                    >
+                        {isMobileDrawerOpen ? <X className="w-6 h-6" /> : <Menu className="w-5 h-5" />}
+                    </motion.button>
+                )}
+            </AnimatePresence>
 
             <AnimatePresence>
                 {isMobileDrawerOpen && (
                     <>
                         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileDrawerOpen(false)} className="md:hidden fixed inset-0 bg-black/40 z-[190] cursor-pointer backdrop-blur-sm" />
-                        <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="md:hidden fixed top-0 bottom-0 left-0 w-[85vw] max-w-[340px] bg-white dark:bg-[#0e0e11] z-[200] shadow-2xl border-r border-slate-200 dark:border-[#2d2d33] flex flex-col overflow-hidden">
+                        <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="md:hidden fixed top-12 sm:top-14 bottom-0 left-0 w-[85vw] max-w-[340px] bg-[#f7f7f9] dark:bg-[#151518] z-[200] shadow-2xl border-r border-slate-200 dark:border-[#2d2d33] flex flex-col overflow-hidden">
                             {renderSidebarContent(true)}
                         </motion.div>
                     </>
@@ -669,22 +1171,38 @@ const HadithLibrary = ({ hadithData = [] }) => {
                 <div className="flex-1 min-w-0 w-full flex justify-center transition-all duration-500">
                     <div className="w-full max-w-4xl mx-auto">
 
-                        {/* --- TOP SEAMLESS NAVIGATION --- */}
-                        <div className="flex items-center justify-between w-full mb-8 px-4 sm:px-0">
-                            {prevChapterInfo ? (
-                                <button onClick={handlePrev} className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-[#c6a87c] transition-colors cursor-pointer">
-                                    <ChevronLeft className="w-4 h-4" /> Previous
+                        <div className="flex items-center justify-between w-full mb-12 px-4 sm:px-0 mt-2">
+
+                            <button
+                                onClick={closeReader}
+                                className="flex items-center gap-1.5 bg-slate-50 dark:bg-[#1c1c20] hover:bg-white dark:hover:bg-[#2d2d33] rounded-full py-2 px-4 border border-slate-200 dark:border-[#2d2d33] shadow-sm transition-all text-slate-500 dark:text-slate-400 hover:text-[#c6a87c] dark:hover:text-[#c6a87c] text-[10px] sm:text-xs font-bold uppercase tracking-widest cursor-pointer"
+                            >
+                                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" /> Library
+                            </button>
+
+                            <div className="flex items-center bg-slate-50 dark:bg-[#1c1c20] rounded-full p-1.5 border border-slate-200 dark:border-[#2d2d33] shadow-sm px-2 gap-1 sm:gap-2">
+                                <button
+                                    onClick={handlePrev}
+                                    disabled={!prevChapterInfo}
+                                    className={`px-3 py-1.5 rounded-full transition-colors flex items-center justify-center ${prevChapterInfo ? 'hover:bg-white dark:hover:bg-[#2d2d33] text-slate-700 dark:text-slate-300 cursor-pointer shadow-sm' : 'opacity-30 cursor-not-allowed text-slate-400'}`}
+                                    title="Previous Chapter"
+                                >
+                                    <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
-                            ) : <div />}
-                            {nextChapterInfo ? (
-                                <button onClick={handleNext} className="flex items-center gap-1 text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-[#c6a87c] transition-colors cursor-pointer">
-                                    Next <ChevronRight className="w-4 h-4" />
+                                <div className="w-px h-4 bg-slate-300 dark:bg-[#3d3d43] mx-1" />
+                                <button
+                                    onClick={handleNext}
+                                    disabled={!nextChapterInfo}
+                                    className={`px-3 py-1.5 rounded-full transition-colors flex items-center justify-center ${nextChapterInfo ? 'hover:bg-white dark:hover:bg-[#2d2d33] text-slate-700 dark:text-slate-300 cursor-pointer shadow-sm' : 'opacity-30 cursor-not-allowed text-slate-400'}`}
+                                    title="Next Chapter"
+                                >
+                                    <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
-                            ) : <div />}
+                            </div>
                         </div>
 
                         <div className="mb-12 px-4 sm:px-0">
-                            <div className="flex items-center gap-2 text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-400 mb-6 flex-wrap">
+                            <div className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-3 flex items-center flex-wrap gap-2">
                                 <span>{String(activeLocation.book)}</span>
                                 <ChevronRight className="w-3 h-3" />
                                 <span>{String(activeLocation.volume)}</span>
@@ -692,78 +1210,28 @@ const HadithLibrary = ({ hadithData = [] }) => {
                                 <span className="text-[#c6a87c]">{String(activeLocation.category)}</span>
                             </div>
 
-                            <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-slate-800 dark:text-[#ededf0] leading-[1.15] tracking-tight mb-8">
-                                {String(activeLocation.chapter)}
-                            </h1>
+                            <ChapterTitleHeading
+                                chapterNumber={displayChapterIndex !== -1 ? displayChapterIndex + 1 : null}
+                                chapterTitle={String(activeLocation.chapter)}
+                                className="text-3xl sm:text-4xl md:text-5xl font-serif leading-[1.15] tracking-tight mb-6"
+                            />
 
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 sm:p-6 bg-slate-50 dark:bg-[#151518] border border-slate-200 dark:border-[#2d2d33] rounded-2xl shadow-sm">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-full bg-[#c6a87c]/10 flex items-center justify-center border border-[#c6a87c]/20 shrink-0">
-                                        <PenTool className="w-6 h-6 text-[#c6a87c]" />
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-0.5">Compiler & Collection</p>
-                                        <p className="text-sm sm:text-base font-serif font-medium text-slate-800 dark:text-[#ededf0]">
-                                            {currentAuthor} • <span className="italic text-[#c6a87c]">{String(activeLocation.book)}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                                <div className="hidden sm:block w-px h-10 bg-slate-200 dark:bg-[#2d2d33] shrink-0" />
-                                <div className="flex items-center">
-                                    <span className="text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-white dark:bg-[#1c1c20] px-4 py-2 rounded-lg border border-slate-200 dark:border-[#2d2d33] shadow-sm flex items-center gap-2">
-                                        <Book className="w-4 h-4 text-[#c6a87c]" /> {currentHadiths.length} Narrations
-                                    </span>
-                                </div>
+                            <div className="flex items-center mb-10">
+                                <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#1c1c20] px-3 py-1.5 rounded-md border border-slate-200 dark:border-[#2d2d33] shadow-sm flex items-center gap-1.5">
+                                    <Book className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#c6a87c]" /> {currentHadiths.length} Narrations
+                                </span>
                             </div>
                         </div>
 
                         <div className="flex flex-col gap-6 sm:gap-8 px-4 sm:px-0">
-                            {currentHadiths.map((hadith, index) => {
-                                const arabicText = hadith.arabicText || hadith.ar || "";
-                                const englishText = hadith.englishText || hadith.en || "";
-                                const grading = hadith.majlisiGrading || (hadith.gradingsFull && Array.isArray(hadith.gradingsFull) && hadith.gradingsFull.length > 0 ? hadith.gradingsFull[0].grade_ar : null);
-
-                                return (
-                                    <div key={hadith.id || index} className="hadith-block group bg-white dark:bg-[#151518] sm:border border-slate-200 dark:border-[#2d2d33] sm:rounded-2xl p-6 sm:p-8 sm:shadow-sm relative transition-all hover:border-[#c6a87c]/30">
-
-                                        <div className="flex justify-between items-start mb-6">
-                                            {grading ? (
-                                                <div className="px-3 py-1.5 rounded-md bg-slate-50 dark:bg-[#1c1c20] border border-slate-200 dark:border-[#2d2d33] inline-flex flex-col text-left">
-                                                    <p className="text-[9px] font-bold uppercase tracking-widest text-slate-400">Al-Majlisi</p>
-                                                    <p className="text-xs font-bold text-[#c6a87c]">{String(grading).replace(/['"]/g, '')}</p>
-                                                </div>
-                                            ) : <div />}
-
-                                            <button
-                                                onClick={() => handleCopyId(hadith.id)}
-                                                className="p-1.5 sm:p-2 bg-slate-50 dark:bg-[#1c1c20] rounded-md sm:rounded-lg border border-slate-200 dark:border-[#2d2d33] opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-[#c6a87c] cursor-pointer"
-                                                title="Copy Hadith ID for Admin Fixes"
-                                            >
-                                                {copiedId === hadith.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                                                <span className="hidden sm:inline">{copiedId === hadith.id ? 'Copied' : `ID: ${hadith.id}`}</span>
-                                            </button>
-                                        </div>
-
-                                        {arabicText && (
-                                            <p
-                                                className="text-xl sm:text-2xl text-right text-slate-900 dark:text-[#f8f8f8] leading-[2.2] sm:leading-[2.2] mb-6"
-                                                dir="rtl"
-                                                lang="ar"
-                                                style={{ fontFamily: '"Amiri Quran", "Amiri", "Noto Naskh Arabic", serif' }}
-                                            >
-                                                {String(arabicText)}
-                                            </p>
-                                        )}
-
-                                        <p className="text-lg sm:text-xl text-slate-900 dark:text-[#f8f8f8] leading-relaxed font-serif antialiased border-t border-slate-100 dark:border-[#2d2d33] pt-6">
-                                            {formatHadithText(englishText)}
-                                        </p>
-                                    </div>
-                                );
-                            })}
+                            {currentHadiths.map((hadith, index) => (
+                                <LibraryHadithNode
+                                    key={hadith.id || index}
+                                    hadith={hadith}
+                                />
+                            ))}
                         </div>
 
-                        {/* --- BOTTOM SEAMLESS NAVIGATION CARDS --- */}
                         <div className="mt-12 pt-8 border-t border-slate-200 dark:border-[#2d2d33] grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mb-24 px-4 sm:px-0">
                             {prevChapterInfo ? (
                                 <div onClick={handlePrev} className="group flex flex-col justify-center p-6 bg-white dark:bg-[#151518] border border-slate-200 dark:border-[#2d2d33] rounded-2xl cursor-pointer hover:border-[#c6a87c]/50 hover:shadow-sm transition-all text-left">

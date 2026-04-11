@@ -1,0 +1,48 @@
+{
+    "exploration_widgets": [
+        {
+            "id": "exp_001",
+            "display_title": "The Intellect & Ignorance",
+            "display_subtitle": "Kitab al-'Aql wal-Jahl",
+            "icon_name": "Compass",
+            "action": {
+                "query_string": "intellect reason aql ignorance foundation epistemology",
+                "search_mode": "concept",
+                "target_tab": "search"
+            }
+        },
+        {
+            "id": "exp_002",
+            "display_title": "The Divine Covenant",
+            "display_subtitle": "Wilayah & The Ahl al-Bayt",
+            "icon_name": "Star",
+            "action": {
+                "query_string": "wilayah divine covenant Imamate obedience Ahl al-Bayt",
+                "search_mode": "concept",
+                "target_tab": "search"
+            }
+        },
+        {
+            "id": "exp_003",
+            "display_title": "Verse of Purification",
+            "display_subtitle": "Ayah al-Tathir (33:33)",
+            "icon_name": "BookOpen",
+            "action": {
+                "query_string": "verse of purification Ayah Tathir infallible purity",
+                "search_mode": "concept",
+                "target_tab": "search"
+            }
+        },
+        {
+            "id": "exp_004",
+            "display_title": "The Promised Era",
+            "display_subtitle": "Signs of the Reappearance",
+            "icon_name": "Map",
+            "action": {
+                "query_string": "Mahdi reappearance Sayhah Sufyani end times justice",
+                "search_mode": "concept",
+                "target_tab": "search"
+            }
+        }
+    ]
+}

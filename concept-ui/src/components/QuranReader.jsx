@@ -1,8 +1,6 @@
-// src/components/QuranReader.jsx
-
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Moon, Sparkles, X, ChevronRight, ChevronLeft, Settings2, Clock, BookOpen, LibraryBig, Bookmark, Coins, HeartPulse, ShieldAlert, ChevronDown, ChevronUp, History, Library as LibraryIcon } from 'lucide-react';
+import { Search, Moon, Sparkles, X, ChevronRight, ChevronLeft, Settings2, Clock, BookOpen, LibraryBig, Bookmark, Coins, HeartPulse, ShieldAlert, ChevronDown, ChevronUp, History, Library as LibraryIcon, ArrowUp } from 'lucide-react';
 import quranData from '../quran.json';
 import verseMap from '../verse_map.json';
 import { quranBenefits, spiritualPrescriptions } from '../quranBenefits';
@@ -66,7 +64,7 @@ const QuranBookmarkButton = ({ surahId, surahName, verseNum, arText, enText, vau
             onClick={handleSaveClick}
             whileTap={{ scale: 1.3, rotate: -15 }}
             transition={{ type: "spring", stiffness: 400, damping: 10 }}
-            className={`p-1.5 rounded-full transition-colors cursor-pointer ${isSaved ? 'text-orange-500 hover:text-orange-600 dark:text-orange-500 dark:hover:text-orange-400' : 'text-slate-400 hover:text-orange-500 dark:text-slate-500 dark:hover:text-orange-400'}`}
+            className={`p-1.5 rounded-full transition-colors cursor-pointer ${isSaved ? 'text-amber-500 hover:text-amber-600' : 'text-slate-400 hover:text-amber-500'}`}
             title={isSaved ? "Remove from Vault" : "Save to Vault"}
         >
             <Bookmark className={isSurah ? "w-5 h-5" : "w-4 h-4 sm:w-5 sm:h-5"} fill={isSaved ? "currentColor" : "none"} strokeWidth={isSaved ? 0 : 2} />
@@ -87,6 +85,9 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
     const [targetVerse, setTargetVerse] = useState(null);
     const quranSearchInputRef = useRef(null);
 
+    // NEW: Scroll-to-Top State
+    const [showBackToTop, setShowBackToTop] = useState(false);
+
     const [analytics, setAnalytics] = useState(() => {
         const saved = localStorage.getItem('kisa_analytics');
         return saved ? JSON.parse(saved) : { totalCompleted: 0, totalSeconds: 0, history: {}, dailyTime: {} };
@@ -102,8 +103,14 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
         if (externalSurahTarget) {
             setSelectedSurah(externalSurahTarget);
             setCurrentView('reader');
-            if (externalVerseTarget) {
+
+            // FIX: If the verse target is 1 (or empty), treat it as a fresh start.
+            // Do not trigger the cinematic resume scroll.
+            if (externalVerseTarget && externalVerseTarget > 1) {
                 setTimeout(() => setTargetVerse(externalVerseTarget), 100);
+            } else {
+                window.scrollTo(0, 0);
+                setTargetVerse(null);
             }
         }
     }, [externalSurahTarget, externalVerseTarget]);
@@ -134,6 +141,11 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
             if (!ticking) {
                 window.requestAnimationFrame(() => {
                     const now = Date.now();
+
+                    // Show Back to Top button if scrolled down significantly
+                    if (window.scrollY > 800) setShowBackToTop(true);
+                    else setShowBackToTop(false);
+
                     if (now - lastSaveTime > 1000) {
                         const verses = document.querySelectorAll(`[id^="verse-${selectedSurah}-"]`);
                         let currentVerse = null;
@@ -281,6 +293,15 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
 
     useEffect(() => {
         if (targetVerse && ayahs.length > 0 && currentView === 'reader') {
+
+            // FIX: If targeting Verse 1, snap to the absolute top to show the 
+            // Header and Bismillah. Bypass the toast and the offset scroll.
+            if (targetVerse === 1) {
+                window.scrollTo(0, 0);
+                setTargetVerse(null);
+                return;
+            }
+
             let previousY = -1;
             let checks = 0;
             window.scrollTo(0, 0);
@@ -335,10 +356,10 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
         const isJumuah = dayOfWeek === 5;
 
         return (
-            <div className="w-full min-h-screen pt-24 sm:pt-32 pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col pointer-events-auto">
-                <div className="mb-10 text-center sm:text-left">
-                    <h1 className="text-4xl sm:text-5xl font-serif font-bold text-slate-900 dark:text-slate-50 mb-3">The Holy Quran</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-lg">Explore the divine revelation, mapped with Ahl al-Bayt commentary.</p>
+            <div className="w-full min-h-screen pt-2 sm:pt-4 pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col pointer-events-auto">
+                <div className="mb-6 text-center sm:text-left">
+                    <h1 className="text-4xl sm:text-5xl font-serif font-bold text-slate-900 dark:text-slate-50 mb-2">The Holy Quran</h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-base">Explore the divine revelation, mapped with Ahl al-Bayt commentary.</p>
                 </div>
                 <div className="w-full bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 mb-10 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
                     <div className="flex gap-8">
@@ -502,7 +523,23 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
     }
 
     return (
-        <div className="w-full max-w-4xl px-4 sm:px-6 pt-24 sm:pt-28 pb-12 mx-auto min-h-screen flex flex-col items-center pointer-events-auto">
+        <div className="w-full max-w-4xl px-4 sm:px-6 pt-2 pb-12 mx-auto min-h-screen flex flex-col items-center pointer-events-auto relative">
+
+            {/* FAB: Back to Top */}
+            <AnimatePresence>
+                {showBackToTop && currentView === 'reader' && (
+                    <motion.button
+                        initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.8, y: 20 }}
+                        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                        className="fixed bottom-6 right-6 z-[90] w-12 h-12 bg-amber-600/90 dark:bg-amber-500/90 backdrop-blur-md text-white rounded-full shadow-2xl flex items-center justify-center hover:bg-amber-700 dark:hover:bg-amber-400 hover:scale-105 transition-all cursor-pointer border border-white/20"
+                    >
+                        <ArrowUp className="w-5 h-5" />
+                    </motion.button>
+                )}
+            </AnimatePresence>
+
             {(showSurahMenu || showSettingsMenu || showVirtues) && (<div className="fixed inset-0 z-[60] pointer-events-auto" onClick={() => { setShowSurahMenu(false); setShowSettingsMenu(false); setShowVirtues(false); }} />)}
 
             <AnimatePresence>
@@ -642,7 +679,8 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
                                 <span id={`verse-${selectedSurah}-${idx + 1}`} key={`ar-${idx}`} className="inline rounded-lg transition-colors duration-1000">
                                     {ayah.ar}
                                     <span className={`text-amber-700 dark:text-amber-500 opacity-80 text-xl mx-2 font-sans transition-colors ${relatedCount > 0 ? 'cursor-pointer hover:text-amber-900 dark:hover:text-amber-300 drop-shadow-md' : ''}`} title={relatedCount > 0 ? `Read ${relatedCount} Related Hadiths` : ''} onClick={() => relatedCount > 0 && onTafsirClick(selectedSurah, idx + 1)}>
-                                        ﴾{toArabicNum(idx + 1)}﴿
+                                        {/* FIX: Swapped the ornate brackets so they face inwards in RTL */}
+                                        ﴿{toArabicNum(idx + 1)}﴾
                                         {relatedCount > 0 && <sup className="text-[10px] font-bold text-amber-600 bg-amber-100 dark:bg-amber-900/50 rounded px-1 ml-0.5">{relatedCount}</sup>}
                                     </span>
                                 </span>
@@ -679,7 +717,8 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
                             <div id={`verse-${selectedSurah}-${idx + 1}`} key={idx} className="py-8 sm:py-10 border-b border-[#d4c5b0] dark:border-[#2a2a2a] first:pt-0 relative group flex flex-col sm:block rounded-xl transition-colors duration-1000 px-2 sm:px-4">
                                 <div className="mb-4 sm:mb-0 sm:absolute sm:top-12 sm:left-4"><span className="text-[10px] sm:text-xs font-mono font-bold text-amber-900 dark:text-amber-500 bg-[#eaddc6] dark:bg-[#1a1a1a] border border-[#d4c5b0] dark:border-[#333] px-2 py-1 rounded shadow-sm inline-block">{selectedSurah}:{idx + 1}</span></div>
                                 <div className="sm:pl-20">
-                                    <p className="font-arabic text-3xl sm:text-4xl lg:text-[40px] text-right leading-[2.4] sm:leading-[2.5] text-slate-900 dark:text-slate-100 mb-6" dir="rtl" lang="ar" style={{ fontFamily: activeFontFamily }}>{ayah.ar} <span className="text-amber-700 dark:text-amber-500 opacity-80 ml-2 text-xl font-sans">﴾{toArabicNum(idx + 1)}﴿</span></p>
+                                    {/* FIX: Swapped the ornate brackets so they face inwards in RTL */}
+                                    <p className="font-arabic text-3xl sm:text-4xl lg:text-[40px] text-right leading-[2.4] sm:leading-[2.5] text-slate-900 dark:text-slate-100 mb-6" dir="rtl" lang="ar" style={{ fontFamily: activeFontFamily }}>{ayah.ar} <span className="text-amber-700 dark:text-amber-500 opacity-80 ml-2 text-xl font-sans">﴿{toArabicNum(idx + 1)}﴾</span></p>
                                     <AnimatePresence>{showTranslation && (<motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden"><div className="border-t border-[#d4c5b0]/50 dark:border-[#2a2a2a]/50 pt-5 mt-3"><p className="text-lg sm:text-xl text-slate-800 dark:text-slate-300 leading-relaxed font-serif">{ayah.en}</p></div></motion.div>)}</AnimatePresence>
                                     <div className="mt-4 flex justify-end items-center gap-3">
                                         {relatedCount > 0 && (<button onClick={() => onTafsirClick(selectedSurah, idx + 1)} className="flex items-center gap-1.5 text-[10px] sm:text-xs uppercase tracking-wider font-bold text-amber-700 hover:text-amber-900 dark:text-amber-500 dark:hover:text-amber-400 transition-colors bg-amber-100/50 dark:bg-amber-900/20 px-3 py-1.5 rounded-md cursor-pointer shadow-sm"><LibraryBig className="w-3.5 h-3.5" /> Related Hadiths <span className="bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 px-1.5 py-0.5 rounded text-[10px] ml-1">{relatedCount}</span></button>)}
@@ -690,9 +729,25 @@ const QuranReader = ({ activeFontFamily, fontStyle, setFontStyle, handleSurahSel
                     })}
                 </div>
             )}
+
+            {/* NEXT / PREVIOUS SURAH BENTOS */}
+            <div className="mt-12 pt-8 border-t border-[#d4c5b0] dark:border-[#2a2a2a] grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mb-12">
+                {selectedSurah > 1 ? (
+                    <div onClick={() => openSurah(selectedSurah - 1)} className="group flex flex-col justify-center p-6 bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-amber-500/50 hover:shadow-sm transition-all text-left">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5"><ChevronLeft className="w-4 h-4 text-amber-500" /> Previous Surah</span>
+                        <h3 className="font-serif font-bold text-lg text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">{surahs.find(s => s.id === selectedSurah - 1)?.enName}</h3>
+                    </div>
+                ) : <div />}
+
+                {selectedSurah < 114 ? (
+                    <div onClick={() => openSurah(selectedSurah + 1)} className="group flex flex-col justify-center p-6 bg-white dark:bg-[#1a1a1a] border border-slate-200 dark:border-slate-800 rounded-2xl cursor-pointer hover:border-amber-500/50 hover:shadow-sm transition-all text-right items-end">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2 flex items-center gap-1.5">Next Surah <ChevronRight className="w-4 h-4 text-amber-500" /></span>
+                        <h3 className="font-serif font-bold text-lg text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-500 transition-colors">{surahs.find(s => s.id === selectedSurah + 1)?.enName}</h3>
+                    </div>
+                ) : <div />}
+            </div>
+
         </div>
-
-
     );
 };
 

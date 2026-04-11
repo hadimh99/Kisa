@@ -2,14 +2,12 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Moon, Sun, Sparkles, X, ChevronRight, ChevronLeft, Home, Copy, ChevronDown, ChevronUp, List, Layout, BookOpen, History, HelpCircle, Share2, Check, Menu, Clock, Trash2, Library as LibraryIcon, ArrowDown, User, Bookmark, Youtube, Database, Download } from 'lucide-react';
+import { Search, ChevronRight, ChevronLeft, Copy, ChevronDown, ChevronUp, List, Layout, BookOpen, History, Sparkles, X, Check, Clock, Trash2, Library as LibraryIcon, ArrowDown, Bookmark, Youtube, Database, Download } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 import { jsPDF } from 'jspdf';
 import RevisionModule from './RevisionModule';
 import MasteryRing from './MasteryRing';
-import TranscriptVideoPlayer from './TranscriptVideoPlayer';
-import revisionData from '../revision_data.json';
-
+import transcriptData from '../transcripts.json';
 
 const TranscriptBookmarkButton = ({ doc, vaultItems = [] }) => {
     const sourceRef = doc.title;
@@ -73,7 +71,7 @@ const TranscriptLibrary = ({
     const [isArchiveOpen, setIsArchiveOpen] = useState(true);
     const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(true);
     const [fontSize, setFontSize] = useState(18);
-    const [fontFamily, setFontFamily] = useState('sans');
+    const [fontFamily, setFontFamily] = useState('serif');
     const [isTocOpen, setIsTocOpen] = useState(false);
 
     const [readingProgress, setReadingProgress] = useState(() => {
@@ -88,18 +86,12 @@ const TranscriptLibrary = ({
 
     const [resumeToast, setResumeToast] = useState(false);
     const [isExploding, setIsExploding] = useState(false);
-
-    // --- NEW: Text Selection Highlight State ---
     const [selectionPopup, setSelectionPopup] = useState(null);
     const [highlightToast, setHighlightToast] = useState(false);
-
-    // Component local UI state
-    const [showMobileMenu, setShowMobileMenu] = useState(false);
-    const [copiedLink, setCopiedLink] = useState(false);
     const [showExportMenu, setShowExportMenu] = useState(false);
-
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-    const transcriptContentRef = useRef(null); // We will attach this to the reading canvas
+
+    const transcriptContentRef = useRef(null);
 
     useEffect(() => {
         if (currentView !== 'reader') return;
@@ -111,7 +103,7 @@ const TranscriptLibrary = ({
             if (text.length > 0 && activeDoc) {
                 const range = selection.getRangeAt(0);
                 const rect = range.getBoundingClientRect();
-                const isMobile = window.innerWidth < 768; // Detect if on a mobile device
+                const isMobile = window.innerWidth < 768;
 
                 setSelectionPopup({
                     text,
@@ -159,38 +151,13 @@ const TranscriptLibrary = ({
         if (!error) {
             window.dispatchEvent(new Event('vault-updated'));
             setSelectionPopup(null);
-            window.getSelection().removeAllRanges(); // Deselect text
+            window.getSelection().removeAllRanges();
             setHighlightToast(true);
             setTimeout(() => setHighlightToast(false), 2500);
         } else {
             alert(`Supabase Error: ${error.message}`);
         }
     };
-
-    const headerRef = useRef(null);
-
-    // Global Header Hide-on-Scroll Logic
-    useEffect(() => {
-        let lastScrollY = window.scrollY;
-        const handleScroll = () => {
-            if (!headerRef.current) return;
-            const currentScrollY = window.scrollY;
-
-            // Hide header if scrolling down past 150px
-            if (currentScrollY > lastScrollY && currentScrollY > 150) {
-                headerRef.current.style.transform = 'translateY(-150%)';
-                headerRef.current.style.opacity = '0';
-            } else {
-                // Show header if scrolling up
-                headerRef.current.style.transform = 'translateY(0)';
-                headerRef.current.style.opacity = '1';
-            }
-            lastScrollY = currentScrollY;
-        };
-
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
 
     const maxScrollYRef = useRef(0);
     const returnDesktopRef = useRef(null);
@@ -344,6 +311,7 @@ const TranscriptLibrary = ({
         });
     };
 
+    // FIX: Replaced undefined SearchQuery with the correct state setter
     const closeReader = () => {
         setCurrentView('home');
         setActiveDoc(null);
@@ -356,7 +324,6 @@ const TranscriptLibrary = ({
         const timer = setInterval(() => {
             setAnalytics(prev => {
                 const currentSecs = prev.totalSeconds !== undefined ? prev.totalSeconds : (prev.totalMinutes * 60 || 0);
-
                 const dateObj = new Date();
                 const todayStr = dateObj.getFullYear() + '-' + String(dateObj.getMonth() + 1).padStart(2, '0') + '-' + String(dateObj.getDate()).padStart(2, '0');
 
@@ -376,7 +343,6 @@ const TranscriptLibrary = ({
         return () => clearInterval(timer);
     }, [currentView, activeDoc]);
 
-    // Cinematic Navigation from Vault
     useEffect(() => {
         if (externalDocTarget && currentView !== 'reader') {
             const targetDoc = transcripts.find(t => t.id === externalDocTarget);
@@ -524,6 +490,7 @@ const TranscriptLibrary = ({
         }
     };
 
+    // THE FIXED SEGMENT TRACKING PHYSICS (Native Apple Math)
     useEffect(() => {
         if (currentView !== 'reader' || !activeDoc) return;
 
@@ -582,6 +549,8 @@ const TranscriptLibrary = ({
                             break;
                         }
                     }
+
+                    // Dynamic Segment Docking: Ducks underneath the Global Header when visible, slides up when reading.
                     if (stickySegmentRef.current) {
                         if (currentSegment && !isZenModeRef.current) {
                             if (stickySegmentRef.current.innerText !== currentSegment) {
@@ -591,7 +560,7 @@ const TranscriptLibrary = ({
                             stickySegmentRef.current.style.transform = 'translateY(0)';
                         } else {
                             stickySegmentRef.current.style.opacity = '0';
-                            stickySegmentRef.current.style.transform = 'translateY(-20px)';
+                            stickySegmentRef.current.style.transform = 'translateY(-150%)';
                         }
                     }
 
@@ -602,7 +571,6 @@ const TranscriptLibrary = ({
 
                         const newStatus = currentStatus === 'completed' ? 'completed' : (scrolled > 2 ? 'in-progress' : 'unread');
 
-                        // THE FIX: We spread the existing data first so it doesn't delete your quiz score!
                         currentSavedData[activeDoc.id] = {
                             ...currentSavedData[activeDoc.id],
                             position: y,
@@ -669,7 +637,6 @@ const TranscriptLibrary = ({
 
         let mdContent = '';
 
-        // 1. Inject Premium Frontmatter (Metadata)
         mdContent += `---\n`;
         mdContent += `title: "${doc.title}"\n`;
         if (doc.series) mdContent += `series: "${doc.series}"\n`;
@@ -678,12 +645,9 @@ const TranscriptLibrary = ({
         mdContent += `export_date: "${new Date().toISOString().split('T')[0]}"\n`;
         mdContent += `---\n\n`;
 
-        // 2. Main Title
         mdContent += `# ${doc.title}\n\n`;
 
-        // 3. Loop through content blocks and parse to Markdown
         (doc.content || []).forEach(block => {
-            // Clean up bold tags to ensure standard Markdown spacing
             let text = block.text ? block.text.replace(/\*\*(.*?)\*\*/g, '**$1**') : '';
 
             if (block.type === 'h2') {
@@ -699,12 +663,10 @@ const TranscriptLibrary = ({
             }
         });
 
-        // 4. Trigger Native File Download
         const blob = new Blob([mdContent], { type: 'text/markdown;charset=utf-8;' });
         const link = document.createElement('a');
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        // Create a clean filename
         const filename = (doc.title || 'transcript').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') + '.md';
         link.setAttribute('download', filename);
         link.style.visibility = 'hidden';
@@ -719,14 +681,12 @@ const TranscriptLibrary = ({
         setIsGeneratingPDF(true);
 
         try {
-            // 1. Initialize a clean A4 Document
             const pdf = new jsPDF('p', 'mm', 'a4');
             const pageWidth = pdf.internal.pageSize.getWidth();
             const margin = 20;
             const maxLineWidth = pageWidth - margin * 2;
             let y = 20;
 
-            // Helper function for page breaks
             const checkPageBreak = (spaceNeeded) => {
                 if (y + spaceNeeded > 280) {
                     pdf.addPage();
@@ -734,25 +694,21 @@ const TranscriptLibrary = ({
                 }
             };
 
-            // 2. Write the Title
             pdf.setFont("times", "bold");
             pdf.setFontSize(22);
             const titleLines = pdf.splitTextToSize(doc.title, maxLineWidth);
             pdf.text(titleLines, margin, y);
             y += (titleLines.length * 10);
 
-            // 3. Write the Metadata
             pdf.setFont("times", "italic");
             pdf.setFontSize(12);
-            pdf.setTextColor(100, 100, 100); // Gray text
+            pdf.setTextColor(100, 100, 100);
             pdf.text(`${doc.speaker} | ${doc.series || 'Al-Kisa Digital Archive'}`, margin, y);
             y += 15;
 
-            pdf.setTextColor(0, 0, 0); // Back to black
+            pdf.setTextColor(0, 0, 0);
 
-            // 4. Loop through content and format it like a research paper
             (doc.content || []).forEach(block => {
-                // Strip markdown bold tags for the PDF
                 let text = block.text ? block.text.replace(/\*\*(.*?)\*\*/g, '$1') : '';
 
                 if (block.type === 'h2') {
@@ -767,29 +723,26 @@ const TranscriptLibrary = ({
                 } else if (block.type === 'summary') {
                     checkPageBreak(30);
 
-                    const startY = y - 4; // Start the vertical line slightly above the header
+                    const startY = y - 4;
 
-                    // 1. Print the Header distinctly (Bold and Uppercase)
                     pdf.setFont("times", "bold");
                     pdf.setFontSize(10);
                     pdf.text("SEGMENT SUMMARY", margin + 5, y);
-                    y += 6; // Add a nice gap between the header and the text
+                    y += 6;
 
-                    // 2. Print the paragraph with better line spacing
                     pdf.setFont("times", "italic");
                     pdf.setFontSize(11);
                     const lines = pdf.splitTextToSize(text, maxLineWidth - 10);
 
                     lines.forEach(line => {
                         pdf.text(line, margin + 5, y);
-                        y += 5.5; // Explicitly forces comfortable, readable line spacing
+                        y += 5.5;
                     });
 
-                    // 3. Draw the vertical line to match the EXACT height of the text
                     pdf.setLineWidth(0.4);
                     pdf.line(margin, startY, margin, y - 3);
 
-                    y += 5; // Add bottom padding before the next section
+                    y += 5;
 
                 } else if (block.type === 'quote') {
                     checkPageBreak(20);
@@ -815,7 +768,6 @@ const TranscriptLibrary = ({
                 }
             });
 
-            // 5. Instantly trigger the native download
             const filename = `${doc.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`;
             pdf.save(filename);
 
@@ -898,7 +850,7 @@ const TranscriptLibrary = ({
             </div>
 
             <div className="p-3 sm:p-4 overflow-y-auto smart-scrollbar flex-grow flex flex-col gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block ml-1 mb-2">Archive List</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block ml-1 mb-2">Library List</span>
                 <ArchiveList />
             </div>
         </div>
@@ -913,8 +865,7 @@ const TranscriptLibrary = ({
             <div className="w-full min-h-screen pt-24 sm:pt-32 pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col pointer-events-auto">
 
                 <div className="mb-10 text-center sm:text-left">
-                    <h1 className="text-4xl sm:text-5xl font-serif font-bold text-zinc-900 dark:text-white mb-3">Digital Archive</h1>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-lg">Explore translated scholarly series and foundational lectures.</p>
+                    <h1 className="text-4xl sm:text-5xl font-serif font-bold text-zinc-900 dark:text-white mb-3">Scholarly Library</h1>                    <p className="text-zinc-500 dark:text-zinc-400 text-lg">Explore translated scholarly series and foundational lectures.</p>
                 </div>
 
                 <div className="w-full bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 mb-10 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -1039,7 +990,7 @@ const TranscriptLibrary = ({
                                     {res.matches.length > 0 && (
                                         <div className="flex flex-col gap-3">
                                             {res.matches.slice(0, 3).map((match, mIdx) => (
-                                                <p key={mIdx} className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 font-serif leading-relaxed border-l-2 border-[#c6a87c]/30 pl-4 py-1">
+                                                <p key={mIdx} className="text-sm sm:text-base text-zinc-600 dark:text-zinc-400 font-editorial leading-relaxed border-l-2 border-[#c6a87c]/30 pl-4 py-1">
                                                     {highlightMatch(getSnippet(match, searchQuery), searchQuery)}
                                                 </p>
                                             ))}
@@ -1133,90 +1084,6 @@ const TranscriptLibrary = ({
     return (
         <div className="w-full min-h-screen pt-20 sm:pt-32 pb-32 flex flex-col items-center font-sans relative px-0 sm:px-6 lg:px-8">
 
-            {/* GLOBAL HEADER PASSTHROUGH FOR READER VIEW */}
-            <header ref={headerRef} className="fixed top-4 sm:top-4 w-full z-[75] p-4 sm:p-6 flex justify-between items-center pointer-events-none transition-all duration-500 ease-in-out">
-                <div onClick={handleHomeClick} className="flex items-center gap-3 pointer-events-auto cursor-pointer group">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 group-hover:scale-105 border bg-[#c6a87c]/10 border-[#c6a87c]/20 backdrop-blur-md shadow-sm">
-                        <KisaLogo className="w-5 h-5 text-[#c6a87c]" />
-                    </div>
-                    <div>
-                        <h1 className="font-sans font-bold text-lg sm:text-xl tracking-tight hidden sm:block group-hover:opacity-80 transition-opacity text-[#2D241C] dark:text-[#FAFAFA]">Al-Kisa</h1>
-                        <div className="flex items-center gap-2 sm:mt-0.5">
-                            <p className="font-sans text-[10px] sm:text-xs opacity-60 hidden sm:block text-[#2D241C] dark:text-[#FAFAFA]">Digital Archive</p>
-                            <span className="hidden sm:block w-1 h-1 rounded-full bg-[#5C4A3D]/30 dark:bg-[#c6a87c]/40"></span>
-                            <button onClick={(e) => { e.stopPropagation(); setShowUpdates(true); }} className="hidden sm:flex pointer-events-auto text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer items-center gap-1 px-1.5 py-0.5 rounded-md text-[#c6a87c] bg-[#c6a87c]/10 hover:text-[#d4b78f]">
-                                <Sparkles className="w-3 h-3" />What's New
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-2 sm:gap-4 relative z-[75] pointer-events-auto">
-                    <div className="flex items-center rounded-full p-1 mr-1 sm:mr-2 border shadow-sm bg-white/40 dark:bg-[#252528]/80 border-slate-300/30 dark:border-zinc-700/50 backdrop-blur-md">
-                        <button onClick={() => setActiveTab('search')} className="p-2 rounded-full transition-all duration-300 cursor-pointer text-[#5C4A3D]/70 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c]" title="Search Engine"><Search className="w-4 h-4" /></button>
-                        <button onClick={() => setActiveTab('quran')} className="p-2 rounded-full transition-all duration-300 cursor-pointer text-[#5C4A3D]/70 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c]" title="Quran Reader"><BookOpen className="w-4 h-4" /></button>
-                        <button onClick={() => setActiveTab('library')} className="p-2 rounded-full transition-all duration-300 cursor-pointer bg-[#c6a87c]/20 text-[#c6a87c] dark:text-[#d4b78f]" title="Transcript Library"><LibraryIcon className="w-4 h-4" /></button>
-                    </div>
-
-                    <div className="hidden md:flex items-center gap-2 sm:gap-4">
-                        <button onClick={() => setShowHistoryDrawer(true)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group transition-all duration-300 hover:scale-110 cursor-pointer"><Clock className="w-5 h-5 text-[#5C4A3D]/80 dark:text-[#c6a87c]/60 group-hover:text-[#c6a87c]" /></button>
-                        <button onClick={() => setShowInfo(true)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group transition-all duration-300 hover:scale-110 cursor-pointer"><HelpCircle className="w-5 h-5 text-[#5C4A3D]/80 dark:text-[#c6a87c]/60 group-hover:text-[#c6a87c]" /></button>
-                        <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group transition-all duration-300 hover:scale-110 cursor-pointer">{theme === 'dark' ? <Sun className="w-5 h-5 text-[#c6a87c]/60 group-hover:text-yellow-400" /> : <Moon className="w-5 h-5 text-[#5C4A3D]/80 group-hover:text-[#2D241C]" />}</button>
-
-                        {user ? (
-                            <div className="flex items-center gap-3">
-                                <button onClick={() => setShowVault(true)} title="Vault" className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-[#c6a87c] bg-[#c6a87c]/10 hover:bg-[#c6a87c]/20 transition-colors border border-[#c6a87c]/20 cursor-pointer">
-                                    <Bookmark className="w-5 h-5" />
-                                </button>
-                                <button onClick={() => setShowSignOutConfirm(true)} className="text-[10px] uppercase font-bold tracking-widest text-[#5C4A3D]/60 dark:text-[#c6a87c]/50 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer pr-1">
-                                    Sign Out
-                                </button>
-                            </div>
-                        ) : (
-                            <button onClick={() => setShowAuthModal(true)} className="flex items-center gap-2 text-sm font-medium text-[#5C4A3D] dark:text-[#FAFAFA] hover:text-[#2D241C] dark:hover:text-[#c6a87c] transition-colors cursor-pointer">
-                                <User className="w-4 h-4" />
-                                <span className="hidden sm:inline">Sign In</span>
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="md:hidden flex items-center gap-1 sm:gap-2 relative">
-                        {user ? (
-                            <button onClick={() => setShowVault(true)} className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer border shadow-sm bg-[#c6a87c]/10 text-[#c6a87c] border-zinc-700/50">
-                                <Bookmark className="w-5 h-5" />
-                            </button>
-                        ) : (
-                            <button onClick={() => setShowAuthModal(true)} className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer border shadow-sm bg-[#c6a87c]/10 text-[#c6a87c] border-zinc-700/50">
-                                <User className="w-5 h-5" />
-                            </button>
-                        )}
-                        <button onClick={() => setShowHistoryDrawer(true)} className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer border shadow-sm bg-[#c6a87c]/10 text-[#c6a87c] border-zinc-700/50">
-                            <Clock className="w-5 h-5" />
-                        </button>
-                        <div className="relative">
-                            <button onClick={() => setShowMobileMenu(!showMobileMenu)} className="w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer border shadow-sm bg-[#c6a87c]/10 text-[#c6a87c] border-zinc-700/50">
-                                <Menu className="w-5 h-5" />
-                            </button>
-                            <AnimatePresence>
-                                {showMobileMenu && (
-                                    <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="absolute right-0 top-full mt-2 w-48 rounded-xl shadow-xl p-2 flex flex-col gap-1 z-[75] border bg-white dark:bg-[#1c1c1e] border-zinc-200 dark:border-zinc-800">
-                                        <button onClick={() => { navigator.clipboard.writeText(window.location.href); setCopiedLink(true); setTimeout(() => { setCopiedLink(false); setShowMobileMenu(false); }, 1000); }} className={`w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer ${copiedLink ? 'text-emerald-500' : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2e]'}`}><Share2 className="w-4 h-4 shrink-0" /> Share Link</button>
-                                        <button onClick={() => { setShowUpdates(true); setShowMobileMenu(false); }} className="w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2e]"><Sparkles className="w-4 h-4 shrink-0" /> What's New</button>
-                                        <button onClick={() => { setShowInfo(true); setShowMobileMenu(false); }} className="w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2e]"><HelpCircle className="w-4 h-4 shrink-0" /> Help & Guide</button>
-                                        {user && (
-                                            <button onClick={() => { setShowSignOutConfirm(true); setShowMobileMenu(false); }} className="w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
-                                                <User className="w-4 h-4 shrink-0" /> Sign Out
-                                            </button>
-                                        )}
-                                        <button onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setShowMobileMenu(false); }} className="w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2e]">{theme === 'dark' ? <Sun className="w-4 h-4 shrink-0 text-[#c6a87c]" /> : <Moon className="w-4 h-4 shrink-0 text-[#5C4A3D]" />} Toggle Theme</button>
-                                    </motion.div>
-                                )}
-                            </AnimatePresence>
-                        </div>
-                    </div>
-                </div>
-            </header>
-
             <div className="md:hidden w-full max-w-[1400px] mx-auto mb-6 px-4 sm:px-0 flex justify-start pointer-events-auto">
                 <button
                     onClick={closeReader}
@@ -1232,8 +1099,8 @@ const TranscriptLibrary = ({
 
             <div
                 ref={stickySegmentRef}
-                className="fixed top-1 left-0 w-full z-[250] py-1.5 px-4 text-center text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 bg-[#fbfbfb]/95 dark:bg-[#1c1c1e]/95 backdrop-blur-md border-b border-zinc-200/80 dark:border-zinc-800/80 shadow-sm transition-all duration-300 pointer-events-none will-change-transform truncate"
-                style={{ opacity: 0, transform: 'translateY(-20px)' }}
+                className="fixed top-12 sm:top-14 left-0 w-full z-[140] py-1.5 px-4 text-center text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-400 bg-[#fbfbfb]/95 dark:bg-[#1c1c1e]/95 backdrop-blur-md border-b border-zinc-200/80 dark:border-zinc-800/80 shadow-sm transition-all duration-400 pointer-events-none will-change-transform truncate"
+                style={{ opacity: 0, transform: 'translateY(-150%)' }}
             />
 
             <AnimatePresence>
@@ -1305,7 +1172,6 @@ const TranscriptLibrary = ({
                     transition={{ duration: 0.4, ease: "easeInOut" }}
                     className="hidden md:flex shrink-0 overflow-hidden sticky top-28 self-start h-[calc(100vh-120px)] flex-col gap-4"
                 >
-                    {/* --- NEW: Sticky Back Button --- */}
                     <button
                         onClick={closeReader}
                         className="flex items-center gap-2 text-zinc-500 hover:text-[#c6a87c] transition-colors text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer pl-1 w-max"
@@ -1340,7 +1206,6 @@ const TranscriptLibrary = ({
                                 <span className="text-zinc-300 dark:text-zinc-600 hidden sm:inline">|</span>
                                 <span className="flex items-center gap-1.5 text-zinc-500"><Clock className="w-3.5 h-3.5" /> {readingTime} min read</span>
 
-                                {/* 1. The YouTube Link (Properly closed) */}
                                 {activeDoc.source_link && (
                                     <>
                                         <span className="text-zinc-300 dark:text-zinc-600 hidden sm:inline">|</span>
@@ -1350,7 +1215,6 @@ const TranscriptLibrary = ({
                                     </>
                                 )}
 
-                                {/* 2. The Premium Export Menu */}
                                 <span className="text-zinc-300 dark:text-zinc-600 hidden sm:inline">|</span>
                                 <div className="relative">
                                     <button onClick={() => setShowExportMenu(!showExportMenu)} className="flex items-center gap-1.5 text-zinc-500 hover:text-[#c6a87c] transition-colors cursor-pointer group">
@@ -1411,7 +1275,7 @@ const TranscriptLibrary = ({
                                             <div className="bg-[#FDFBF7]/95 dark:bg-[#030A06]/95 backdrop-blur-2xl border-t border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 px-5 pt-4 pb-8 sm:pb-6 flex items-center justify-between shadow-[0_-10px_40px_rgba(0,0,0,0.1)] dark:shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
                                                 <div className="flex flex-col overflow-hidden pr-4 max-w-[60%]">
                                                     <span className="text-[9px] uppercase tracking-widest font-bold text-[#5C4A3D]/60 dark:text-[#c6a87c]/60 mb-1 flex items-center gap-1.5"><Sparkles className="w-3 h-3" /> Text Selected</span>
-                                                    <span className="text-sm font-serif text-[#2D241C] dark:text-[#FAFAFA] truncate italic">"{selectionPopup.text}"</span>
+                                                    <span className="text-sm font-editorial text-[#2D241C] dark:text-[#FAFAFA] truncate italic">"{selectionPopup.text}"</span>
                                                 </div>
                                                 <button
                                                     onClick={handleSaveHighlight}
@@ -1475,17 +1339,17 @@ const TranscriptLibrary = ({
                             </div>
                         )}
 
-                        <div className={`text-zinc-800 dark:text-zinc-300 antialiased ${fontFamily === 'serif' ? 'font-serif' : 'font-sans'}`} style={{ fontSize: `${fontSize}px`, lineHeight: 1.85 }}>
+                        <div className={`text-zinc-800 dark:text-zinc-300 antialiased ${fontFamily === 'serif' ? 'font-editorial' : 'font-sans'}`} style={{ fontSize: `${fontSize}px`, lineHeight: 1.85 }}>
                             {(activeDoc.content || []).map((block, idx) => {
                                 if (block.type === 'h2') return <h2 id={`segment-${idx}`} key={idx} className="transcript-block segment-header font-bold text-zinc-900 dark:text-white mt-14 mb-6 tracking-tight scroll-mt-24 font-sans" style={{ fontSize: `${fontSize * 1.3}px`, lineHeight: 1.3 }}>{block.text}</h2>;
                                 if (block.type === 'summary') return (
                                     <div key={idx} className="transcript-block bg-zinc-50 dark:bg-[#1c1c1e] border-l-4 border-[#c6a87c] p-6 sm:p-8 my-10 rounded-r-xl shadow-sm">
                                         <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#c6a87c] mb-3"><Sparkles className="w-3.5 h-3.5" /> Segment Summary</span>
-                                        <p className="text-zinc-700 dark:text-zinc-300 font-medium" style={{ fontSize: `${Math.max(15, fontSize - 2)}px`, lineHeight: 1.7 }}>{parseFormatting(block.text)}</p>
+                                        <p className="text-zinc-700 dark:text-zinc-300 font-medium font-editorial" style={{ fontSize: `${Math.max(15, fontSize - 2)}px`, lineHeight: 1.7 }}>{parseFormatting(block.text)}</p>
                                     </div>
                                 );
                                 if (block.type === 'quote') return (
-                                    <blockquote key={idx} className="transcript-block pl-6 sm:pl-8 py-2 my-10 border-l-[3px] border-[#c6a87c] font-medium text-zinc-900 dark:text-zinc-100 italic font-serif" style={{ fontSize: `${fontSize * 1.15}px`, lineHeight: 1.6 }}>"{parseFormatting(block.text)}"</blockquote>
+                                    <blockquote key={idx} className="transcript-block pl-6 sm:pl-8 py-2 my-10 border-l-[3px] border-[#c6a87c] font-medium text-zinc-900 dark:text-zinc-100 italic font-editorial" style={{ fontSize: `${fontSize * 1.15}px`, lineHeight: 1.6 }}>"{parseFormatting(block.text)}"</blockquote>
                                 );
                                 if (block.type === 'divider') return <div key={idx} className="flex justify-center py-10"><span className="w-12 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span></div>;
                                 return <p key={idx} className="transcript-block mb-6 text-left">{parseFormatting(block.text)}</p>;

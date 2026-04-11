@@ -1,27 +1,57 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Moon, Sun, Sparkles, X, ChevronRight, ChevronLeft, Home, Copy, ChevronDown, ChevronUp, List, Layout, Info, BookOpen, History, HelpCircle, Database, Filter, Share2, Check, Settings2, Menu, Clock, Trash2, LibraryBig, Youtube, Library as LibraryIcon, ArrowDown, User, Bookmark, Coins, HeartPulse, ShieldAlert, MoreHorizontal, PenLine, FolderPlus, FolderMinus, Book } from 'lucide-react';
+import { Search, Moon, Sun, Sparkles, X, ChevronRight, ChevronLeft, Home as HomeIcon, Copy, ChevronDown, ChevronUp, List, Layout, Info, BookOpen, History, HelpCircle, Database, Filter, Share2, Check, Settings2, Menu, Clock, Trash2, LibraryBig, Youtube, Library as LibraryIcon, ArrowDown, User, Bookmark, Coins, HeartPulse, ShieldAlert, MoreHorizontal, PenLine, FolderPlus, FolderMinus, Book, CalendarDays } from 'lucide-react';
 import quranData from './quran.json';
 import verseMap from './verse_map.json';
 import transcriptData from './transcripts.json';
 import { supabase } from './supabaseClient';
 import { quranBenefits, spiritualPrescriptions } from './quranBenefits';
 import QuranReader from './components/QuranReader';
+import DuaLibrary from './components/DuaLibrary';
 import HadithCard from './components/HadithCard';
 import TranscriptLibrary from './components/TranscriptLibrary';
 import HadithLibrary from './components/HadithLibrary';
-
-
+import Home from './components/Home';
+import SpiritualHub from './components/SpiritualHub';
 
 const APP_UPDATES = [
-  { version: "v4.0.0", date: "March 8, 2026", changes: ["Introduced the Digital Archive (Transcript Library): A premium reading environment for translated scholarly series, starting with 'The File of Fatima'.", "UI Polish: Added custom text parser for bold highlights, unified mobile drawer, and high-performance native scrolling for transcripts."] },
-  { version: "v3.5.3", date: "March 5, 2026", changes: ["Documentation: Completely overhauled the 'Help & Guide' section to detail the comprehensive suite of tools now available in Al-Kisa, including Vector Hopping, Dynamic Map Views, and Reverse Quran Tafsir."] },
-  { version: "v3.5.2", date: "March 5, 2026", changes: ["Feature Polish: Added a 'Copy Text' button to all 'Anchored Source' views (both List View accordion and Map View modal) allowing you to copy the full reference, Arabic, and translation instantly.", "Map UX Overhaul: Nodes are uniformly sized and mathematically bounded to never overlap the center box or go off-screen."] }
+  {
+    version: "v5.0.0",
+    date: "April 11, 2026",
+    changes: [
+      "Platform Evolution: Al-Kisa has officially transitioned into a full-scale learning platform. Expect new, highly structured educational and scholarly content to be released every single week.",
+      "Expanded Liturgy (Duas & Ziyarats): Launched a dedicated core texts section for navigating Duas and Ziyarats, with a massive library of new content arriving soon.",
+      "Architectural Overhaul: Introduced a premium, iOS-tier native physics engine. UI interactions now feature critical spring-squish mechanics, GPU-accelerated crossfading, and micro-haptic feedback.",
+      "Infinite Hadith Discovery: The Daily Hadith card now features a lightning-fast 'Shuffle' engine with seamless layout morphing and zero-stutter cinematic blur transitions.",
+      "UI Polish: Completely reimagined the Home Screen with an Apple-standard Bento Grid layout and an optimized, zero-stutter 'Ghost Writer' entrance choreography."
+    ]
+  },
+  {
+    version: "v4.0.0",
+    date: "March 8, 2026",
+    changes: [
+      "Introduced the Digital Archive (Transcript Library): A premium reading environment for translated scholarly series, starting with 'The File of Fatima'.",
+      "UI Polish: Added custom text parser for bold highlights, unified mobile drawer, and high-performance native scrolling for transcripts."
+    ]
+  },
+  {
+    version: "v3.5.3",
+    date: "March 5, 2026",
+    changes: [
+      "Documentation: Completely overhauled the 'Help & Guide' section to detail the comprehensive suite of tools now available in Al-Kisa, including Vector Hopping, Dynamic Map Views, and Reverse Quran Tafsir."
+    ]
+  },
+  {
+    version: "v3.5.2",
+    date: "March 5, 2026",
+    changes: [
+      "Feature Polish: Added a 'Copy Text' button to all 'Anchored Source' views (both List View accordion and Map View modal) allowing you to copy the full reference, Arabic, and translation instantly.",
+      "Map UX Overhaul: Nodes are uniformly sized and mathematically bounded to never overlap the center box or go off-screen."
+    ]
+  }
 ];
 const CLUSTER_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#f43f5e', '#3b82f6'];
 const SOURCES = ["All Twelver Sources", "al-Kafi", "Bihar al-Anwar", "Basa'ir al-Darajat"];
-
-
 
 const timeAgo = (ts) => {
   const diff = Math.floor((Date.now() - ts) / 60000);
@@ -38,63 +68,90 @@ const KisaLogo = ({ className }) => (
   </svg>
 );
 
+// THE UPGRADED NATIVE ICON PHYSICS
+// Automatically morphs to X on mount, and morphs back to Hamburger on exit.
+const AnimatedMenuIcon = ({ isOpen, className }) => (
+  <motion.svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <motion.line x1="4" y1="9" x2="20" y2="9" initial={false} animate={isOpen ? { y1: 12, y2: 12, rotate: 45 } : { y1: 9, y2: 9, rotate: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} style={{ transformOrigin: "center" }} />
+    <motion.line x1="4" y1="15" x2="20" y2="15" initial={false} animate={isOpen ? { y1: 12, y2: 12, rotate: -45 } : { y1: 15, y2: 15, rotate: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} style={{ transformOrigin: "center" }} />
+  </motion.svg>
+);
 
+const TwoLineMenu = ({ className }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="4" y1="9" x2="20" y2="9" />
+    <line x1="4" y1="15" x2="20" y2="15" />
+  </svg>
+);
 
 export default function App() {
 
-  // --- NEW: ASYNC HADITH DATA LOADING ---
   const [alKafiData, setAlKafiData] = useState([]);
   const [isHadithLoading, setIsHadithLoading] = useState(true);
-  const [hadithLoadError, setHadithLoadError] = useState(null); // NEW: Error tracking
+  const [hadithLoadError, setHadithLoadError] = useState(null);
 
   useEffect(() => {
-    const fetchHadithData = async () => {
+    const fetchHybridData = async () => {
       try {
         setIsHadithLoading(true);
         setHadithLoadError(null);
 
         const response = await fetch('/thaqalayn_complete.json', { cache: 'force-cache' });
+        if (!response.ok) throw new Error("Could not load the core library file.");
 
-        if (!response.ok) {
-          throw new Error(`HTTP Error ${response.status}: Vercel could not find the file. Ensure 'thaqalayn_complete.json' is inside the root 'public' folder.`);
+        const rawData = await response.json();
+        let staticData = Array.isArray(rawData) ? rawData : (Object.values(rawData).find(Array.isArray) || []);
+
+        if (staticData.length === 0) throw new Error("Library loaded, but no hadiths were found.");
+
+        const { data: edits, error } = await supabase
+          .from('kisa_hadiths')
+          .select('id, manual_body, manual_chain')
+          .not('manual_body', 'is', null);
+
+        if (error) {
+          console.warn("Could not load cloud edits, falling back to pure static.", error);
         }
 
-        const data = await response.json();
-
-        // Defensive parsing: Ensure we extract the array even if the JSON is wrapped in an object
-        let finalData = [];
-        if (Array.isArray(data)) {
-          finalData = data;
-        } else if (data && typeof data === 'object') {
-          const possibleArray = Object.values(data).find(Array.isArray);
-          if (possibleArray) finalData = possibleArray;
+        if (edits && edits.length > 0) {
+          const editMap = new Map(edits.map(e => [e.id, e]));
+          staticData = staticData.map(hadith => {
+            const edit = editMap.get(String(hadith.id));
+            if (edit) {
+              return {
+                ...hadith,
+                manual_body: edit.manual_body,
+                manual_chain: edit.manual_chain
+              };
+            }
+            return hadith;
+          });
         }
 
-        if (finalData.length === 0) {
-          throw new Error("File loaded successfully, but no hadiths were found inside it.");
-        }
-
-        setAlKafiData(finalData);
+        setAlKafiData(staticData);
       } catch (error) {
-        console.error("Error loading Hadith data:", error);
+        console.error("Error loading hybrid data:", error);
         setHadithLoadError(error.message);
       } finally {
         setIsHadithLoading(false);
       }
     };
-    fetchHadithData();
+
+    fetchHybridData();
   }, []);
 
   const [query, setQuery] = useState('');
-
   const [searchMode, setSearchMode] = useState('concept');
   const [sourceFilter, setSourceFilter] = useState(SOURCES[0]);
-
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState('light');
 
-  // --- AUTHENTICATION & SESSION STATE ---
+  const [showSearchOverlay, setShowSearchOverlay] = useState(false);
+  const [showUserHub, setShowUserHub] = useState(false);
+  const [showMobileNav, setShowMobileNav] = useState(false);
+  const globalSearchRef = useRef(null);
+
   const [user, setUser] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authEmail, setAuthEmail] = useState('');
@@ -103,7 +160,6 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(false);
   const [authMessage, setAuthMessage] = useState({ text: '', type: '' });
 
-  // THE MISSING PIECE RESTORED:
   const [showSignOutConfirm, setShowSignOutConfirm] = useState(false);
   const [showVault, setShowVault] = useState(false);
   const [vaultItems, setVaultItems] = useState([]);
@@ -119,15 +175,13 @@ export default function App() {
   const [movingItemId, setMovingItemId] = useState(null);
   const [isCollectionsOpen, setIsCollectionsOpen] = useState(true);
 
-  // NEW STATES FOR UI UPGRADES
   const [activeCardMenu, setActiveCardMenu] = useState(null);
-  const [cardMenuMode, setCardMenuMode] = useState('main'); // 'main', 'move', 'add'
+  const [cardMenuMode, setCardMenuMode] = useState('main');
   const [noteSaveStatus, setNoteSaveStatus] = useState('');
   const [showEditorArabic, setShowEditorArabic] = useState(false);
   const [showEditorChain, setShowEditorChain] = useState(false);
   const [localEmptyFolders, setLocalEmptyFolders] = useState([]);
 
-  // Extract unique folders handling comma-separated multi-folders
   const customFolders = useMemo(() => {
     const folders = new Set(localEmptyFolders);
     vaultItems.forEach(item => {
@@ -140,7 +194,6 @@ export default function App() {
     return Array.from(folders).sort();
   }, [vaultItems, localEmptyFolders]);
 
-  // FIXED FILTERING LOGIC
   const filteredVaultItems = useMemo(() => {
     let filtered = vaultItems;
     if (activeFolder === 'Uncategorized') filtered = filtered.filter(item => !item.folder_name);
@@ -167,9 +220,6 @@ export default function App() {
     return filtered;
   }, [vaultItems, activeFolder, vaultSearch]);
 
-  const toggleVaultExpand = (id) => setExpandedVaultItems(prev => ({ ...prev, [id]: !prev[id] }));
-
-  // ADVANCED MULTI-FOLDER SUPPORT LOGIC
   const assignToFolder = async (itemId, folderName, mode = 'move') => {
     const item = vaultItems.find(i => i.id === itemId);
     let newFolderName = folderName;
@@ -179,44 +229,34 @@ export default function App() {
       if (!current.includes(folderName)) current.push(folderName);
       newFolderName = current.join(', ');
     } else if (mode === 'remove' && folderName) {
-      // Strips ONLY the specific folder from the comma-separated list
       let current = item.folder_name ? item.folder_name.split(',').map(f => f.trim()).filter(Boolean) : [];
       current = current.filter(f => f !== folderName);
       newFolderName = current.length > 0 ? current.join(', ') : null;
     }
 
-    // 1. Optimistic Update
     setVaultItems(prev => prev.map(i => i.id === itemId ? { ...i, folder_name: newFolderName } : i));
     setMovingItemId(null);
     setActiveCardMenu(null);
-    setCardMenuMode('main'); // Reset the menu mode for next time
+    setCardMenuMode('main');
 
-    // 2. Cloud Sync
     const { error } = await supabase.from('vault_items').update({ folder_name: newFolderName }).eq('id', itemId);
     if (error) {
       alert(`Supabase Error: ${error.message}`);
-      fetchVaultItems(); // Reverts the UI if cloud fails
+      fetchVaultItems();
     }
   };
 
-  // FOLDER DELETION LOGIC
   const deleteFolder = async (e, folderToDelete) => {
     e.stopPropagation();
-
-    // Quick confirmation to prevent accidental clicks
     if (!window.confirm(`Delete the collection "${folderToDelete}"?\n\nYour saved bookmarks will NOT be deleted, only the folder tag will be removed.`)) return;
 
-    // 1. Remove from local empty folders state
     setLocalEmptyFolders(prev => prev.filter(f => f !== folderToDelete));
 
-    // 2. Find all items that have this folder tag
     const affectedItems = vaultItems.filter(item =>
       item.folder_name && item.folder_name.split(',').map(f => f.trim()).includes(folderToDelete)
     );
 
-    // 3. Update state and database if items exist
     if (affectedItems.length > 0) {
-      // Optimistic UI update
       setVaultItems(prev => prev.map(item => {
         if (!item.folder_name) return item;
         const folders = item.folder_name.split(',').map(f => f.trim()).filter(Boolean);
@@ -227,7 +267,6 @@ export default function App() {
         return item;
       }));
 
-      // Fire off database updates in parallel
       await Promise.all(affectedItems.map(item => {
         const folders = item.folder_name.split(',').map(f => f.trim()).filter(Boolean);
         const newFolders = folders.filter(f => f !== folderToDelete);
@@ -236,13 +275,11 @@ export default function App() {
       }));
     }
 
-    // 4. Redirect user if they were inside the deleted folder
     if (activeFolder === folderToDelete) {
       setActiveFolder('All');
       setSelectedVaultItem(null);
     }
   };
-
 
   const fetchVaultItems = async () => {
     if (!user) return;
@@ -253,19 +290,15 @@ export default function App() {
   useEffect(() => {
     if (user) fetchVaultItems();
     else setVaultItems([]);
-
-    // Listen for custom save events from anywhere in the app to instantly refresh!
     const handleVaultUpdate = () => fetchVaultItems();
     window.addEventListener('vault-updated', handleVaultUpdate);
     return () => window.removeEventListener('vault-updated', handleVaultUpdate);
   }, [user]);
 
   useEffect(() => {
-    // 1. Check for an active session when the app loads
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
     });
-    // 2. Listen silently in the background for login/logout events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
     });
@@ -288,10 +321,8 @@ export default function App() {
 
     let error;
     if (isSignUp) {
-      // Create new account
       const { data, error: signUpError } = await supabase.auth.signUp({ email: authEmail, password: authPassword });
       error = signUpError;
-      // Catch if user already exists
       if (!error && data?.user?.identities?.length === 0) {
         error = { message: "An account with this email already exists. Please sign in." };
       } else if (!error) {
@@ -299,7 +330,6 @@ export default function App() {
         setTimeout(() => { setShowAuthModal(false); setAuthPassword(''); }, 1500);
       }
     } else {
-      // Log into existing account
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: authEmail, password: authPassword });
       error = signInError;
       if (!error) {
@@ -327,20 +357,28 @@ export default function App() {
   const ITEMS_PER_PAGE = 10;
   const [lengthFilter, setLengthFilter] = useState('All');
   const [copiedLink, setCopiedLink] = useState(false);
-  const [activeTab, setActiveTab] = useState('search');
+
+  // NATIVE MEMORY: Remembers your exact tab when switching apps
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== 'undefined') return localStorage.getItem('kisa_active_tab') || 'home';
+    return 'home';
+  });
+  useEffect(() => { localStorage.setItem('kisa_active_tab', activeTab); }, [activeTab]);
+
   const [quranPopup, setQuranPopup] = useState(null);
 
   const [tafsirData, setTafsirData] = useState(null);
   const [tafsirLoading, setTafsirLoading] = useState(false);
   const [tafsirTarget, setTafsirTarget] = useState(null);
 
-  const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showHistoryDrawer, setShowHistoryDrawer] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
   const [appHistory, setAppHistory] = useState([]);
   const [quranTarget, setQuranTarget] = useState(null);
   const [quranVerseTarget, setQuranVerseTarget] = useState(null);
   const [transcriptTarget, setTranscriptTarget] = useState(null);
+  const [hadithTarget, setHadithTarget] = useState(null);
+  const [duaTarget, setDuaTarget] = useState(null);
   const [transcriptHighlight, setTranscriptHighlight] = useState(null);
   const [anchorHadith, setAnchorHadith] = useState(null);
   const [showAnchor, setShowAnchor] = useState(false);
@@ -348,10 +386,8 @@ export default function App() {
   const [anchorCopied, setAnchorCopied] = useState(false);
 
   const [fontStyle, setFontStyle] = useState('scheherazade');
-
   const searchIdRef = useRef(0);
 
-  // --- NEW: Parse Quran Details for Vault Action Bar ---
   let quranDetails = null;
   let vaultRelatedCount = 0;
   if (selectedVaultItem?.type === 'quran' && selectedVaultItem.source?.includes('Verse')) {
@@ -375,24 +411,7 @@ export default function App() {
         '"XBZarFont", "Noto Naskh Arabic", sans-serif';
 
   const containerRef = useRef(null);
-  const headerRef = useRef(null);
-  useEffect(() => {
-    let lastScrollY = window.scrollY;
-    const handleScroll = () => {
-      if (!headerRef.current) return;
-      const currentScrollY = window.scrollY;
-      if (currentScrollY > lastScrollY && currentScrollY > 150) {
-        headerRef.current.style.transform = 'translateY(-100%)';
-        headerRef.current.style.opacity = '0';
-      } else {
-        headerRef.current.style.transform = 'translateY(0)';
-        headerRef.current.style.opacity = '1';
-      }
-      lastScrollY = currentScrollY;
-    };
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+
   const modalScrollRef = useRef(null);
   const tafsirScrollRef = useRef(null);
   const searchInputContainerRef = useRef(null);
@@ -448,7 +467,23 @@ export default function App() {
   useEffect(() => {
     document.title = "Al-Kisa";
     theme === 'dark' ? document.documentElement.classList.add('dark') : document.documentElement.classList.remove('dark');
-  }, [theme]);
+
+    // --- 3-TIER GLOBAL COLOR ENGINE (Eye-Strain Optimized) ---
+    const getBgColor = () => {
+      if (theme === 'dark') return '#000000';
+      if (theme === 'sepia') return '#FDFBF7';
+      return '#F5F5F7';
+    };
+
+    const getTextColor = () => {
+      if (theme === 'dark') return '#F5F5F7';
+      if (theme === 'sepia') return '#2D241C';
+      return '#1D1D1F';
+    };
+
+    document.body.style.backgroundColor = getBgColor();
+    document.body.style.color = getTextColor();
+  }, [theme, activeTab]);
 
   useEffect(() => {
     if (!loading) return; let timeouts = [];
@@ -471,8 +506,6 @@ export default function App() {
   useEffect(() => {
     let lastWidth = window.innerWidth;
     const updateDimensions = () => {
-      // SCROLL FIX: Only update state if screen WIDTH changes. 
-      // Ignores Safari URL bar collapsing to prevent momentum-killing re-renders.
       if (window.innerWidth !== lastWidth) {
         setWindowWidth(window.innerWidth);
         if (window.innerWidth < 800 && viewMode === 'map') setViewMode('list');
@@ -488,19 +521,11 @@ export default function App() {
   const executeSearch = async (searchQuery, currentMode, currentSource, queryVector = null, excludeId = null, apiQuery = null, anchorObj = null) => {
     if (!searchQuery.trim()) return;
     const currentSearchId = ++searchIdRef.current;
-
     const textToEmbed = apiQuery || searchQuery;
 
     saveToHistory({
-      type: 'search',
-      query: searchQuery,
-      mode: currentMode,
-      source: currentSource,
-      timestamp: Date.now(),
-      queryVector: queryVector,
-      excludeId: excludeId,
-      apiQuery: apiQuery,
-      anchorHadith: anchorObj
+      type: 'search', query: searchQuery, mode: currentMode, source: currentSource,
+      timestamp: Date.now(), queryVector: queryVector, excludeId: excludeId, apiQuery: apiQuery, anchorHadith: anchorObj
     });
 
     setShowSearchDropdown(false);
@@ -510,53 +535,34 @@ export default function App() {
     setData(null);
     setActiveCluster(null);
 
-    // --- NEW: VAULT-GROUNDED SEARCH INTERCEPT ---
     if (currentSource === 'My Vault') {
       setTimeout(() => {
         if (searchIdRef.current !== currentSearchId) return;
-
         const q = searchQuery.toLowerCase();
-
-        // Scan text, source headers, AND user's personal notes
         const matches = vaultItems.filter(item =>
           (item.content && item.content.toLowerCase().includes(q)) ||
           (item.note && item.note.toLowerCase().includes(q)) ||
           (item.source && item.source.toLowerCase().includes(q))
         );
 
-        // Map local items to fit perfectly inside HadithCard UI
         const formattedItems = matches.map(v => {
           let hNum = "";
           const numMatch = v.source?.match(/Hadith\s+(\d+)/i) || v.source?.match(/Verse\s+(\d+)/i);
           if (numMatch) hNum = numMatch[1];
-
           return {
-            id: v.id,
-            book: "My Vault",
-            volume: v.type ? v.type.charAt(0).toUpperCase() + v.type.slice(1) : "Saved",
-            sub_book: "Bookmark",
-            chapter: v.source.replace(/ (Hadith|Verse) \d+$/, ''),
-            hadith_number: hNum,
-            // Surface the user's personal note right inside the search results!
+            id: v.id, book: "My Vault", volume: v.type ? v.type.charAt(0).toUpperCase() + v.type.slice(1) : "Saved",
+            sub_book: "Bookmark", chapter: v.source.replace(/ (Hadith|Verse) \d+$/, ''), hadith_number: hNum,
             english_text: v.note ? `**[Your Note: ${v.note}]**\n\n${v.content}` : v.content,
-            arabic_text: v.arabic_text || "",
-            chain: v.chain || "",
-            vector: []
+            arabic_text: v.arabic_text || "", chain: v.chain || "", vector: []
           };
         });
 
-        const result = {
-          clusters: [{ theme_label: `Vault Matches for "${searchQuery}"`, items: formattedItems }],
-          total_results: formattedItems.length
-        };
-
-        setData(result);
-        setViewMode('list'); // Force list view for vault searches
+        setData({ clusters: [{ theme_label: `Vault Matches for "${searchQuery}"`, items: formattedItems }], total_results: formattedItems.length });
+        setViewMode('list');
         setLoading(false);
-      }, 400); // 400ms delay for a smooth UI loading transition
+      }, 400);
       return;
     }
-    // --------------------------------------------
 
     try {
       const payload = { query: textToEmbed, source: currentSource, searchMode: currentMode };
@@ -564,25 +570,50 @@ export default function App() {
       if (excludeId) payload.excludeId = String(excludeId);
 
       const response = await fetch('https://concept-atlas-backend.onrender.com/api/explore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify(payload)
       });
 
       const result = await response.json();
       if (searchIdRef.current !== currentSearchId) return;
 
+      if (result.clusters && alKafiData.length > 0) {
+        result.clusters.forEach(cluster => {
+          if (cluster.items) {
+            cluster.items = cluster.items.map(item => {
+              const masterRecord = alKafiData.find(h => {
+                if (String(h.id) === String(item.id)) return true;
+                const hTextRaw = String(h.englishText || h.en || h.english_text || "");
+                const iTextRaw = String(item.english_text || item.en || "");
+                if (hTextRaw.length > 10 && iTextRaw.length > 10) {
+                  const hDNA = hTextRaw.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                  const iDNA = iTextRaw.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                  if (hDNA === iDNA) return true;
+                  if (hDNA.length > 250 && iDNA.length > 250 && hDNA.substring(0, 250) === iDNA.substring(0, 250)) {
+                    return true;
+                  }
+                }
+                return false;
+              });
+
+              if (masterRecord && masterRecord.manual_body !== undefined && masterRecord.manual_body !== null) {
+                return { ...item, manual_body: masterRecord.manual_body, manual_chain: masterRecord.manual_chain };
+              }
+              return item;
+            });
+          }
+        });
+      }
+
       if (result.clusters && result.clusters.length > 0) {
         setData(result);
-        if (currentMode === 'keyword') {
-          setViewMode('list');
-        } else if (window.innerWidth >= 800) {
-          setViewMode('map');
-        }
+        if (currentMode === 'keyword') setViewMode('list');
+        else if (window.innerWidth >= 800) setViewMode('map');
+      } else {
+        setData(null);
       }
-      else setData(null);
     } catch (err) { console.error(err); }
-    finally { if (searchIdRef.current === currentSearchId) { setLoading(false); } }
+    finally { if (searchIdRef.current === currentSearchId) setLoading(false); }
   };
 
   const handleFindSimilar = (item) => {
@@ -598,17 +629,14 @@ export default function App() {
 
     const safeId = String(item.id || Math.random());
     const finalNum = displayNum && displayNum !== "Unknown" ? displayNum : safeId.substring(0, 6);
-
     const fullRef = `Book: ${item.book}, Vol: ${item.volume}, ${item.sub_book}, Chapter: ${item.chapter}${finalNum !== safeId.substring(0, 6) ? `, Hadith: ${finalNum}` : ''}`;
     const simQuery = `Similar to: ${fullRef}`;
-
     const anchorWithRef = { ...item, full_reference: fullRef, hadith_number: finalNum };
 
     setAnchorHadith(anchorWithRef);
     setShowAnchor(false);
     setShowAnchorModal(false);
     setQuery(simQuery);
-
     setActiveTab('search');
     setSearchMode('concept');
 
@@ -631,20 +659,51 @@ export default function App() {
     try {
       const queryStr = `(${surah}:${ayah})`;
       const response = await fetch('https://concept-atlas-backend.onrender.com/api/explore', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
         body: JSON.stringify({ query: queryStr, source: "All Twelver Sources", searchMode: "keyword" })
       });
       const result = await response.json();
-      if (result.clusters && result.clusters.length > 0) { setTafsirData(result); }
-      else { setTafsirData({ empty: true }); }
-    } catch (err) { console.error(err); setTafsirData({ empty: true }); }
-    finally { setTafsirLoading(false); }
+
+      if (result.clusters && alKafiData.length > 0) {
+        result.clusters.forEach(cluster => {
+          if (cluster.items) {
+            cluster.items = cluster.items.map(item => {
+              const masterRecord = alKafiData.find(h => {
+                if (String(h.id) === String(item.id)) return true;
+                const hTextRaw = String(h.englishText || h.en || h.english_text || "");
+                const iTextRaw = String(item.english_text || item.en || "");
+                if (hTextRaw.length > 10 && iTextRaw.length > 10) {
+                  const hDNA = hTextRaw.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                  const iDNA = iTextRaw.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+                  if (hDNA === iDNA) return true;
+                  if (hDNA.length > 250 && iDNA.length > 250 && hDNA.substring(0, 250) === iDNA.substring(0, 250)) {
+                    return true;
+                  }
+                }
+                return false;
+              });
+              if (masterRecord && masterRecord.manual_body !== undefined && masterRecord.manual_body !== null) {
+                return { ...item, manual_body: masterRecord.manual_body, manual_chain: masterRecord.manual_chain };
+              }
+              return item;
+            });
+          }
+        });
+      }
+
+      if (result.clusters && result.clusters.length > 0) setTafsirData(result);
+      else setTafsirData({ empty: true });
+    } catch (err) {
+      console.error(err);
+      setTafsirData({ empty: true });
+    } finally {
+      setTafsirLoading(false);
+    }
   };
 
   const handleSearchSubmit = (e) => {
     if (e) e.preventDefault();
-    if (document.activeElement instanceof HTMLElement) { document.activeElement.blur(); }
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
     setAnchorHadith(null);
     setShowAnchorModal(false);
     executeSearch(query, searchMode, sourceFilter, null, null, null, null);
@@ -658,9 +717,10 @@ export default function App() {
     setShowAnchorModal(false);
     setActiveCluster(null);
     setHoveredCluster(null);
-    setActiveTab('search');
+    setActiveTab('home');
     setLoading(false);
     window.history.replaceState({}, '', window.location.pathname);
+    window.scrollTo(0, 0);
   };
 
   const handleHistoryClick = (item) => {
@@ -702,15 +762,12 @@ export default function App() {
   const uniqueBooks = data && data.clusters ? Array.from(new Set(data.clusters.flatMap(c => c.items ? c.items.map(item => item.book) : []))) : [];
   const isKeyword = searchMode === 'keyword';
 
-  // --- GHOST SCHOLAR TYPING EFFECT ---
   const [ghostText, setGhostText] = useState('');
   const [ghostIndex, setGhostIndex] = useState(0);
   const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
-    // Only run the typing effect if we are on the Search tab and in Concept mode
     if (activeTab !== 'search' || isKeyword) return;
-
     const ghostPhrases = [
       "Search the concept of Bada'...",
       "Importance of knowing your Imam...",
@@ -718,7 +775,6 @@ export default function App() {
       "Trace the attributes of the Ahl al-Bayt...",
       "Find rulings for the traveller's prayer..."
     ];
-
     const currentPhrase = ghostPhrases[ghostIndex];
     let timer;
 
@@ -729,33 +785,78 @@ export default function App() {
           setIsDeleting(false);
           setGhostIndex((prev) => (prev + 1) % ghostPhrases.length);
         }
-      }, 35); // Erasing speed
+      }, 35);
     } else {
       if (ghostText.length === currentPhrase.length) {
-        timer = setTimeout(() => setIsDeleting(true), 3000); // Pause for 3 seconds when finished
+        timer = setTimeout(() => setIsDeleting(true), 3000);
       } else {
         timer = setTimeout(() => {
           setGhostText(currentPhrase.substring(0, ghostText.length + 1));
-        }, 65); // Typing speed
+        }, 65);
       }
     }
     return () => clearTimeout(timer);
   }, [ghostText, isDeleting, ghostIndex, activeTab, isKeyword]);
 
-  // --- MAGNETIC BUTTON PHYSICS ---
   const [magneticPos, setMagneticPos] = useState({ x: 0, y: 0 });
   const btnRef = useRef(null);
 
-  const appBgClass = activeTab === 'quran' ? (theme === 'dark' ? 'bg-[#121212] text-slate-100' : 'bg-[#f4ecd8] text-slate-900') :
-    (activeTab === 'library' ? (theme === 'dark' ? 'bg-[#1c1c1e] text-zinc-100' : 'bg-[#f4f4f5] text-zinc-900') :
-      (theme === 'dark' ? 'bg-[#030A06] text-[#FAFAFA]' : 'bg-[#EAE4D3] text-[#2D241C]'));
+  const getAppBgClass = () => {
+    if (['quran', 'duas', 'ziyarats'].includes(activeTab)) return theme === 'dark' ? 'bg-black text-[#F5F5F7]' : (theme === 'sepia' ? 'bg-[#f4ecd8] text-[#2D241C]' : 'bg-[#F5F5F7] text-[#1D1D1F]');
+    if (activeTab === 'library') return theme === 'dark' ? 'bg-black text-[#F5F5F7]' : (theme === 'sepia' ? 'bg-[#f4f4f5] text-[#2D241C]' : 'bg-[#F5F5F7] text-[#1D1D1F]');
+
+    if (theme === 'dark') return 'bg-black text-[#F5F5F7]';
+    if (theme === 'sepia') return 'bg-[#FDFBF7] text-[#2D241C]';
+    return 'bg-[#F5F5F7] text-[#1D1D1F]';
+  };
+  const appBgClass = getAppBgClass();
   const isMapView = activeTab === 'search' && data && viewMode === 'map' && !loading;
   const lockMainScreen = isMapView;
+
+  const themeBg = theme === 'dark' ? 'bg-black' : theme === 'sepia' ? 'bg-[#FDFBF7]' : 'bg-[#F5F5F7]';
+  const themeBorder = theme === 'dark' ? 'border-[#c6a87c]/20' : 'border-[#5C4A3D]/10';
+
+  const headerRef = useRef(null);
+
+  useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const currentScrollY = window.scrollY;
+          if (!headerRef.current) return;
+
+          if (showMobileNav || showSearchOverlay || showUserHub) {
+            headerRef.current.style.transform = 'translateY(0)';
+          }
+          else if (currentScrollY > 60 && currentScrollY > lastScrollY) {
+            headerRef.current.style.transform = 'translateY(-100%)';
+          }
+          else {
+            headerRef.current.style.transform = 'translateY(0)';
+          }
+
+          lastScrollY = currentScrollY;
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [showMobileNav, showSearchOverlay, showUserHub]);
 
   return (
     <div className={`min-h-screen w-full transition-colors duration-700 flex flex-col relative ${lockMainScreen ? 'overflow-hidden h-screen' : ''} ${appBgClass}`} style={{ WebkitOverflowScrolling: 'touch' }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&display=swap');
+       @import url('https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Amiri:wght@400;700&family=Scheherazade+New:wght@400;700&family=Noto+Naskh+Arabic:wght@400;700&family=Spectral:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap');
+        
+        .font-editorial {
+          font-family: 'Spectral', ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+        }
         
         @font-face {
           font-family: 'XBZarFont';
@@ -780,12 +881,6 @@ export default function App() {
           background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
         }
         
-        .gilded-halo {
-          position: absolute; inset: 0;
-          background: radial-gradient(circle at 50% 42%, rgba(198, 168, 124, 0.08) 0%, rgba(6, 33, 22, 0.75) 45%, rgba(2, 6, 4, 1) 100%);
-          pointer-events: none; z-index: 0;
-        }
-
         .parchment-halo {
           position: absolute; inset: 0;
           background: radial-gradient(circle at 50% 40%, rgba(253, 251, 247, 0.4) 0%, rgba(234, 228, 211, 0) 70%);
@@ -813,35 +908,25 @@ export default function App() {
         }
       `}</style>
 
-      {showMobileMenu && <div className="fixed inset-0 z-[70] pointer-events-auto" onClick={() => setShowMobileMenu(false)} />}
-
       {/* --- THE SCHOLAR'S VAULT (PRO-DISPLAY WORKSPACE) --- */}
       <AnimatePresence>
         {showVault && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => { setActiveCardMenu(null); setCardMenuMode('main'); }} className="fixed inset-0 z-[6000] flex items-center justify-center p-0 sm:p-4 md:p-6 bg-black/40 dark:bg-black/60 backdrop-blur-sm pointer-events-auto">
-
-            {/* MOBILE SCROLL FIX: h-[100dvh] ensures it fits exact mobile screen size */}
             <motion.div initial={{ scale: 0.98, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.98, opacity: 0, y: 10 }} transition={{ type: "spring", damping: 25, stiffness: 300 }} onClick={(e) => e.stopPropagation()} className="relative w-full h-[100dvh] sm:h-full sm:max-w-[1400px] flex flex-col md:flex-row bg-white dark:bg-[#0e0e11] sm:border border-slate-200 dark:border-[#2d2d33] sm:rounded-2xl shadow-2xl overflow-hidden">
-
-              {/* PANE 1: THE NAVIGATOR (SIDEBAR) */}
               <div className="w-full md:w-[260px] bg-[#f7f7f9] dark:bg-[#151518] border-b md:border-b-0 md:border-r border-slate-200 dark:border-[#2d2d33] flex flex-col shrink-0 z-20">
-
                 <div className="p-4 flex justify-between items-center shrink-0">
                   <h2 className="font-serif text-lg font-bold text-slate-800 dark:text-[#ededf0] flex items-center gap-2">
                     <Bookmark className="w-4 h-4 text-[#c6a87c]" /> Vault
                   </h2>
                   <button onClick={() => setShowVault(false)} className="p-1.5 text-slate-400 hover:text-slate-800 dark:hover:text-white transition-colors bg-black/5 dark:bg-white/5 rounded-md"><X className="w-4 h-4" /></button>
                 </div>
-
                 <div className="px-4 pb-4 shrink-0">
                   <div className="relative group">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 transition-colors" />
                     <input type="text" value={vaultSearch} onChange={(e) => setVaultSearch(e.target.value)} placeholder="Search Vault..." className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#1c1c20] border border-slate-200 dark:border-[#2d2d33] rounded-md text-xs font-sans text-slate-800 dark:text-[#ededf0] placeholder-slate-400 dark:placeholder-slate-500 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all shadow-sm" />
                   </div>
                 </div>
-
                 <div className="hidden md:flex flex-col gap-5 overflow-y-auto smart-scrollbar flex-grow px-2 pb-4 min-h-0">
-
                   <div>
                     <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 px-3">Library</div>
                     <button onClick={() => { setActiveFolder('All'); setSelectedVaultItem(null); }} className={`w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-between group ${activeFolder === 'All' ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-[#9a9a9f] hover:bg-slate-200/50 dark:hover:bg-[#1c1c20]'}`}>
@@ -852,7 +937,6 @@ export default function App() {
                       <div className="flex items-center gap-2"><Database className={`w-4 h-4 ${activeFolder === 'Uncategorized' ? 'opacity-100' : 'opacity-70'}`} /> Uncategorized</div>
                     </button>
                   </div>
-
                   <div>
                     <div className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 px-3">Sources</div>
                     <button onClick={() => { setActiveFolder('Hadiths'); setSelectedVaultItem(null); }} className={`w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors mb-1 flex items-center justify-between group ${activeFolder === 'Hadiths' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-500 shadow-sm' : 'text-slate-600 dark:text-[#9a9a9f] hover:bg-slate-200/50 dark:hover:bg-[#1c1c20]'}`}>
@@ -868,7 +952,6 @@ export default function App() {
                       <span className="text-[10px] font-mono opacity-50">{vaultItems.filter(i => i.type === 'transcript').length}</span>
                     </button>
                   </div>
-
                   <div>
                     <button onClick={() => setIsCollectionsOpen(!isCollectionsOpen)} className="w-full flex justify-between items-center text-[10px] font-bold text-slate-400 dark:text-slate-500 hover:text-slate-800 dark:hover:text-[#ededf0] uppercase tracking-widest mb-1 px-3 transition-colors cursor-pointer group">
                       <span>Collections</span>
@@ -883,12 +966,10 @@ export default function App() {
                             customFolders.map(folder => (
                               <button key={folder} onClick={() => { setActiveFolder(folder); setSelectedVaultItem(null); }} className={`w-full text-left px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-between group ${activeFolder === folder ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 shadow-sm' : 'text-slate-600 dark:text-[#9a9a9f] hover:bg-slate-200/50 dark:hover:bg-[#1c1c20]'}`}>
                                 <div className="flex items-center gap-2 truncate"><Layout className={`w-3.5 h-3.5 ${activeFolder === folder ? 'opacity-100' : 'opacity-70'} shrink-0`} /> <span className="truncate">{folder}</span></div>
-                                {/* Removed the X button from here */}
                                 <span className="text-[10px] font-mono opacity-50 pl-2">{vaultItems.filter(i => i.folder_name && i.folder_name.split(',').map(f => f.trim()).includes(folder)).length}</span>
                               </button>
                             ))
                           )}
-
                           <div className="px-3 py-2 mt-1 relative group">
                             <input
                               type="text"
@@ -910,7 +991,6 @@ export default function App() {
                     </AnimatePresence>
                   </div>
                 </div>
-
                 {/* Mobile Horizontal Sidebar */}
                 <div className="md:hidden flex items-center overflow-x-auto hide-scroll px-4 pb-3 gap-2 shrink-0 border-b border-slate-200 dark:border-[#2d2d33]">
                   {['All', 'Hadiths', 'Quran', 'Transcripts', ...customFolders].map(f => (
@@ -921,25 +1001,19 @@ export default function App() {
                 </div>
               </div>
 
-              {/* PANE 2 & 3: MAIN CONTENT AREA (min-h-0 prevents flexbox blowouts on mobile) */}
+              {/* PANE 2 & 3: MAIN CONTENT AREA */}
               <div className="flex-grow flex flex-col min-h-0 bg-white dark:bg-[#0e0e11] relative">
-
-                {/* Header Container */}
                 <div className="px-6 py-4 flex items-center justify-between shrink-0 z-10">
                   <h1 className="text-xl md:text-2xl font-serif font-medium text-slate-800 dark:text-[#ededf0]">
                     {selectedVaultItem ? 'Reading Focus' : (activeFolder === 'All' ? 'All Bookmarks' : activeFolder)}
                   </h1>
-
                   {!selectedVaultItem && (
                     <div className="flex items-center gap-3">
-                      {/* Contextual Delete Folder Button */}
                       {customFolders.includes(activeFolder) && (
                         <button onClick={(e) => deleteFolder(e, activeFolder)} className="flex items-center justify-center p-2 rounded-full text-red-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors" title={`Delete "${activeFolder}" Folder`}>
                           <Trash2 className="w-4 h-4" />
                         </button>
                       )}
-
-                      {/* Grid/List Toggles */}
                       <div className="flex items-center bg-slate-100 dark:bg-[#1c1c20] rounded-full p-1 border border-slate-200 dark:border-[#2d2d33] shadow-sm">
                         <button onClick={() => setVaultViewMode('grid')} className={`p-1.5 rounded-full transition-all duration-300 cursor-pointer ${vaultViewMode === 'grid' ? 'bg-white dark:bg-[#2d2d33] text-blue-600 dark:text-blue-500 shadow-sm' : 'text-slate-500 dark:text-[#9a9a9f] hover:text-slate-800 dark:hover:text-[#ededf0]'}`} title="Grid View"><Layout className="w-4 h-4" /></button>
                         <button onClick={() => setVaultViewMode('list')} className={`p-1.5 rounded-full transition-all duration-300 cursor-pointer ${vaultViewMode === 'list' ? 'bg-white dark:bg-[#2d2d33] text-blue-600 dark:text-blue-500 shadow-sm' : 'text-slate-500 dark:text-[#9a9a9f] hover:text-slate-800 dark:hover:text-[#ededf0]'}`} title="List View"><List className="w-4 h-4" /></button>
@@ -948,33 +1022,23 @@ export default function App() {
                   )}
                 </div>
 
-                {/* CONTENT ROUTER (min-h-0 strictly binds scrolling to this container) */}
                 <div className="flex-grow overflow-y-auto smart-scrollbar relative z-10 px-4 sm:px-6 pb-24 md:pb-12 min-h-0">
-
                   <AnimatePresence mode="wait">
                     {selectedVaultItem ? (
-                      /* --- PANE 3: THE FULL ANATOMY FOCUS CANVAS --- */
                       <motion.div key="editor" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.2 }} className="max-w-3xl mx-auto h-full flex flex-col">
-
                         <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-100 dark:border-[#2d2d33]">
                           <button onClick={() => { setSelectedVaultItem(null); }} className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-blue-600 dark:text-[#9a9a9f] dark:hover:text-blue-500 transition-colors cursor-pointer">
                             <ChevronLeft className="w-4 h-4" /> Back
                           </button>
                         </div>
-
-                        {/* Immutable Document Body */}
                         <div className="mb-10 p-6 rounded-xl bg-slate-50 dark:bg-[#151518] border border-slate-200 dark:border-[#2d2d33] shadow-sm">
                           <div className="mb-5 border-b border-slate-200 dark:border-[#2d2d33] pb-3 flex items-center justify-between">
                             <span className="text-xs sm:text-sm font-medium text-slate-500 dark:text-[#9a9a9f] leading-relaxed block">{selectedVaultItem.source}</span>
-
-                            {/* Explicit Badges on Focus Canvas */}
                             <span className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-widest font-bold ${selectedVaultItem.type === 'quran' ? 'bg-amber-500/10 text-amber-600 dark:text-amber-500' : selectedVaultItem.type === 'transcript' ? 'bg-[#c6a87c]/10 text-[#c6a87c] dark:text-[#d4b78f]' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-500'}`}>
                               {selectedVaultItem.type === 'quran' ? <BookOpen className="w-3 h-3 inline mr-1" /> : selectedVaultItem.type === 'transcript' ? <LibraryIcon className="w-3 h-3 inline mr-1" /> : <Sparkles className="w-3 h-3 inline mr-1" />}
                               {selectedVaultItem.type || 'hadith'}
                             </span>
                           </div>
-
-                          {/* Arabic Display (Persistent for Quran, Dropdown for others) */}
                           {selectedVaultItem.arabic_text && (
                             selectedVaultItem.type === 'quran' ? (
                               <div className="mb-8">
@@ -1001,8 +1065,6 @@ export default function App() {
                               </div>
                             )
                           )}
-
-                          {/* Chain Dropdown */}
                           {selectedVaultItem.chain && (
                             <div className="mb-5">
                               <button onClick={() => setShowEditorChain(!showEditorChain)} className="flex items-center gap-1 text-xs font-semibold uppercase tracking-wider transition-colors cursor-pointer text-slate-400 hover:text-blue-500 dark:text-[#5d5d62] dark:hover:text-blue-400">
@@ -1019,8 +1081,6 @@ export default function App() {
                               </AnimatePresence>
                             </div>
                           )}
-
-                          {/* Primary English Content (Smart Formatting) */}
                           {selectedVaultItem.type === 'transcript' ? (
                             selectedVaultItem.content === '[Full Transcript Bookmarked]' ? (
                               <div className="flex flex-col items-center justify-center py-10 opacity-70">
@@ -1032,22 +1092,16 @@ export default function App() {
                                 {selectedVaultItem.content.split(/\n+/).map((para, i) => {
                                   const pTrimmed = para.trim();
                                   if (!pTrimmed) return null;
-
-                                  // Cross-reference original transcript to rebuild formatting
                                   const sourceDoc = transcriptData.find(t => t.title === selectedVaultItem.source);
                                   let matchedBlockType = 'p';
-
                                   if (sourceDoc?.content) {
                                     const match = sourceDoc.content.find(b => b.text && (b.text.includes(pTrimmed) || pTrimmed.includes(b.text)));
                                     if (match) matchedBlockType = match.type;
                                   }
-
-                                  // Bold parser mirroring the transcript view
                                   const parseBold = (text) => text.split(/(\*\*.*?\*\*)/g).map((part, index) => {
                                     if (part.startsWith('**') && part.endsWith('**')) return <strong key={index} className="font-bold text-slate-900 dark:text-white">{part.slice(2, -2)}</strong>;
                                     return part;
                                   });
-
                                   if (matchedBlockType === 'quote') {
                                     return <blockquote key={i} className="pl-5 py-2 my-2 border-l-[3px] border-[#c6a87c] font-medium text-slate-800 dark:text-[#ededf0] italic font-serif text-base sm:text-lg leading-[1.9]">"{parseBold(pTrimmed.replace(/^"|"$/g, ''))}"</blockquote>;
                                   }
@@ -1063,11 +1117,7 @@ export default function App() {
                               {selectedVaultItem.content}
                             </p>
                           )}
-
-                          {/* Unified Navigation & Action Bar */}
                           <div className="mt-10 flex justify-end items-center gap-4 pt-5 border-t border-slate-200 dark:border-[#2d2d33]">
-
-                            {/* Transcript Navigation */}
                             {selectedVaultItem.type === 'transcript' && (
                               <button
                                 onClick={() => {
@@ -1084,8 +1134,6 @@ export default function App() {
                                 <LibraryIcon className="w-4 h-4" /> {selectedVaultItem.content === '[Full Transcript Bookmarked]' ? 'Read Transcript' : 'Go to Highlight'}
                               </button>
                             )}
-
-                            {/* Quran Navigation */}
                             {selectedVaultItem.type === 'quran' && quranDetails && (
                               <button
                                 onClick={() => {
@@ -1099,8 +1147,6 @@ export default function App() {
                                 <BookOpen className="w-4 h-4" /> Go to Verse
                               </button>
                             )}
-
-                            {/* Quran Related Hadiths */}
                             {selectedVaultItem.type === 'quran' && vaultRelatedCount > 0 && quranDetails && (
                               <button
                                 onClick={() => handleTafsirClick(quranDetails.surahId, quranDetails.verseNum)}
@@ -1110,8 +1156,6 @@ export default function App() {
                                 <span className="bg-amber-200 dark:bg-amber-800 text-amber-900 dark:text-amber-100 px-1.5 py-0.5 rounded text-[10px] ml-1">{vaultRelatedCount}</span>
                               </button>
                             )}
-
-                            {/* Universal Remove Button */}
                             <button
                               onClick={async () => {
                                 await supabase.from('vault_items').delete().eq('id', selectedVaultItem.id);
@@ -1125,15 +1169,12 @@ export default function App() {
                             </button>
                           </div>
                         </div>
-
-                        {/* Editor Your Notes (Note Taking) */}
                         <div className="flex-grow flex flex-col pl-4 border-l-2 border-blue-500 relative mb-12">
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center gap-2">
                               <PenLine className="w-4 h-4 text-blue-500" />
                               <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-[#9a9a9f]">Your Notes</h3>
                             </div>
-
                             <div className="flex items-center gap-3">
                               <AnimatePresence>
                                 {noteSaveStatus && (
@@ -1142,9 +1183,7 @@ export default function App() {
                                   </motion.span>
                                 )}
                               </AnimatePresence>
-
                               <AnimatePresence>
-                                {/* Reliable Save Button Logic */}
                                 {noteText !== (selectedVaultItem.note || "") && (
                                   <motion.button
                                     initial={{ opacity: 0, scale: 0.9 }}
@@ -1155,7 +1194,6 @@ export default function App() {
                                       setVaultItems(prev => prev.map(i => i.id === selectedVaultItem.id ? { ...i, note: noteText } : i));
                                       setSelectedVaultItem(prev => ({ ...prev, note: noteText }));
                                       supabase.from('vault_items').update({ note: noteText }).eq('id', selectedVaultItem.id);
-
                                       setNoteSaveStatus('Saved!');
                                       setTimeout(() => { setNoteSaveStatus(''); }, 1500);
                                     }}
@@ -1167,12 +1205,10 @@ export default function App() {
                               </AnimatePresence>
                             </div>
                           </div>
-
                           <textarea
                             value={noteText}
                             onChange={(e) => {
                               const val = e.target.value;
-                              // Advanced Regex to capitalize first letters after periods, exclamation marks, question marks, and new lines.
                               const formatted = val.replace(/(^\s*|[.!?]\s+|\n\s*)([a-z])/g, (m, p1, p2) => p1 + p2.toUpperCase());
                               setNoteText(formatted);
                             }}
@@ -1200,11 +1236,8 @@ export default function App() {
                             style={{ minHeight: '150px' }}
                           />
                         </div>
-
                       </motion.div>
-
                     ) : (
-                      /* --- PANE 2: THE INDEX GRID --- */
                       <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                         {filteredVaultItems.length === 0 ? (
                           <div className="flex flex-col items-center justify-center text-center px-4 py-20 opacity-60">
@@ -1218,7 +1251,6 @@ export default function App() {
                               const isQuran = itemType === 'quran';
                               const isTranscript = itemType === 'transcript';
 
-                              // Simplified, explicit badging
                               const getBadgeStyles = () => {
                                 if (isQuran) return "bg-amber-500/10 text-amber-600 dark:text-amber-500";
                                 if (isTranscript) return "bg-[#c6a87c]/10 text-[#c6a87c] dark:text-[#d4b78f]";
@@ -1228,16 +1260,13 @@ export default function App() {
                               if (vaultViewMode === 'grid') {
                                 return (
                                   <div key={item.id} onClick={() => { setSelectedVaultItem(item); setNoteText(item.note || ""); setShowEditorArabic(false); setShowEditorChain(false); }} className="h-[240px] flex flex-col bg-white dark:bg-[#151518] border border-slate-200 dark:border-[#2d2d33] rounded-xl shadow-sm hover:shadow-[0_10px_40px_rgba(0,0,0,0.08)] dark:hover:shadow-[0_10px_40px_rgba(0,0,0,0.4)] hover:border-slate-300 dark:hover:border-[#424248] transition-all cursor-pointer overflow-hidden relative group">
-
                                     <div className={`h-1 w-full ${isQuran ? 'bg-amber-500/50' : isTranscript ? 'bg-[#c6a87c]/50' : 'bg-emerald-500/50'}`} />
-
                                     <div className="p-5 flex-grow overflow-hidden relative">
                                       <div className="flex flex-wrap items-center gap-2 mb-3">
                                         <span className={`px-2 py-0.5 rounded text-[9px] font-mono uppercase tracking-widest font-bold ${getBadgeStyles()}`}>
                                           {isQuran ? <BookOpen className="w-3 h-3 inline mr-1" /> : isTranscript ? <LibraryIcon className="w-3 h-3 inline mr-1" /> : <Sparkles className="w-3 h-3 inline mr-1" />}
                                           {itemType}
                                         </span>
-                                        {/* Multi-Folder Badges */}
                                         {item.folder_name && item.folder_name.split(',').map((folderName, index) => {
                                           const f = folderName.trim();
                                           if (!f) return null;
@@ -1267,25 +1296,20 @@ export default function App() {
                                       )}
                                       <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-white dark:from-[#151518] to-transparent pointer-events-none" />
                                     </div>
-
-                                    {/* Footer with Click-Driven Kebab Menu */}
                                     <div className="px-5 py-3 border-t border-slate-100 dark:border-[#2d2d33] flex justify-between items-center bg-slate-50/50 dark:bg-[#1c1c20]/50 relative">
                                       <div className="flex items-center gap-3">
                                         <span className="text-[10px] font-mono text-slate-400 dark:text-[#5d5d62]">{new Date(item.created_at).toLocaleDateString()}</span>
                                         {item.note && <PenLine className="w-3.5 h-3.5 text-blue-500" title="Has Note" />}
                                       </div>
-
                                       <div className="relative">
                                         <button onClick={(e) => { e.stopPropagation(); setActiveCardMenu(activeCardMenu === item.id ? null : item.id); setCardMenuMode('main'); }} className="p-1.5 text-slate-400 hover:text-slate-800 dark:text-[#5d5d62] dark:hover:text-white transition-colors rounded-md hover:bg-slate-200/50 dark:hover:bg-[#2d2d33]">
                                           <MoreHorizontal className="w-5 h-5" />
                                         </button>
-
                                         <AnimatePresence>
                                           {activeCardMenu === item.id && (
                                             <>
                                               <div className="fixed inset-0 z-40" onClick={(e) => { e.stopPropagation(); setActiveCardMenu(null); }} />
                                               <motion.div initial={{ opacity: 0, scale: 0.95, y: 5 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 5 }} onClick={(e) => e.stopPropagation()} className="absolute bottom-full right-0 mb-2 w-52 bg-white dark:bg-[#1c1c20] border border-slate-200 dark:border-[#2d2d33] rounded-xl shadow-xl z-50 overflow-hidden flex flex-col p-1">
-
                                                 {cardMenuMode === 'main' ? (
                                                   <>
                                                     <button onClick={(e) => { e.stopPropagation(); setCardMenuMode('add'); }} className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center justify-between">
@@ -1296,16 +1320,12 @@ export default function App() {
                                                       <span className="flex items-center gap-2"><Layout className="w-3.5 h-3.5 opacity-60" /> Move to Folder...</span>
                                                       <ChevronRight className="w-3.5 h-3.5 opacity-40" />
                                                     </button>
-
-                                                    {/* Contextual: Remove from Current Custom Folder */}
                                                     {!['All', 'Uncategorized', 'Quran', 'Hadiths', 'Transcripts'].includes(activeFolder) && (
                                                       <button onClick={(e) => { e.stopPropagation(); assignToFolder(item.id, activeFolder, 'remove'); }} className="w-full text-left px-3 py-2 text-xs font-semibold text-amber-600 dark:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-md transition-colors flex items-center gap-2 mt-1">
                                                         <FolderMinus className="w-3.5 h-3.5 opacity-80" /> Remove from "{activeFolder}"
                                                       </button>
                                                     )}
-
                                                     <div className="my-1 border-t border-slate-100 dark:border-[#2d2d33]" />
-
                                                     <button onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(`${item.source}\n\n${item.content}`); setActiveCardMenu(null); }} className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#2d2d33] rounded-md transition-colors flex items-center gap-2">
                                                       <Copy className="w-3.5 h-3.5 opacity-60" /> Copy Text
                                                     </button>
@@ -1341,7 +1361,6 @@ export default function App() {
                                             </>
                                           )}
                                         </AnimatePresence>
-
                                       </div>
                                     </div>
                                   </div>
@@ -1371,7 +1390,6 @@ export default function App() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-
                 </div>
               </div>
             </motion.div>
@@ -1433,120 +1451,303 @@ export default function App() {
 
       {activeTab === 'search' && (
         <>
-          <div className="gilded-halo dark:block hidden" />
-          <div className="parchment-halo dark:hidden block" />
-          <div className="gilded-noise" />
+          {theme === 'sepia' && <div className="parchment-halo block pointer-events-none" />}
+          <div className="gilded-noise absolute inset-0 z-0 pointer-events-none" />
         </>
       )}
 
-      <header ref={headerRef} className="fixed top-4 sm:top-4 w-full z-[75] p-4 sm:p-6 flex justify-between items-center pointer-events-none transition-all duration-500 ease-in-out">
-        <div onClick={handleHomeClick} className="flex items-center gap-3 pointer-events-auto cursor-pointer group">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-500 group-hover:scale-105 border ${activeTab === 'quran' ? 'bg-amber-500/10 border-amber-500/20' : (activeTab === 'library' ? 'bg-[#c6a87c]/10 border-[#c6a87c]/20' : 'bg-[#FDFBF7]/50 dark:bg-[#c6a87c]/5 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 backdrop-blur-md shadow-sm')}`}>
-            <KisaLogo className={`w-5 h-5 ${activeTab === 'library' ? 'text-[#c6a87c]' : (activeTab === 'quran' ? 'text-amber-600 dark:text-amber-500' : 'text-[#2D241C] dark:text-[#c6a87c]')}`} />
-          </div>
-          <div>
-            <h1 className="font-sans font-bold text-lg sm:text-xl tracking-tight hidden sm:block group-hover:opacity-80 transition-opacity text-[#2D241C] dark:text-[#FAFAFA]">Al-Kisa</h1>
-            <div className="flex items-center gap-2 sm:mt-0.5">
-              <p className="font-sans text-[10px] sm:text-xs opacity-60 hidden sm:block text-[#2D241C] dark:text-[#FAFAFA]">{activeTab === 'quran' ? 'Quran Reader' : (activeTab === 'library' ? 'Digital Archive' : 'Database Index')}</p>
-              <span className="hidden sm:block w-1 h-1 rounded-full bg-[#5C4A3D]/30 dark:bg-[#c6a87c]/40"></span>
-              <button onClick={(e) => { e.stopPropagation(); setShowUpdates(true); }} className={`hidden sm:flex pointer-events-auto text-[10px] font-bold uppercase tracking-wider transition-colors cursor-pointer items-center gap-1 px-1.5 py-0.5 rounded-md ${activeTab === 'library' ? 'text-[#c6a87c] bg-[#c6a87c]/10 hover:text-[#d4b78f]' : (activeTab === 'quran' ? 'text-amber-500 bg-amber-500/10 hover:text-amber-400' : 'text-[#5C4A3D] dark:text-[#c6a87c] bg-[#FDFBF7]/60 dark:bg-[#c6a87c]/10 hover:bg-[#FDFBF7] dark:hover:bg-[#c6a87c]/20')}`}>
-                <Sparkles className="w-3 h-3" />What's New
-              </button>
+      {/* ======================================================================= */}
+      {/* 1. THE NATIVE GLOBAL HEADER */}
+      {/* ======================================================================= */}
+      <header
+        ref={headerRef}
+        className={`fixed top-0 left-0 right-0 z-[500] h-12 sm:h-14 transition-all duration-400 will-change-transform border-b flex items-center justify-center ${(showMobileNav || showSearchOverlay || showUserHub)
+          ? `${theme === 'dark' ? 'bg-black' : theme === 'sepia' ? 'bg-[#FDFBF7]' : 'bg-[#F5F5F7]'} border-transparent`
+          : `${theme === 'dark' ? 'bg-black/90 backdrop-blur-xl' : theme === 'sepia' ? 'bg-[#FDFBF7]/90 backdrop-blur-xl' : 'bg-[#F5F5F7]/90 backdrop-blur-xl'} border-[#5C4A3D]/10 dark:border-[#c6a87c]/10`
+          }`}
+      >
+        <div className="w-full max-w-[1050px] px-4 sm:px-6 flex items-center justify-between relative h-full">
+
+          {/* Left Column: Logo (Artificially pushed inward to balance visual weight) */}
+          <div className="flex items-center flex-1 justify-start md:pl-16 lg:pl-24 transition-all">
+            <div
+              onClick={() => { handleHomeClick(); setShowMobileNav(false); setShowSearchOverlay(false); setShowUserHub(false); }}
+              className={`flex items-center gap-2 cursor-pointer group shrink-0 transition-opacity duration-300 ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 sm:opacity-100 pointer-events-none sm:pointer-events-auto' : 'opacity-100'}`}
+            >
+              {/* FIXED: Added group-hover:text-[#c6a87c] and smooth transition-all */}
+              <KisaLogo className="w-5 h-5 text-[#2D241C] dark:text-[#c6a87c] group-hover:text-[#c6a87c] group-hover:scale-105 transition-all duration-300" />
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-2 sm:gap-4 relative z-[75] pointer-events-auto">
-          <div className={`flex items-center rounded-full p-1 mr-1 sm:mr-2 border shadow-sm ${activeTab === 'search' ? 'bg-[#FDFBF7]/50 dark:bg-[#020604]/40 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 backdrop-blur-xl' : 'bg-white/40 dark:bg-[#252528]/80 border-slate-300/30 dark:border-zinc-700/50 backdrop-blur-md'}`}>
+          {/* Center Column: Mathematically Anchored Navigation (FIXED: Added z-10 to prevent overlap) */}
+          <nav className="hidden md:flex items-center justify-center gap-7 lg:gap-10 absolute left-1/2 transform -translate-x-1/2 whitespace-nowrap z-10">
+            <button onClick={() => { setActiveTab('quran'); setShowSearchOverlay(false); setShowUserHub(false); }} className={`text-[11px] font-semibold uppercase tracking-widest transition-colors ${activeTab === 'quran' ? 'text-[#c6a87c]' : 'text-[#5C4A3D]/70 dark:text-[#c6a87c]/60 hover:text-[#2D241C] dark:hover:text-[#FAFAFA]'}`}>Quran</button>
+            <button onClick={() => { setActiveTab('duas'); setShowSearchOverlay(false); setShowUserHub(false); }} className={`text-[11px] font-semibold uppercase tracking-widest transition-colors ${activeTab === 'duas' ? 'text-[#c6a87c]' : 'text-[#5C4A3D]/70 dark:text-[#c6a87c]/60 hover:text-[#2D241C] dark:hover:text-[#FAFAFA]'}`}>Duas</button>
+            <button onClick={() => { setActiveTab('ziyarats'); setShowSearchOverlay(false); setShowUserHub(false); }} className={`text-[11px] font-semibold uppercase tracking-widest transition-colors ${activeTab === 'ziyarats' ? 'text-[#c6a87c]' : 'text-[#5C4A3D]/70 dark:text-[#c6a87c]/60 hover:text-[#2D241C] dark:hover:text-[#FAFAFA]'}`}>Ziyarats</button>
+            <button onClick={() => { setActiveTab('library'); setShowSearchOverlay(false); setShowUserHub(false); }} className={`text-[11px] font-semibold uppercase tracking-widest transition-colors ${activeTab === 'library' ? 'text-[#c6a87c]' : 'text-[#5C4A3D]/70 dark:text-[#c6a87c]/60 hover:text-[#2D241C] dark:hover:text-[#FAFAFA]'}`}>Scholarly Library</button>
+            <button onClick={() => { setActiveTab('hadith'); setShowSearchOverlay(false); setShowUserHub(false); }} className={`text-[11px] font-semibold uppercase tracking-widest transition-colors ${activeTab === 'hadith' ? 'text-[#c6a87c]' : 'text-[#5C4A3D]/70 dark:text-[#c6a87c]/60 hover:text-[#2D241C] dark:hover:text-[#FAFAFA]'}`}>Hadith Library</button>
+          </nav>
 
-            <button onClick={() => setActiveTab('search')} className={`p-2 rounded-full transition-all duration-300 cursor-pointer ${activeTab === 'search' ? 'bg-[#FDFBF7] dark:bg-[#c6a87c]/15 text-[#2D241C] dark:text-[#c6a87c] shadow-sm' : 'text-[#5C4A3D]/70 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c]'}`} title="Search Engine">
-              <Search className="w-4 h-4" />
+          {/* Right Column: Icons & User Hub */}
+          <div className="flex items-center gap-7 sm:gap-8 justify-end flex-1 relative">
+            <button
+              onClick={() => { setShowSearchOverlay(true); setShowUserHub(false); setShowMobileNav(false); setTimeout(() => globalSearchRef.current?.focus(), 100); }}
+              className={`transition-opacity duration-300 cursor-pointer text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
+            >
+              <Search className="w-5 h-5 sm:w-[18px] sm:h-[18px] stroke-[2]" />
             </button>
 
-            <button onClick={() => setActiveTab('quran')} className={`p-2 rounded-full transition-all duration-300 cursor-pointer ${activeTab === 'quran' ? 'bg-amber-600/20 text-amber-800 dark:text-amber-500' : 'text-[#5C4A3D]/70 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c]'}`} title="Quran Reader">
-              <BookOpen className="w-4 h-4" />
+            <button
+              onClick={() => { setShowUserHub(true); setShowSearchOverlay(false); setShowMobileNav(false); }}
+              className={`transition-opacity duration-300 cursor-pointer text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
+            >
+              <User className="w-5 h-5 sm:w-[18px] sm:h-[18px] stroke-[2]" />
             </button>
 
-            <button onClick={() => setActiveTab('library')} className={`p-2 rounded-full transition-all duration-300 cursor-pointer ${activeTab === 'library' ? 'bg-[#c6a87c]/20 text-[#c6a87c] dark:text-[#d4b78f]' : 'text-[#5C4A3D]/70 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c]'}`} title="Transcript Library">
-              <LibraryIcon className="w-4 h-4" />
+            <button
+              onClick={() => {
+                if (showMobileNav || showSearchOverlay || showUserHub) {
+                  setShowMobileNav(false); setShowSearchOverlay(false); setShowUserHub(false);
+                } else {
+                  setShowMobileNav(true);
+                }
+              }}
+              className="transition-colors cursor-pointer text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] w-6 h-6 flex items-center justify-center relative z-50"
+            >
+              <AnimatedMenuIcon isOpen={(showMobileNav || showSearchOverlay || showUserHub)} className="w-6 h-6" />
             </button>
 
-            {/* --- THE NEW TRADITIONAL HADITH BUTTON --- */}
-            <button onClick={() => setActiveTab('hadith')} className={`p-2 rounded-full transition-all duration-300 cursor-pointer ${activeTab === 'hadith' ? 'bg-[#c6a87c]/20 text-[#c6a87c] dark:text-[#d4b78f]' : 'text-[#5C4A3D]/70 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c]'}`} title="Traditional Hadiths">
-              <Book className="w-4 h-4" />
-            </button>
-
-          </div>
-
-
-          <div className="hidden md:flex items-center gap-2 sm:gap-4">
-            {activeTab === 'search' && data && !isKeyword && (<div className="flex items-center bg-[#FDFBF7]/50 dark:bg-[#020604]/40 border border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 backdrop-blur-xl rounded-full p-1"><button onClick={() => setViewMode('map')} className={`p-2 rounded-full transition-all duration-300 cursor-pointer ${viewMode === 'map' ? 'bg-[#FDFBF7] dark:bg-[#c6a87c]/15 text-[#2D241C] dark:text-[#c6a87c] shadow-sm' : 'text-[#5C4A3D]/70 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c]'}`}><Layout className="w-4 h-4" /></button><button onClick={() => setViewMode('list')} className={`p-2 rounded-full transition-all duration-300 cursor-pointer ${viewMode === 'list' ? 'bg-[#FDFBF7] dark:bg-[#c6a87c]/15 text-[#2D241C] dark:text-[#c6a87c] shadow-sm' : 'text-[#5C4A3D]/70 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c]'}`}><List className="w-4 h-4" /></button></div>)}
-            <button onClick={() => setShowHistoryDrawer(true)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group transition-all duration-300 hover:scale-110 cursor-pointer"><Clock className={`w-5 h-5 text-[#5C4A3D]/80 dark:text-[#c6a87c]/60 ${activeTab === 'library' ? 'group-hover:text-[#c6a87c]' : (activeTab === 'quran' ? 'group-hover:text-amber-500' : 'group-hover:text-[#2D241C] dark:group-hover:text-[#c6a87c]')}`} /></button>
-            <button onClick={() => setShowInfo(true)} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group transition-all duration-300 hover:scale-110 cursor-pointer"><HelpCircle className={`w-5 h-5 text-[#5C4A3D]/80 dark:text-[#c6a87c]/60 ${activeTab === 'library' ? 'group-hover:text-[#c6a87c]' : (activeTab === 'quran' ? 'group-hover:text-amber-500' : 'group-hover:text-[#2D241C] dark:group-hover:text-[#c6a87c]')}`} /></button>
-
-            <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center group transition-all duration-300 hover:scale-110 cursor-pointer">{theme === 'dark' ? <Sun className="w-5 h-5 text-[#c6a87c]/60 group-hover:text-yellow-400" /> : <Moon className="w-5 h-5 text-[#5C4A3D]/80 group-hover:text-[#2D241C]" />}</button>
-
-            {/* VAULT / AUTH BUTTON */}
-            {user ? (
-              <div className="flex items-center gap-3">
-                <button onClick={() => setShowVault(true)} title="Vault" className="w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-[#c6a87c] bg-[#c6a87c]/10 hover:bg-[#c6a87c]/20 transition-colors border border-[#c6a87c]/20 cursor-pointer">
-                  <Bookmark className="w-5 h-5" />
-                </button>
-                <button onClick={() => setShowSignOutConfirm(true)} className="text-[10px] uppercase font-bold tracking-widest text-[#5C4A3D]/60 dark:text-[#c6a87c]/50 hover:text-red-500 dark:hover:text-red-400 transition-colors cursor-pointer pr-1">
-                  Sign Out
-                </button>
-              </div>
-            ) : (
-              <button onClick={() => setShowAuthModal(true)} className="flex items-center gap-2 text-sm font-medium text-[#5C4A3D] dark:text-[#FAFAFA] hover:text-[#2D241C] dark:hover:text-[#c6a87c] transition-colors cursor-pointer">
-                <User className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign In</span>
-              </button>
-            )}
-          </div>
-
-          <div className="md:hidden flex items-center gap-1 sm:gap-2 relative">
-
-            {/* MOBILE VAULT / AUTH BUTTON */}
-            {user ? (
-              <button onClick={() => setShowVault(true)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer border shadow-sm ${activeTab === 'library' ? 'bg-[#c6a87c]/10 text-[#c6a87c] border-zinc-700/50' : (activeTab === 'quran' ? 'bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border-slate-300/30 dark:border-slate-700 text-amber-600 dark:text-amber-500' : 'bg-[#FDFBF7]/60 dark:bg-[#020604]/40 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 backdrop-blur-xl text-[#c6a87c]')}`}>
-                <Bookmark className="w-5 h-5" />
-              </button>
-            ) : (
-              <button onClick={() => setShowAuthModal(true)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer border shadow-sm ${activeTab === 'library' ? 'bg-[#c6a87c]/10 text-[#c6a87c] border-zinc-700/50' : (activeTab === 'quran' ? 'bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border-slate-300/30 dark:border-slate-700 text-slate-600 dark:text-slate-300' : 'bg-[#FDFBF7]/60 dark:bg-[#020604]/40 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 backdrop-blur-xl text-[#2D241C] dark:text-[#c6a87c]')}`}>
-                <User className="w-5 h-5" />
-              </button>
-            )}
-
-            <button onClick={() => setShowHistoryDrawer(true)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer border shadow-sm ${activeTab === 'library' ? 'bg-[#c6a87c]/10 text-[#c6a87c] border-zinc-700/50' : (activeTab === 'quran' ? 'bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border-slate-300/30 dark:border-slate-700 text-slate-600 dark:text-slate-300' : 'bg-[#FDFBF7]/60 dark:bg-[#020604]/40 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 backdrop-blur-xl text-[#2D241C] dark:text-[#c6a87c]')}`}>
-              <Clock className="w-5 h-5" />
-            </button>
-            <div className="relative">
-              <button onClick={() => setShowMobileMenu(!showMobileMenu)} className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer border shadow-sm ${activeTab === 'library' ? 'bg-[#c6a87c]/10 text-[#c6a87c] border-zinc-700/50' : (activeTab === 'quran' ? 'bg-white/40 dark:bg-slate-800/50 backdrop-blur-md border-slate-300/30 dark:border-slate-700 text-slate-600 dark:text-slate-300' : 'bg-[#FDFBF7]/60 dark:bg-[#020604]/40 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 backdrop-blur-xl text-[#2D241C] dark:text-[#c6a87c]')}`}>
-                <Menu className="w-5 h-5" />
-              </button>
-              <AnimatePresence>
-                {showMobileMenu && (
-                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className={`absolute right-0 top-full mt-2 w-48 rounded-xl shadow-xl p-2 flex flex-col gap-1 z-[75] border ${activeTab === 'library' ? 'bg-white dark:bg-[#1c1c1e] border-zinc-200 dark:border-zinc-800' : (activeTab === 'quran' ? 'bg-[#f4ecd8] dark:bg-[#1a1a1a] border-slate-300 dark:border-slate-700' : 'bg-[#FDFBF7]/95 dark:bg-[#030A06] border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 backdrop-blur-2xl')}`}>
-                    {activeTab === 'search' && data && <button onClick={() => { handleHomeClick(); setShowMobileMenu(false); }} className="w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 cursor-pointer"><Home className="w-4 h-4 shrink-0" /> Reset Search</button>}
-                    {activeTab === 'search' && <button onClick={() => { navigator.clipboard.writeText(window.location.href); setCopiedLink(true); setTimeout(() => { setCopiedLink(false); setShowMobileMenu(false); }, 1000); }} className={`w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer ${copiedLink ? 'text-emerald-500' : 'text-[#2D241C] dark:text-[#FAFAFA] hover:bg-[#EAE4D3]/50 dark:hover:bg-[#c6a87c]/10'}`}><Share2 className="w-4 h-4 shrink-0" /> Share Link</button>}
-                    <button onClick={() => { setShowUpdates(true); setShowMobileMenu(false); }} className={`w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer ${activeTab === 'library' ? 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2e]' : 'text-[#2D241C] dark:text-[#FAFAFA] hover:bg-[#EAE4D3]/50 dark:hover:bg-[#c6a87c]/10'}`}><Sparkles className="w-4 h-4 shrink-0" /> What's New</button>
-                    <button onClick={() => { setShowInfo(true); setShowMobileMenu(false); }} className={`w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer ${activeTab === 'library' ? 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2e]' : 'text-[#2D241C] dark:text-[#FAFAFA] hover:bg-[#EAE4D3]/50 dark:hover:bg-[#c6a87c]/10'}`}><HelpCircle className="w-4 h-4 shrink-0" /> Help & Guide</button>
-                    {user && (
-                      <button onClick={() => { setShowSignOutConfirm(true); setShowMobileMenu(false); }} className={`w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors`}>
-                        <User className="w-4 h-4 shrink-0" /> Sign Out
-                      </button>
-                    )}
-                    <button onClick={() => { setTheme(theme === 'dark' ? 'light' : 'dark'); setShowMobileMenu(false); }} className={`w-full text-left flex items-center gap-3 p-3 rounded-lg text-sm cursor-pointer ${activeTab === 'library' ? 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-[#2c2c2e]' : 'text-[#2D241C] dark:text-[#FAFAFA] hover:bg-[#EAE4D3]/50 dark:hover:bg-[#c6a87c]/10'}`}>{theme === 'dark' ? <Sun className={`w-4 h-4 shrink-0 ${activeTab === 'library' ? 'text-[#c6a87c]' : 'text-amber-500'}`} /> : <Moon className="w-4 h-4 shrink-0 text-[#5C4A3D]" />} Toggle Theme</button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
+            {/* ======================================================================= */}
+            {/* CANVAS B: THE USER HUB */}
+            {/* ======================================================================= */}
+            <AnimatePresence>
+              {showUserHub && (
+                <motion.div
+                  key="user-hub"
+                  exit={{ opacity: 1, transition: { duration: 0.5 } }}
+                  className="fixed inset-0 sm:absolute sm:inset-auto sm:top-12 sm:right-0 sm:w-[320px] h-[100dvh] sm:h-auto z-[490] pointer-events-none overflow-hidden sm:overflow-visible flex flex-col"
+                >
+                  <div className="absolute top-12 bottom-0 left-0 right-0 sm:static sm:top-auto sm:bottom-auto overflow-hidden sm:overflow-visible z-10 pointer-events-none">
+                    <motion.div
+                      initial={{ y: "-100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "-100%", opacity: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                      className={`w-full h-full sm:h-auto overflow-y-auto sm:overflow-visible flex flex-col relative pointer-events-auto ${themeBg} sm:border sm:${themeBorder} sm:shadow-2xl sm:rounded-2xl`}
+                    >
+                      {!user ? (
+                        <div className="p-6 sm:p-8 flex flex-col text-left">
+                          <h3 className="text-3xl sm:text-2xl font-semibold text-[#2D241C] dark:text-[#FAFAFA] mb-2 tracking-tight">Your Vault is locked.</h3>
+                          <p className="text-base sm:text-sm text-[#5C4A3D]/70 dark:text-[#c6a87c]/70 mb-8 leading-relaxed">
+                            <button onClick={() => { setShowAuthModal(true); setShowUserHub(false); }} className="text-blue-600 dark:text-blue-400 hover:underline">Sign in</button> to see if you have any saved narrations.
+                          </p>
+                          <div className="flex flex-col">
+                            <div className="pb-2 border-b border-[#5C4A3D]/10 dark:border-[#c6a87c]/20 mb-2"><span className="text-xs font-medium text-[#5C4A3D]/60 dark:text-[#c6a87c]/60">My Profile</span></div>
+                            <button onClick={() => { setShowAuthModal(true); setShowUserHub(false); }} className="w-full text-left flex items-center gap-4 py-3.5 sm:py-3 text-lg sm:text-sm font-medium text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] transition-colors group"><Bookmark className="w-5 h-5 sm:w-4 sm:h-4 text-[#5C4A3D]/50 dark:text-[#c6a87c]/50 group-hover:text-[#c6a87c]" /> The Scholar's Vault</button>
+                            <button onClick={() => { setShowAuthModal(true); setShowUserHub(false); }} className="w-full text-left flex items-center gap-4 py-3.5 sm:py-3 text-lg sm:text-sm font-medium text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] transition-colors group"><Clock className="w-5 h-5 sm:w-4 sm:h-4 text-[#5C4A3D]/50 dark:text-[#c6a87c]/50 group-hover:text-[#c6a87c]" /> Study History</button>
+                            <button onClick={() => { setShowAuthModal(true); setShowUserHub(false); }} className="w-full text-left flex items-center gap-4 py-3.5 sm:py-3 text-lg sm:text-sm font-medium text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] transition-colors group"><Settings2 className="w-5 h-5 sm:w-4 sm:h-4 text-[#5C4A3D]/50 dark:text-[#c6a87c]/50 group-hover:text-[#c6a87c]" /> Account Settings</button>
+                            <button onClick={() => { setShowAuthModal(true); setShowUserHub(false); }} className="w-full text-left flex items-center gap-4 py-3.5 sm:py-3 text-lg sm:text-sm font-medium text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] transition-colors group"><User className="w-5 h-5 sm:w-4 sm:h-4 text-[#5C4A3D]/50 dark:text-[#c6a87c]/50 group-hover:text-[#c6a87c]" /> Sign in</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col p-2 sm:p-0">
+                          <div className="px-4 py-3 border-b border-[#5C4A3D]/5 dark:border-[#c6a87c]/10"><span className="text-[10px] font-bold uppercase tracking-widest text-[#5C4A3D]/50 dark:text-[#c6a87c]/50">My Profile</span></div>
+                          <button onClick={() => { setShowVault(true); setShowUserHub(false); }} className="w-full text-left flex items-center gap-4 px-4 py-4 sm:py-3.5 text-lg sm:text-sm font-medium text-[#2D241C] dark:text-[#FAFAFA] hover:bg-[#EAE4D3]/40 dark:hover:bg-[#c6a87c]/10 transition-colors group"><Bookmark className="w-5 h-5 sm:w-4 h-4 text-[#c6a87c]" /> The Scholar's Vault</button>
+                          <button onClick={() => { setShowHistoryDrawer(true); setShowUserHub(false); }} className="w-full text-left flex items-center gap-4 px-4 py-4 sm:py-3.5 text-lg sm:text-sm font-medium text-[#2D241C] dark:text-[#FAFAFA] hover:bg-[#EAE4D3]/40 dark:hover:bg-[#c6a87c]/10 transition-colors"><Clock className="w-5 h-5 sm:w-4 h-4 text-[#5C4A3D]/60 dark:text-[#c6a87c]/60" /> Study History</button>
+                          <button onClick={() => { setShowSignOutConfirm(true); setShowUserHub(false); }} className="w-full text-left flex items-center gap-4 px-4 py-4 sm:py-3.5 text-lg sm:text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors mt-1 sm:rounded-b-xl border-t border-[#5C4A3D]/5 dark:border-[#c6a87c]/10"><User className="w-5 h-5 sm:w-4 h-4" /> Sign Out</button>
+                        </div>
+                      )}
+                    </motion.div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </header>
 
+      {/* ======================================================================= */}
+      {/* CANVAS A: THE SEARCH OVERLAY (APPLE CURTAIN PHYSICS) */}
+      {/* ======================================================================= */}
+      <AnimatePresence>
+        {showSearchOverlay && (
+          <motion.div
+            key="search-overlay"
+            exit={{ opacity: 1, transition: { duration: 0.5 } }} // Forces wrapper to stay alive on exit
+            className="fixed sm:inset-0 left-0 right-0 bottom-0 top-12 sm:top-0 z-[490] pointer-events-none overflow-hidden sm:overflow-auto flex flex-col"
+          >
+            {/* Desktop Only Close Button (Mobile naturally uses the global header master X) */}
+            <div className="hidden sm:flex justify-end items-center h-14 px-6 lg:px-8 shrink-0 z-20 relative bg-inherit pointer-events-auto border-b border-transparent">
+              <button onClick={() => setShowSearchOverlay(false)} className="w-7 h-7 flex items-center justify-center text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] cursor-pointer">
+                <AnimatedMenuIcon isOpen={true} className="w-7 h-7" />
+              </button>
+            </div>
+
+            <motion.div
+              initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className={`w-full h-full overflow-y-auto flex flex-col relative pointer-events-auto ${themeBg}`}
+            >
+              {/* Removed the border-b and added pt-4 for cleaner, borderless spacing matching Apple */}
+              <div className="w-full max-w-3xl mx-auto px-6 pt-4 pb-6 sm:pt-2">
+                <form onSubmit={(e) => { e.preventDefault(); handleSearchSubmit(null); setShowSearchOverlay(false); }} className="relative flex items-center">
+                  {/* Icon darkened to match the new placeholder weight */}
+                  <Search className="absolute left-0 w-6 h-6 sm:w-8 sm:h-8 text-[#5C4A3D]/80 dark:text-[#c6a87c]/80" strokeWidth={3} />
+                  <input
+                    ref={globalSearchRef}
+                    type="text"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder={ghostText || "Search"}
+                    className="w-full bg-transparent outline-none pl-12 sm:pl-14 pr-12 text-3xl sm:text-5xl font-sans font-bold tracking-tight text-[#2D241C] dark:text-[#FAFAFA] placeholder:text-[#5C4A3D]/80 dark:placeholder:text-[#c6a87c]/80 caret-[#c6a87c]"
+                  />
+                  {query && (
+                    <button type="button" onClick={() => setQuery('')} className="absolute right-0 p-2 text-[#5C4A3D]/40 hover:text-[#2D241C] dark:text-[#c6a87c]/40 dark:hover:text-[#FAFAFA] transition-colors cursor-pointer">
+                      <X className="w-5 h-5 sm:w-6 sm:h-6 bg-slate-200 dark:bg-[#1c1c1e] rounded-full p-1" />
+                    </button>
+                  )}
+                </form>
+              </div>
+
+              <div className="w-full max-w-3xl mx-auto px-6 py-8 flex-grow">
+                {/* Apple Style: Sentence case, sans-serif, lighter color, normal tracking */}
+                <h3 className="text-sm sm:text-base font-sans text-[#5C4A3D]/70 dark:text-[#c6a87c]/70 mb-4">Quick Links</h3>
+                <ul className="flex flex-col gap-1">
+                  {[
+                    { label: "Search Hadiths for the concept of Bada", action: () => { setQuery('Bada'); setSearchMode('concept'); setActiveTab('search'); executeSearch('Bada', 'concept', sourceFilter, null, null, null, null); setShowSearchOverlay(false); } },
+
+                    {
+                      label: "Al-Kafi Volume 1 The Book of Intelligence and Ignorance", action: () => {
+                        // HYPER-SMART PAYLOAD: Passing explicit keywords so the fuzzy-matcher can lock onto it
+                        if (setHadithTarget) setHadithTarget({ book: "al-Kafi", volume: "1", category: "intell", chapter: "intell" });
+                        setActiveTab('hadith');
+                        setShowSearchOverlay(false);
+                      }
+                    },
+
+                    {
+                      label: "Dua Kumayl", action: () => {
+                        // FIXED: Bypasses the search engine and routes directly to the Dua tab
+                        if (setDuaTarget) setDuaTarget('Dua Kumayl');
+                        setActiveTab('duas');
+                        setShowSearchOverlay(false);
+                      }
+                    },
+
+                    { label: "Quran verse 5:55", action: () => { setQuranTarget(5); setQuranVerseTarget(55); setActiveTab('quran'); setShowSearchOverlay(false); } },
+                    { label: "Know Your Imam", action: () => { setTranscriptTarget('know-your-imam-ep1'); setActiveTab('library'); setShowSearchOverlay(false); } }
+                  ].map((link, idx) => (
+                    <li key={idx}>
+                      {/* Apple Style: Tighter vertical padding, items-start to keep arrow at top if text wraps */}
+                      <button onClick={link.action} className="flex items-start gap-4 text-left w-full py-2.5 sm:py-3 transition-colors cursor-pointer group">
+                        {/* Apple Style: Darker arrow, slightly larger, offset to align with text */}
+                        <span className="font-sans text-lg sm:text-xl text-[#2D241C]/70 dark:text-[#FAFAFA]/70 mt-[2px] sm:mt-[1px] group-hover:text-[#c6a87c] group-hover:translate-x-1 transition-all">→</span>
+                        {/* Apple Style: Bold, sans-serif, tight tracking, native text color */}
+                        <span className="font-sans font-semibold text-base sm:text-[17px] tracking-tight text-[#2D241C] dark:text-[#FAFAFA] group-hover:text-[#c6a87c] leading-snug">{link.label}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ======================================================================= */}
+      {/* CANVAS C: THE MAIN MENU (MOBILE CURTAIN / DESKTOP DROPDOWN) */}
+      {/* ======================================================================= */}
+      <AnimatePresence>
+        {showMobileNav && (
+          <motion.div
+            key="mobile-nav"
+            exit={{ opacity: 1, transition: { duration: 0.5 } }} // Forces wrapper to stay alive on exit
+            // Responsive Wrapper: Full width below header on mobile, floating 320px box on desktop
+            className="fixed left-0 right-0 bottom-0 top-12 sm:top-12 sm:bottom-auto sm:left-auto sm:right-0 sm:w-[320px] z-[490] pointer-events-none overflow-hidden sm:overflow-visible flex flex-col"
+          >
+            <motion.div
+              initial={{ y: "-100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "-100%", opacity: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className={`w-full h-full sm:h-auto overflow-y-auto px-6 py-8 flex flex-col gap-8 relative pointer-events-auto ${themeBg} sm:border sm:${themeBorder} sm:shadow-2xl sm:rounded-2xl`}
+            >
+              {/* Primary Navigation (Hidden on desktop because they are in the header!) */}
+              <div className="flex flex-col gap-6 md:hidden">
+                {[
+                  { label: "Quran", tab: "quran" },
+                  { label: "Duas", tab: "duas" },
+                  { label: "Ziyarats", tab: "ziyarats" },
+                  { label: "Scholarly Library", tab: "library" },
+                  { label: "Hadith Library", tab: "hadith" }
+                ].map((nav, idx) => (
+                  <button key={idx} onClick={() => { setActiveTab(nav.tab); setShowMobileNav(false); }} className="text-left text-3xl font-serif font-semibold tracking-tight text-[#2D241C] dark:text-[#FAFAFA] active:text-[#c6a87c] transition-colors">
+                    {nav.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Divider (Also hidden on desktop) */}
+              <div className="h-px w-full border-b border-[#5C4A3D]/10 dark:border-[#c6a87c]/20 my-2 md:hidden" />
+
+              {/* Utility Navigation */}
+              <div className="flex flex-col gap-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#5C4A3D] dark:text-[#c6a87c] font-medium text-lg flex items-center gap-4">
+                    {theme === 'dark' ? <Moon className="w-6 h-6 shrink-0" /> : <Sun className="w-6 h-6 shrink-0" />} Theme
+                  </span>
+                  <div className="flex items-center gap-4">
+                    <button onClick={() => { setTheme('light'); setShowMobileNav(false); }} className={`w-8 h-8 rounded-full bg-[#F5F5F7] border shadow-sm transition-all cursor-pointer ${theme === 'light' ? 'border-[#1D1D1F] scale-110' : 'border-slate-300'}`} title="Light Mode" />
+                    <button onClick={() => { setTheme('sepia'); setShowMobileNav(false); }} className={`w-8 h-8 rounded-full bg-[#FDFBF7] border shadow-sm transition-all cursor-pointer ${theme === 'sepia' ? 'border-[#c6a87c] scale-110' : 'border-[#EAE4D3]'}`} title="Sepia Mode" />
+                    <button onClick={() => { setTheme('dark'); setShowMobileNav(false); }} className={`w-8 h-8 rounded-full bg-black border shadow-sm transition-all cursor-pointer ${theme === 'dark' ? 'border-[#F5F5F7] scale-110' : 'border-zinc-800'}`} title="Dark Mode" />
+                  </div>
+                </div>
+
+                <button onClick={() => { setShowUpdates(true); setShowMobileNav(false); }} className="flex items-center gap-4 text-left text-[#5C4A3D] dark:text-[#c6a87c] text-lg font-medium active:text-[#2D241C] dark:active:text-[#FAFAFA] transition-colors">
+                  <Sparkles className="w-6 h-6 shrink-0" /> Updates Log
+                </button>
+                <button onClick={() => { setShowInfo(true); setShowMobileNav(false); }} className="flex items-center gap-4 text-left text-[#5C4A3D] dark:text-[#c6a87c] text-lg font-medium active:text-[#2D241C] dark:active:text-[#FAFAFA] transition-colors">
+                  <HelpCircle className="w-6 h-6 shrink-0" /> Help & Guide
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <main ref={containerRef} className={`relative w-full flex-grow flex flex-col ${lockMainScreen ? 'items-center justify-center h-screen overflow-hidden' : 'min-h-screen'}`}>
-        {activeTab === 'quran' && <QuranReader activeFontFamily={activeFontFamily} fontStyle={fontStyle} setFontStyle={setFontStyle} handleSurahSelectHook={(id, name) => saveToHistory({ type: 'quran', surahId: id, surahName: name, timestamp: Date.now() })} externalSurahTarget={quranTarget} externalVerseTarget={quranVerseTarget} onTafsirClick={handleTafsirClick} vaultItems={vaultItems} handleCopyHadith={handleCopyHadith} handleFindSimilar={handleFindSimilar} HadithCard={HadithCard} KisaLogo={KisaLogo} />}
+        {activeTab === 'quran' && (
+          <div className="w-full flex-grow flex flex-col relative pt-20 sm:pt-24">
+            <QuranReader
+              activeFontFamily={activeFontFamily}
+              fontStyle={fontStyle}
+              setFontStyle={setFontStyle}
+              handleSurahSelectHook={(id, name) => saveToHistory({ type: 'quran', surahId: id, surahName: name, timestamp: Date.now() })}
+              externalSurahTarget={quranTarget}
+              externalVerseTarget={quranVerseTarget}
+              onTafsirClick={handleTafsirClick}
+              vaultItems={vaultItems}
+              handleCopyHadith={handleCopyHadith}
+              handleFindSimilar={handleFindSimilar}
+              HadithCard={HadithCard}
+              KisaLogo={KisaLogo}
+            />
+          </div>
+        )}
+
+        {activeTab === 'duas' && (
+          <div className="w-full flex-grow flex flex-col relative pt-20 sm:pt-24">
+            <DuaLibrary
+              vaultItems={vaultItems}
+              theme={theme}
+              externalTarget={duaTarget}
+            />
+          </div>
+        )}
+
+        {activeTab === 'ziyarats' && (
+          <div className="flex flex-col items-center justify-center min-h-screen pt-20 px-6 text-center">
+            <BookOpen className="w-12 h-12 text-[#c6a87c] opacity-50 mb-6" />
+            <h2 className="font-serif text-3xl sm:text-4xl text-[#2D241C] dark:text-[#FAFAFA] mb-3 tracking-tight">The Book of Ziyarats</h2>
+            <p className="text-[#5C4A3D]/70 dark:text-[#c6a87c]/70 max-w-md mx-auto leading-relaxed">
+              The dedicated visitation library is currently being compiled and will be available in an upcoming update.
+            </p>
+          </div>
+        )}
+
         {activeTab === 'library' && (
           <TranscriptLibrary
             transcripts={transcriptData}
@@ -1583,7 +1784,7 @@ export default function App() {
           isHadithLoading ? (
             <div className="flex flex-col items-center justify-center min-h-screen text-[#5C4A3D]/60 dark:text-[#c6a87c]/60 pt-20">
               <KisaLogo className="w-12 h-12 animate-pulse mb-4" />
-              <p className="font-mono text-xs uppercase tracking-widest font-bold">Loading Library Archive...</p>
+              <p className="font-mono text-xs uppercase tracking-widest font-bold">Loading Hadith Library...</p>
             </div>
           ) : hadithLoadError ? (
             <div className="flex flex-col items-center justify-center min-h-screen text-red-500 pt-20 px-6 text-center">
@@ -1592,23 +1793,38 @@ export default function App() {
               <p className="text-sm font-mono opacity-80 max-w-md bg-red-50 dark:bg-red-500/10 p-4 rounded-lg border border-red-200 dark:border-red-500/20">{hadithLoadError}</p>
             </div>
           ) : (
-            <HadithLibrary hadithData={alKafiData} />
+            <HadithLibrary
+              hadithData={alKafiData}
+              externalTarget={hadithTarget}
+            />
           )
+        )}
+
+        {activeTab === 'home' && (
+          <Home
+            setActiveTab={setActiveTab}
+            setQuery={setQuery}
+            setSearchMode={setSearchMode}
+            setQuranTarget={setQuranTarget}
+            setQuranVerseTarget={setQuranVerseTarget}
+            setTranscriptTarget={setTranscriptTarget}
+            setHadithTarget={setHadithTarget}
+            user={user}
+            vaultItems={vaultItems}
+            KisaLogo={KisaLogo}
+            setShowUpdates={setShowUpdates} // <-- ADD THIS LINE
+          />
         )}
 
         <AnimatePresence>
           {activeTab === 'search' && !data && !loading && (
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }} className="z-10 flex flex-col items-center justify-center w-full max-w-2xl px-4 sm:px-6 mx-auto absolute top-[45%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-              <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-normal mb-4 text-center leading-tight text-[#2D241C] dark:text-[#FAFAFA] drop-shadow-sm dark:drop-shadow-md">
-                Explore the Depths of <br /><span className="italic text-[#c6a87c] drop-shadow-sm dark:drop-shadow-lg">Twelver Literature</span>
+            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9, filter: "blur(10px)" }} className="z-10 flex flex-col items-center justify-center w-full max-w-2xl px-4 sm:px-6 mx-auto absolute top-[30%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+              <h2 className="font-serif text-3xl sm:text-4xl md:text-5xl font-normal mb-3 text-center leading-tight text-[#2D241C] dark:text-[#FAFAFA] drop-shadow-sm dark:drop-shadow-md">
+                The Knowledge Graph
               </h2>
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.8, ease: "easeOut" }} className="flex flex-wrap justify-center items-center gap-3 sm:gap-4 mb-10 sm:mb-12 text-[9px] sm:text-[10px] uppercase tracking-[0.25em] font-semibold text-[#5C4A3D] dark:text-[#c6a87c]/80">
-                <span className="flex items-center gap-1.5 cursor-default"><BookOpen className="w-3 h-3 opacity-80 text-[#c6a87c]" /> <span className="text-[#2D241C] dark:text-[#FAFAFA]">14,500+</span> Narrations</span>
-                <span className="opacity-40 text-[#c6a87c]">•</span>
-                <span className="flex items-center gap-1.5 cursor-default"><Sparkles className="w-3 h-3 opacity-80 text-[#c6a87c]" /> <span className="text-[#2D241C] dark:text-[#FAFAFA]">2.4M</span> Semantic Links</span>
-                <span className="opacity-40 text-[#c6a87c]">•</span>
-                <span className="flex items-center gap-1.5 cursor-default"><Clock className="w-3 h-3 opacity-80 text-[#c6a87c]" /> <span className="text-[#2D241C] dark:text-[#FAFAFA]">50+ Hrs</span> Scholarship</span>
-              </motion.div>
+              <p className="text-[#5C4A3D]/80 dark:text-[#c6a87c]/80 text-sm sm:text-base font-medium mb-8 text-center tracking-wide">
+                Map the corpus using natural language.
+              </p>
 
               <div className="w-full relative group pointer-events-auto" ref={searchInputContainerRef}>
                 <div className="absolute inset-0 w-full h-full rounded-2xl border pointer-events-none z-0 transition-all duration-700 bg-[#F8F5EE]/50 dark:bg-[#020805]/40 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 shadow-[0_8px_32px_rgba(45,36,28,0.05)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.6)] backdrop-blur-xl group-focus-within:border-[#c6a87c]/60 group-focus-within:shadow-[0_0_40px_rgba(198,168,124,0.15)]"></div>
@@ -1991,17 +2207,64 @@ export default function App() {
           )}
         </AnimatePresence>
 
+        {/* --- PREMIUM UPDATES LOG MODAL --- */}
         <AnimatePresence>
           {showUpdates && (
             <div className="fixed inset-0 z-[2000] flex items-center justify-center pointer-events-auto p-4 sm:p-0">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowUpdates(false)} className="absolute inset-0 bg-[#2D241C]/60 dark:bg-[#020604]/80 backdrop-blur-md cursor-pointer" />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#EAE4D3] dark:bg-[#030A06] border border-[#5C4A3D]/20 dark:border-[#c6a87c]/20 w-full sm:w-[90vw] max-w-[500px] max-h-[80vh] flex flex-col shadow-2xl rounded-2xl z-[2001]">
-                <div className="flex justify-between items-center bg-[#FDFBF7]/60 dark:bg-[#c6a87c]/5 backdrop-blur-xl pt-5 pb-4 px-5 z-10 border-b border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 rounded-t-2xl shrink-0"><h2 className="text-lg sm:text-xl font-mono font-bold tracking-tight text-[#2D241C] dark:text-[#FAFAFA] flex items-center gap-2"><History className="w-5 h-5 text-[#5C4A3D] dark:text-[#c6a87c]" />Updates Log</h2><button onClick={() => setShowUpdates(false)} className="p-2 hover:bg-[#FDFBF7] dark:hover:bg-[#c6a87c]/10 rounded-full transition-colors cursor-pointer shrink-0"><X className="w-5 h-5 text-[#5C4A3D] dark:text-[#c6a87c]" /></button></div>
-                <div className="p-5 sm:p-6 overflow-y-auto flex-grow smart-scrollbar flex flex-col gap-6">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowUpdates(false)} className="absolute inset-0 bg-[#2D241C]/40 dark:bg-black/60 backdrop-blur-sm cursor-pointer" />
+              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#FDFBF7] dark:bg-[#151518] border border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 w-full sm:w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col shadow-2xl rounded-[2rem] z-[2001] overflow-hidden">
+
+                <div className="flex justify-between items-center bg-[#FDFBF7]/95 dark:bg-[#1c1c20]/95 backdrop-blur-xl pt-6 pb-5 px-6 sm:px-8 z-10 border-b border-[#5C4A3D]/10 dark:border-[#c6a87c]/10 shrink-0">
+                  <h2 className="text-xl sm:text-2xl font-serif tracking-tight text-[#2D241C] dark:text-[#FAFAFA] flex items-center gap-3">
+                    <Sparkles className="w-5 h-5 text-[#c6a87c]" />
+                    Updates Log
+                  </h2>
+                  <button onClick={() => setShowUpdates(false)} className="p-2 hover:bg-[#5C4A3D]/5 dark:hover:bg-[#c6a87c]/10 rounded-full transition-colors cursor-pointer shrink-0">
+                    <X className="w-5 h-5 text-[#5C4A3D] dark:text-[#c6a87c]" />
+                  </button>
+                </div>
+
+                <div className="p-6 sm:p-8 overflow-y-auto flex-grow smart-scrollbar flex flex-col gap-8">
+
+                  {/* --- PERMANENT PLATFORM SCHEDULE NOTICE --- */}
+                  <div className="p-5 rounded-2xl bg-[#c6a87c]/10 border border-[#c6a87c]/20 flex flex-col sm:flex-row gap-4 items-start sm:items-center shadow-sm">
+                    <div className="w-10 h-10 rounded-full bg-[#c6a87c]/20 flex items-center justify-center shrink-0">
+                      <CalendarDays className="w-5 h-5 text-[#c6a87c]" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-[#2D241C] dark:text-[#FAFAFA] text-base mb-1 tracking-tight">The Sunday Drop</h3>
+                      <p className="text-sm text-[#5C4A3D]/90 dark:text-slate-300 leading-relaxed font-serif">
+                        Al-Kisa is a living library. We unlock new dimensions of the platform <strong className="text-[#c6a87c] font-bold">every Sunday</strong>—from fresh masterclass episodes and newly mapped Hadith volumes, to sacred liturgies and interactive study tools.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="w-full h-px bg-gradient-to-r from-transparent via-[#5C4A3D]/10 dark:via-[#c6a87c]/20 to-transparent" />
+
                   {APP_UPDATES.map((update, idx) => (
-                    <div key={idx} className="relative pl-4 border-l-2 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20"><div className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-[#5C4A3D]/80 dark:bg-[#c6a87c]" /><div className="flex items-baseline justify-between mb-2"><h3 className="font-mono font-bold text-base sm:text-lg text-[#2D241C] dark:text-[#FAFAFA]">{update.version}</h3><span className="text-[10px] sm:text-xs font-mono text-[#5C4A3D]/60 dark:text-[#c6a87c]/60">{update.date}</span></div><ul className="flex flex-col gap-2 sm:gap-3">{update.changes.map((change, cIdx) => <li key={cIdx} className="text-xs sm:text-sm text-[#5C4A3D] dark:text-[#c6a87c] flex items-start gap-2 leading-relaxed"><span className="text-[#5C4A3D]/40 dark:text-[#c6a87c]/50 mt-0.5 font-bold">•</span><span>{change}</span></li>)}</ul></div>
+                    <div key={idx} className="relative pl-6 sm:pl-8 border-l-[1.5px] border-[#5C4A3D]/15 dark:border-[#c6a87c]/20">
+
+                      {/* The Premium Timeline Dot */}
+                      <div className="absolute -left-[4.5px] top-2 w-2 h-2 rounded-full bg-[#c6a87c] ring-4 ring-[#FDFBF7] dark:ring-[#151518]" />
+
+                      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between mb-3 gap-1 sm:gap-4">
+                        <h3 className="font-sans font-bold text-lg sm:text-xl text-[#2D241C] dark:text-[#FAFAFA] tracking-tight">{update.version}</h3>
+                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-[#5C4A3D]/50 dark:text-[#c6a87c]/60">{update.date}</span>
+                      </div>
+
+                      <ul className="flex flex-col gap-3">
+                        {update.changes.map((change, cIdx) => (
+                          <li key={cIdx} className="text-sm sm:text-base text-[#5C4A3D]/90 dark:text-slate-300 flex items-start gap-3 leading-relaxed font-serif">
+                            <span className="text-[#c6a87c] mt-2 font-bold text-[10px]">✦</span>
+                            <span>{change}</span>
+                          </li>
+                        ))}
+                      </ul>
+
+                    </div>
                   ))}
                 </div>
+
               </motion.div>
             </div>
           )}
