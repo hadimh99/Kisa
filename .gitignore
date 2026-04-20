@@ -1,34 +1,63 @@
-.npm/
-**/.npm/
+# ==========================
+# DEPENDENCIES & RUNTIMES
+# ==========================
 node_modules/
 **/node_modules/
-.npm_cache_*/
-**/.npm_cache_*/
+.npm/
+**/.npm/
+.npm_cache*/
+**/.npm_cache*/
 venv/
 hf_cache/
-chroma_db/
+.nvm
+
+# ==========================
+# ENVIRONMENT & SECRETS
+# ==========================
 .env
+
+# ==========================
+# OS FILES
+# ==========================
 .DS_Store
-*.sqlite3
+**/.DS_Store
+
+# ==========================
+# DATABASES & BINARY BLOBS
+# ==========================
 *.db
+*.sqlite3
 *.dylib
+!thaqalayn.db
+chroma_db/
+
+# ==========================
+# DATABASE BACKUPS & DUMPS
+# ==========================
+db_backups/
+*.db.bak
+*.sql.dump
+
+# ==========================
+# LARGE DATA EXPORTS
+# ==========================
 concept_atlas_export.json
 thaqalayn_complete.json
-.nvm
-.npm_cache/
-**/.npm_cache/
-!thaqalayn.db
-kisa_architecture.md
+
+# ==========================
+# ROOT-LEVEL SCRIPTS
+# (Migration & DB tools — not deployed to production)
+# ==========================
+migrate.js
+migrate-json.js
+clean_database.js
 embed_ontology.py
-basair_complete.jsonmigrate.js
-migrate-json.js
-clean_database.js
-.env
-migrate.js
-migrate-json.js
-clean_database.js
-.env
-migrate.js
-migrate-json.js
-clean_database.js
-.env
+basair_complete.json
+
+# ==========================
+# INTERNAL AI PROMPT TEMPLATES
+# (Private SOPs — NOT for version control)
+# ==========================
+/YoutubeTranscription.md
+/FormatTranscripts.md
+docs/SOP_Ontology_Update.md

@@ -7,6 +7,7 @@ import { supabase } from '../supabaseClient';
 import { jsPDF } from 'jspdf';
 import RevisionModule from './RevisionModule';
 import MasteryRing from './MasteryRing';
+import ContextualBridge from './ContextualBridge'; // NEW IMPORT
 import transcriptData from '../transcripts.json';
 
 const TranscriptBookmarkButton = ({ doc, vaultItems = [] }) => {
@@ -67,6 +68,7 @@ const TranscriptLibrary = ({
     const [currentView, setCurrentView] = useState('home');
     const [activeDoc, setActiveDoc] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [ontology, setOntology] = useState([]); // NEW STATE
 
     const [isArchiveOpen, setIsArchiveOpen] = useState(true);
     const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(true);
@@ -92,6 +94,29 @@ const TranscriptLibrary = ({
     const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
     const transcriptContentRef = useRef(null);
+
+    // NEW: Fetch Ontology Triggers on Mount
+    useEffect(() => {
+        const fetchOntology = async () => {
+            try {
+                // This detects if you are on localhost or a coffee shop IP automatically
+                const serverIp = window.location.hostname;
+                const response = await fetch(`http://${serverIp}:8000/api/ontology`);
+
+                const data = await response.json();
+                const mappedData = data.map(item => ({
+                    ...item,
+                    variant: item.transliteration
+                }));
+                setOntology(mappedData);
+                console.log(`[LIBRARY] 🧠 Contextual Bridge ready via ${serverIp}`);
+            } catch (err) {
+                console.error("Failed to load Kisa Brain Ontology:", err);
+            }
+        };
+
+        fetchOntology();
+    }, []);
 
     useEffect(() => {
         if (currentView !== 'reader') return;
@@ -311,7 +336,6 @@ const TranscriptLibrary = ({
         });
     };
 
-    // FIX: Replaced undefined SearchQuery with the correct state setter
     const closeReader = () => {
         setCurrentView('home');
         setActiveDoc(null);
@@ -490,7 +514,6 @@ const TranscriptLibrary = ({
         }
     };
 
-    // THE FIXED SEGMENT TRACKING PHYSICS (Native Apple Math)
     useEffect(() => {
         if (currentView !== 'reader' || !activeDoc) return;
 
@@ -550,7 +573,6 @@ const TranscriptLibrary = ({
                         }
                     }
 
-                    // Dynamic Segment Docking: Ducks underneath the Global Header when visible, slides up when reading.
                     if (stickySegmentRef.current) {
                         if (currentSegment && !isZenModeRef.current) {
                             if (stickySegmentRef.current.innerText !== currentSegment) {
@@ -621,14 +643,20 @@ const TranscriptLibrary = ({
 
     const jumpBack = () => window.scrollTo({ top: maxScrollYRef.current, behavior: 'smooth' });
 
+    // UPDATED: Modified parseFormatting to accept ContextualBridge for theological tooltips
     const parseFormatting = (text) => {
         if (!text) return null;
         const parts = text.split(/(\*\*.*?\*\*)/g);
         return parts.map((part, index) => {
             if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={index} className="font-bold text-zinc-900 dark:text-white">{part.slice(2, -2)}</strong>;
+                const innerText = part.slice(2, -2);
+                return (
+                    <strong key={index} className="font-bold text-zinc-900 dark:text-white">
+                        <ContextualBridge text={innerText} ontology={ontology} />
+                    </strong>
+                );
             }
-            return part;
+            return <ContextualBridge key={index} text={part} ontology={ontology} />;
         });
     };
 
@@ -851,7 +879,8 @@ const TranscriptLibrary = ({
 
             <div className="p-3 sm:p-4 overflow-y-auto smart-scrollbar flex-grow flex flex-col gap-2">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 block ml-1 mb-2">Library List</span>
-                <ArchiveList />
+                {ArchiveList()}
+
             </div>
         </div>
     );
@@ -865,7 +894,8 @@ const TranscriptLibrary = ({
             <div className="w-full min-h-screen pt-24 sm:pt-32 pb-32 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto flex flex-col pointer-events-auto">
 
                 <div className="mb-10 text-center sm:text-left">
-                    <h1 className="text-4xl sm:text-5xl font-serif font-bold text-zinc-900 dark:text-white mb-3">Scholarly Library</h1>                    <p className="text-zinc-500 dark:text-zinc-400 text-lg">Explore translated scholarly series and foundational lectures.</p>
+                    <h1 className="text-4xl sm:text-5xl font-serif font-bold text-zinc-900 dark:text-white mb-3">Scholarly Library</h1>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-lg">Explore translated scholarly series and foundational lectures.</p>
                 </div>
 
                 <div className="w-full bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 mb-10 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -1158,10 +1188,10 @@ const TranscriptLibrary = ({
             <AnimatePresence>
                 {isMobileDrawerOpen && (
                     <>
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMobileDrawerOpen(false)} className="md:hidden fixed inset-0 bg-black/40 z-[190] cursor-pointer backdrop-blur-sm" style={{ touchAction: 'none' }} />
                         <motion.div initial={{ x: '-100%' }} animate={{ x: 0 }} exit={{ x: '-100%' }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="md:hidden fixed top-0 bottom-0 left-0 w-[85vw] max-w-[340px] bg-white dark:bg-[#1c1c1e] z-[200] shadow-2xl border-r border-zinc-200 dark:border-zinc-800 flex flex-col overflow-hidden">
-                            <LibraryTools isMobile={true} />
+                            {LibraryTools({ isMobile: true })}
                         </motion.div>
+
                     </>
                 )}
             </AnimatePresence>
@@ -1180,8 +1210,9 @@ const TranscriptLibrary = ({
                     </button>
 
                     <div className="w-[320px] flex-1 bg-white dark:bg-[#252528] border border-zinc-200 dark:border-zinc-800/80 rounded-2xl flex flex-col shadow-sm min-h-0">
-                        <LibraryTools isMobile={false} />
+                        {LibraryTools({ isMobile: false })}
                     </div>
+
                 </motion.div>
 
                 <div className="flex-1 min-w-0 w-full flex justify-center transition-all duration-500">

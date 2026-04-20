@@ -512,6 +512,25 @@ app.post('/api/explore', async (req, res) => {
     }
 });
 
+// NEW: Endpoint to send the Kisa Brain to the frontend
+app.get('/api/ontology', (req, res) => {
+    try {
+        // We only send the name, arabic, definition, and domain
+        // We do NOT send the vector_embedding to the frontend to keep the payload light
+        const query = `
+            SELECT transliteration, primary_arabic, primary_english, domain, definition 
+            FROM ontology_concepts
+        `;
+        db.all(query, [], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows);
+        });
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch ontology" });
+    }
+});
+
+
 app.listen(PORT, () => {
     console.log(`Concept API Backend running on http://localhost:${PORT}`);
 });

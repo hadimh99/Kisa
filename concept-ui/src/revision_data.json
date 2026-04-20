@@ -1,4 +1,224 @@
 {
+    "know-your-imam-ep1": {
+        "flashcards": [
+            {
+                "term": "Aqidah",
+                "definition": "A doctrine or faith that is 'tied in the heart and soul' requiring clear mental submission, vigilant awareness, and heartfelt acceptance rather than blind imitation."
+            },
+            {
+                "term": "Usuli School",
+                "definition": "The dominant Shia school currently governing in Najaf, which Sheikh al-Ghizzi argues is the furthest from the Progeny's methodology because it adopted external frameworks like Al-Bukhari's methodology and Mu'tazilite theology."
+            },
+            {
+                "term": "Akhbari School",
+                "definition": "A Shia intellectual school that relies heavily on books of Hadith; its pure faction accepts traditions without filtering, and it generally harbors a severe aversion to Sufism and Irfan."
+            },
+            {
+                "term": "Irfani School",
+                "definition": "A seminary mystic school that developed within the Usuli environment, characterized by prominent trends like the Husayn Quli Al-Hamadani school in Najaf and the Qommi school in Iran."
+            },
+            {
+                "term": "Shaykhi School",
+                "definition": "Founded by Ahmad Al-Ahsa'i, this school combined standard Usuli jurisprudence with a unique philosophical and mystic foundation termed 'The Wisdom of the People of the House'."
+            },
+            {
+                "term": "Tafkiki School",
+                "definition": "A school founded in Mashhad that explicitly separates the conclusions reached by philosophy and mysticism from those derived strictly from the Quran and the traditions of the Progeny."
+            },
+            {
+                "term": "Gonabadi School",
+                "definition": "A heavily Sufi-influenced branch of the Usuli school, founded by Sultan Ali Shah and deeply intertwined with the path of the Iranian Sufi Shah Nimatullah Wali."
+            },
+            {
+                "term": "Taqiyyah",
+                "definition": "Dissimulation or concealing one's true beliefs out of fear; a practice the Sheikh strictly rejects using in his programs, considering it a betrayal when one's duty is to proclaim theological truths."
+            },
+            {
+                "term": "The Golden Disavowal",
+                "definition": "One of the Sheikh's five golden principles, requiring a believer to 'divorce the methodology of the owners of the large devilish turbans in Najaf and Karbala' with an irrevocable divorce."
+            },
+            {
+                "term": "Eloquent Arabic",
+                "definition": "The contemporary language of media and conferences deliberately chosen by the Sheikh for his programs to communicate clearly, avoiding the fabricated hidden meanings or 'games' associated with other styles."
+            }
+        ],
+        "quiz": [
+            {
+                "id": 1,
+                "difficulty": "Easy",
+                "type": "single",
+                "question": "How does Sheikh al-Ghizzi define a true doctrine (Aqidah) based on the traditions of the Ahl al-Bayt?",
+                "options": [
+                    "It is a strict set of jurisprudential rulings dictated by contemporary authorities.",
+                    "It is a knot tied firmly in the heart and soul through clear mental submission.",
+                    "It is a verbal declaration that requires no internal comprehension.",
+                    "It is the philosophical exploration of unseen worlds."
+                ],
+                "correct": [
+                    1
+                ],
+                "hint": "The linguistic root of the Arabic word relates to being securely tied or fastened.",
+                "explanation": "The Sheikh emphasizes that a doctrine is called 'Aqidah' because it is tied in the heart and soul. True faith requires a person to comprehend it with vigilant awareness and clear mental submission, rather than blindly accepting dictated beliefs."
+            },
+            {
+                "id": 2,
+                "difficulty": "Easy",
+                "type": "single",
+                "question": "What is the primary source material for Sheikh al-Ghizzi's independent theological methodology?",
+                "options": [
+                    "The Quran interpreted exclusively through the Ahl al-Bayt's interpretation, alongside their Hadith.",
+                    "The combined jurisprudential principles of Al-Shafi'i and the traditions of the Akhbari school.",
+                    "The philosophical deductions of Mirza Mahdi Al-Isfahani from the Tafkiki school.",
+                    "The spiritual practices derived from the Gonabadi Sufi order."
+                ],
+                "correct": [
+                    0
+                ],
+                "hint": "The Sheikh states he has absolutely no connection to the established Usuli, Akhbari, or Irfani methodologies.",
+                "explanation": "Sheikh al-Ghizzi completely distances himself from all mentioned Shia schools, affirming that his sole methodology relies on the 'Quran of Muhammad and the family of Muhammad, interpreted exclusively through their interpretation' and their Hadith."
+            },
+            {
+                "id": 3,
+                "difficulty": "Easy",
+                "type": "single",
+                "question": "According to the Sheikh, what is the primary purpose of this 'Know Your Imam' program?",
+                "options": [
+                    "To engage in intense theological debates with the Usuli scholars of Najaf.",
+                    "To provide exhaustive rational proofs and new evidence for Shia doctrines.",
+                    "To serve as a map of the Shia belief system for the purpose of clarification and explanation.",
+                    "To teach the audience how to read and interpret classical Arabic poetry."
+                ],
+                "correct": [
+                    2
+                ],
+                "hint": "He mentions that if viewers want lengthy proofs and evidence, they must return to his older, longer programs.",
+                "explanation": "The Sheikh explicitly states that the episodes in this series are not for demonstrating exhaustive proof, but rather for clarification and explanation, providing viewers with a clear 'map of the system of our beliefs'."
+            },
+            {
+                "id": 4,
+                "difficulty": "Medium",
+                "type": "single",
+                "question": "Why does the Sheikh view the Usuli School as the furthest from the methodology of the Pure Progeny?",
+                "options": [
+                    "Because it relies exclusively on unverified Akhbari narrations.",
+                    "Because it strictly rejects all forms of human reasoning and philosophy.",
+                    "Because it incorporated the biographical methodology of Al-Bukhari, Al-Shafi'i's principles, and Mu'tazilite theology.",
+                    "Because it separated the conclusions of philosophy from the traditions of the Imams."
+                ],
+                "correct": [
+                    2
+                ],
+                "hint": "The Sheikh criticizes this school for borrowing frameworks from external, non-Shia sources in violation of the pledge of Al-Ghadir.",
+                "explanation": "The Sheikh asserts that the Usuli school, originating around the time of Sheikh Al-Tusi, is the furthest from the Progeny's methodology because it synthesized external elements: Al-Bukhari's chain methodology, Al-Shafi'i's jurisprudence, and Mu'tazilite theology."
+            },
+            {
+                "id": 5,
+                "difficulty": "Medium",
+                "type": "single",
+                "question": "What is the Sheikh's stance on using Taqiyyah (dissimulation) during his public programs?",
+                "options": [
+                    "He uses it frequently because he fears the reaction of the religious authorities in Najaf.",
+                    "He completely rejects it, stating that using Taqiyyah while clarifying theological truths is a betrayal of the Ahl al-Bayt.",
+                    "He uses it only when discussing the philosophical aspects of the Irfani school.",
+                    "He believes it is a mandatory linguistic tool for anyone speaking classical Arabic."
+                ],
+                "correct": [
+                    1
+                ],
+                "hint": "The Sheikh boldly claims he 'would not buy the religious authority for a worn-out penny'.",
+                "explanation": "Sheikh al-Ghizzi vehemently rejects the use of Taqiyyah in his speeches. He argues that his duty is to proclaim the truth, and practicing Taqiyyah out of fear or appeasement in his position would be a betrayal of the Imam of the Time."
+            },
+            {
+                "id": 6,
+                "difficulty": "Medium",
+                "type": "single",
+                "question": "Which Shia school is characterized primarily by its attempt to separate philosophical and Gnostic conclusions from the conclusions drawn from the Quran and the traditions of the Progeny?",
+                "options": [
+                    "The Shaykhi School",
+                    "The Gonabadi School",
+                    "The Usuli School",
+                    "The Tafkiki School"
+                ],
+                "correct": [
+                    3
+                ],
+                "hint": "The name of this school derives from an Arabic root meaning to dismantle or separate.",
+                "explanation": "The Tafkiki School, founded in Mashhad by Mirza Mahdi Al-Isfahani, is distinctly known for its methodology of separating (Tafkik) the conclusions of philosophers and mystics from the pure conclusions of the Book and traditions."
+            },
+            {
+                "id": 7,
+                "difficulty": "Hard",
+                "type": "single",
+                "question": "According to the Sheikh, what was the primary reason the Ahl al-Bayt utilized a 'coded style' with hidden meanings in their speech?",
+                "options": [
+                    "To test the intelligence and linguistic prowess of the common Muslims.",
+                    "To ensure only certified Usuli jurists could deduce legal rulings.",
+                    "To protect their religious culture and knowledge from intentional and unintentional distortion by both enemies and friends.",
+                    "To harmonize their teachings with the emerging Sufi orders of their era."
+                ],
+                "correct": [
+                    2
+                ],
+                "hint": "The Imams adopted this out of necessity, as sometimes 'distortion by friends is more dangerous than distortion by enemies.'",
+                "explanation": "The Ahl al-Bayt were forced into using hidden meanings and a specific tone to safeguard their Hadith. This protected their religious culture from distortion and alteration, which the Sheikh notes can occur through malicious enemies or over-preoccupied, well-meaning friends."
+            },
+            {
+                "id": 8,
+                "difficulty": "Hard",
+                "type": "single",
+                "question": "Why does Sheikh al-Ghizzi deliberately use 'eloquent Arabic' (the language of media) instead of 'classical Arabic' (literary/rhetorical) in his programs, despite classical Arabic being easier for him?",
+                "options": [
+                    "Because he never learned classical Arabic during his childhood education.",
+                    "To communicate clearly and directly, rejecting the idea that he is fabricating 'hidden meanings' or playing games with language.",
+                    "Because the Ahl al-Bayt specifically forbade the use of classical Arabic during the Major Occultation.",
+                    "To appeal exclusively to the followers of the Tafkiki school in Mashhad."
+                ],
+                "correct": [
+                    1
+                ],
+                "hint": "He wants to avoid accusations that he is speaking with the tongue of Taqiyyah or hiding his true intent behind poetic rhetoric.",
+                "explanation": "Although the Sheikh is fluent in classical/literary Arabic, he uses contemporary 'eloquent Arabic' to be completely transparent. This prevents anyone from claiming he is using Taqiyyah or fabricating hidden, rhetorical meanings to mask his true beliefs."
+            },
+            {
+                "id": 9,
+                "difficulty": "Expert",
+                "type": "multi",
+                "question": "Based on the Sheikh's detailed critique, which of the following accurately describe the origins and features of the Shaykhi School? (Select all that apply)",
+                "options": [
+                    "It strictly adheres to pure Akhbari tradition and violently opposes Sufism.",
+                    "It uses the standard Usuli methodology, including the principles of Al-Shafi'i, in its jurisprudential deductions.",
+                    "It was founded by Ahmad Al-Ahsa'i, who was noticeably influenced by philosophy and Irfan.",
+                    "It introduced a unique theological foundation called 'The Wisdom of the People of the House'."
+                ],
+                "correct": [
+                    1,
+                    2,
+                    3
+                ],
+                "hint": "The Usuli authorities attack its theological aspect but do not attack its fatwa aspect because they share the same deduction methods.",
+                "explanation": "The Shaykhi School, founded by Ahmad Al-Ahsa'i, is unique because it maintains Usuli jurisprudence (Option 1) while establishing a new philosophical and mystic foundation called 'The Wisdom of the People of the House' (Option 3), reflecting Al-Ahsa'i's influence by Irfan (Option 2). It is not an Akhbari anti-Sufi movement (Option 0 is false)."
+            },
+            {
+                "id": 10,
+                "difficulty": "Expert",
+                "type": "multi",
+                "question": "At the conclusion of the episode, the Sheikh outlines five 'Golden' principles. Which of the following are explicitly included in this list? (Select all that apply)",
+                "options": [
+                    "The Golden Knowledge: Your Imam is your religion, and your religion is your Imam.",
+                    "The Golden Compromise: Fusing the intellect of the philosophers with the heart of the Gnostics.",
+                    "The Golden Disavowal: Divorcing the methodology of the large turbans in Najaf and Karbala.",
+                    "The Golden Program: The program of the apparent, functioning as a secure fort according to the Yamani methodology."
+                ],
+                "correct": [
+                    0,
+                    2,
+                    3
+                ],
+                "hint": "The principles emphasize absolute devotion to the Imam, rejecting the Najaf/Karbala methodologies, and adhering to a specific secure program.",
+                "explanation": "The Sheikh explicitly lists: The Golden Knowledge (Your Imam is your religion), The Golden Disavowal (Divorcing the Najaf/Karbala turban methodology), and The Golden Program (the Yamani methodology). There is no mention of a 'Golden Compromise' regarding philosophers and Gnostics, which contradicts his entire rejection of those schools."
+            }
+        ]
+    },
     "file-of-fatima-ep1": {
         "youtube_id": "M7FIvfx5J10",
         "flashcards": [
