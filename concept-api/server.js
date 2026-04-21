@@ -13,8 +13,23 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 8000;
 
+const allowedOrigins = [
+    'https://www.al-kisa.org',
+    'https://al-kisa.org',
+    'http://localhost:5173',   // Vite dev server
+    'http://localhost:3000',   // Fallback dev server
+];
+
 app.use(cors({
-    origin: '*',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (e.g. server-to-server, curl, mobile apps)
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS] Blocked request from origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST'],
     allowedHeaders: ['Content-Type']
 }));

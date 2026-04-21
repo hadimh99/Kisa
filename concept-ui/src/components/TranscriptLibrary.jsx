@@ -99,9 +99,10 @@ const TranscriptLibrary = ({
     useEffect(() => {
         const fetchOntology = async () => {
             try {
-                // This detects if you are on localhost or a coffee shop IP automatically
-                const serverIp = window.location.hostname;
-                const response = await fetch(`http://${serverIp}:8000/api/ontology`);
+                // Use VITE_API_URL for explicit control, or fall back to a relative path.
+                // A relative path inherits the page's protocol/origin, avoiding Mixed Content errors.
+                const apiBase = import.meta.env.VITE_API_URL || '';
+                const response = await fetch(`${apiBase}/api/ontology`);
 
                 const data = await response.json();
                 const mappedData = data.map(item => ({
@@ -109,7 +110,7 @@ const TranscriptLibrary = ({
                     variant: item.transliteration
                 }));
                 setOntology(mappedData);
-                console.log(`[LIBRARY] 🧠 Contextual Bridge ready via ${serverIp}`);
+                console.log(`[LIBRARY] 🧠 Contextual Bridge ready via ${apiBase || window.location.origin}`);
             } catch (err) {
                 console.error("Failed to load Kisa Brain Ontology:", err);
             }
