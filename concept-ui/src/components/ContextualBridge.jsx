@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const ContextualBridge = ({ text, ontology }) => {
+// UPDATED: Now accepts sharedMemory from TranscriptLibrary
+const ContextualBridge = ({ text, ontology, sharedMemory }) => {
     if (!ontology || ontology.length === 0) return <span>{text}</span>;
 
     const sortedTerms = [...ontology].sort((a, b) => b.variant.length - a.variant.length);
@@ -10,18 +11,34 @@ const ContextualBridge = ({ text, ontology }) => {
 
     const parts = text.split(regex);
 
+    // Use the shared memory from the parent segment, or fallback to a local one
+    const seenConcepts = sharedMemory || new Set();
+
     return (
         <span>
             {parts.map((part, index) => {
-                const match = sortedTerms.find(item => item.variant.toLowerCase() === part.toLowerCase());
+                const lowerPart = part.toLowerCase();
+                const match = sortedTerms.find(item => item.variant.toLowerCase() === lowerPart);
+
                 if (match) {
-                    return <TooltipTerm key={index} term={part} details={match} />;
+                    const conceptKey = match.id || match.primary_arabic || match.variant;
+
+                    // The Gatekeeper: Checks the shared segment memory
+                    if (!seenConcepts.has(conceptKey)) {
+                        seenConcepts.add(conceptKey);
+                        return <TooltipTerm key={index} term={part} details={match} />;
+                    }
+
+                    return part;
                 }
+
                 return part;
             })}
         </span>
     );
 };
+
+
 
 const TooltipTerm = ({ term, details }) => {
     const [show, setShow] = useState(false);

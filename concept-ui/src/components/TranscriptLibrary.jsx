@@ -99,22 +99,33 @@ const TranscriptLibrary = ({
     useEffect(() => {
         const fetchOntology = async () => {
             try {
-                // Use VITE_API_URL for explicit control, or fall back to a relative path.
-                // A relative path inherits the page's protocol/origin, avoiding Mixed Content errors.
-                const apiBase = import.meta.env.VITE_API_URL || '';
-                const response = await fetch(`${apiBase}/api/ontology`);
+                // 1. Get the base and make sure it's a string, removing any trailing slashes
+                let apiBase = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+
+                // 2. Construct the URL. If apiBase is empty, it becomes just "/api/ontology"
+                const targetUrl = apiBase ? `${apiBase}/api/ontology` : '/api/ontology';
+
+                const response = await fetch(targetUrl);
+
+                // 3. Check if the response is actually OK before trying to parse JSON
+                if (!response.ok) {
+                    throw new Error(`Server responded with ${response.status}`);
+                }
 
                 const data = await response.json();
+
                 const mappedData = data.map(item => ({
                     ...item,
                     variant: item.transliteration
                 }));
+
                 setOntology(mappedData);
-                console.log(`[LIBRARY] 🧠 Contextual Bridge ready via ${apiBase || window.location.origin}`);
+                console.log(`[LIBRARY] 🧠 Contextual Bridge ready via ${targetUrl}`);
             } catch (err) {
                 console.error("Failed to load Kisa Brain Ontology:", err);
             }
         };
+
 
         fetchOntology();
     }, []);
@@ -644,20 +655,30 @@ const TranscriptLibrary = ({
 
     const jumpBack = () => window.scrollTo({ top: maxScrollYRef.current, behavior: 'smooth' });
 
-    // UPDATED: Modified parseFormatting to accept ContextualBridge for theological tooltips
+    // UPDATED: Invoking ContextualBridge as a pure function to bypass Strict Mode memory mutation
     const parseFormatting = (text) => {
         if (!text) return null;
         const parts = text.split(/(\*\*.*?\*\*)/g);
+
+        // This memory bank covers the entire paragraph/segment
+        const blockMemory = new Set();
+
         return parts.map((part, index) => {
             if (part.startsWith('**') && part.endsWith('**')) {
                 const innerText = part.slice(2, -2);
                 return (
                     <strong key={index} className="font-bold text-zinc-900 dark:text-white">
-                        <ContextualBridge text={innerText} ontology={ontology} />
+                        {/* Calling it as a function instead of a component tag */}
+                        {ContextualBridge({ text: innerText, ontology: ontology, sharedMemory: blockMemory })}
                     </strong>
                 );
             }
-            return <ContextualBridge key={index} text={part} ontology={ontology} />;
+            return (
+                <span key={index}>
+                    {/* Calling it as a function instead of a component tag */}
+                    {ContextualBridge({ text: part, ontology: ontology, sharedMemory: blockMemory })}
+                </span>
+            );
         });
     };
 
@@ -1377,14 +1398,17 @@ const TranscriptLibrary = ({
                                 if (block.type === 'summary') return (
                                     <div key={idx} className="transcript-block bg-zinc-50 dark:bg-[#1c1c1e] border-l-4 border-[#c6a87c] p-6 sm:p-8 my-10 rounded-r-xl shadow-sm">
                                         <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#c6a87c] mb-3"><Sparkles className="w-3.5 h-3.5" /> Segment Summary</span>
-                                        <p className="text-zinc-700 dark:text-zinc-300 font-medium font-editorial" style={{ fontSize: `${Math.max(15, fontSize - 2)}px`, lineHeight: 1.7 }}>{parseFormatting(block.text)}</p>
+                                        {/* FIXED: Changed <p> to <div> to clear the React console error */}
+                                        <div className="text-zinc-700 dark:text-zinc-300 font-medium font-editorial" style={{ fontSize: `${Math.max(15, fontSize - 2)}px`, lineHeight: 1.7 }}>{parseFormatting(block.text)}</div>
                                     </div>
                                 );
                                 if (block.type === 'quote') return (
                                     <blockquote key={idx} className="transcript-block pl-6 sm:pl-8 py-2 my-10 border-l-[3px] border-[#c6a87c] font-medium text-zinc-900 dark:text-zinc-100 italic font-editorial" style={{ fontSize: `${fontSize * 1.15}px`, lineHeight: 1.6 }}>"{parseFormatting(block.text)}"</blockquote>
                                 );
                                 if (block.type === 'divider') return <div key={idx} className="flex justify-center py-10"><span className="w-12 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700"></span></div>;
-                                return <p key={idx} className="transcript-block mb-6 text-left">{parseFormatting(block.text)}</p>;
+
+                                {/* FIXED: Changed <p> to <div> to clear the React console error */ }
+                                return <div key={idx} className="transcript-block mb-6 text-left">{parseFormatting(block.text)}</div>;
                             })}
                         </div>
 
