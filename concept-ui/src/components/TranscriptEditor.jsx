@@ -290,15 +290,15 @@ const TranscriptEditor = ({ supabase }) => {
                     </h3>
                     <p className="text-sm text-zinc-400 mt-1">Control the organic render order of parent series components.</p>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="flex flex-col gap-3 w-full">
                     {uniqueSeriesObjs.map(series => (
-                        <div key={series.name} className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 border rounded-xl transition-all ${series.isHidden ? 'bg-[#0a0a0a] border-zinc-900 opacity-75' : 'bg-black/50 border-zinc-800 hover:border-[#c6a87c]/30'}`}>
-                            <div className="flex items-center gap-3 mb-3 sm:mb-0">
-                                <span className="text-sm font-bold text-white truncate max-w-[200px]">{series.name}</span>
-                                {series.isHidden && <span className="text-red-500 font-bold uppercase tracking-widest text-[9px] bg-red-900/20 px-1.5 py-0.5 rounded">Hidden</span>}
+                        <div key={series.name} className={`flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg transition-all gap-4 w-full ${series.isHidden ? 'bg-[#0a0a0a] border-zinc-900 opacity-75' : 'bg-black/50 border-zinc-800 hover:border-[#c6a87c]/30'}`}>
+                            <div className="flex-1 font-semibold text-white whitespace-normal pr-4 flex items-center gap-2">
+                                <span>{series.name}</span>
+                                {series.isHidden && <span className="text-red-500 font-bold uppercase tracking-widest text-[9px] bg-red-900/20 px-1.5 py-0.5 rounded shrink-0">Hidden</span>}
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
-                                <span className="text-xs text-zinc-500 font-bold uppercase tracking-widest hidden xl:block">Priority Rank:</span>
+                                <span className="text-xs text-zinc-500 uppercase tracking-wider mr-2 hidden xl:block">Priority Rank:</span>
                                 <input 
                                     type="number"
                                     defaultValue={series.priority}
@@ -314,7 +314,7 @@ const TranscriptEditor = ({ supabase }) => {
                                 </button>
                                 <button 
                                     onClick={() => handleTrashSeries(series.name)}
-                                    className="p-2 bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition-colors"
+                                    className="p-2 bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition-colors shrink-0"
                                     title="Trash Entire Series"
                                 >
                                     <Trash2 className="w-4 h-4" />
@@ -337,12 +337,12 @@ const TranscriptEditor = ({ supabase }) => {
                     </div>
                 </div>
                 
-                <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
+                <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2 w-full" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
                     {vaultItems.map((item) => (
-                        <div key={item.id} className={`flex items-center justify-between p-4 border rounded-xl transition-all ${item.is_hidden ? 'bg-[#0a0a0a] border-zinc-900 opacity-75' : 'bg-black/50 border-zinc-800 hover:border-[#c6a87c]/50'}`}>
-                            <div className="flex flex-col gap-1 min-w-0 pr-4">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-[#c6a87c] truncate">{item.series_name}</span>
-                                <h4 className="text-sm font-bold text-white truncate">{item.title}</h4>
+                        <div key={item.id} className={`flex flex-col md:flex-row md:items-center justify-between p-3 border rounded-lg transition-all gap-4 w-full ${item.is_hidden ? 'bg-[#0a0a0a] border-zinc-900 opacity-75' : 'bg-black/50 border-zinc-800 hover:border-[#c6a87c]/50'}`}>
+                            <div className="flex flex-col gap-1 flex-1 min-w-0 pr-4">
+                                <span className="text-[10px] font-bold uppercase tracking-widest text-[#c6a87c] whitespace-normal">{item.series_name}</span>
+                                <h4 className="font-medium text-white whitespace-normal pr-4">{item.title}</h4>
                                 <span className="text-xs text-zinc-500">{item.id} {item.is_hidden && <span className="ml-2 text-red-500 font-bold uppercase tracking-widest text-[9px] bg-red-900/20 px-1.5 py-0.5 rounded">Hidden Draft</span>}</span>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
