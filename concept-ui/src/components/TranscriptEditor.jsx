@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, PlusCircle, AlertCircle, FolderOpen, Hash, Eye, EyeOff, ExternalLink, Library, Layers, Trash2, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react';
 
-const TranscriptEditor = ({ supabase }) => {
+const TranscriptEditor = ({ supabase, selectedEpisodeForEdit, onEditEpisode }) => {
     const [rawJson, setRawJson] = useState('');
     const [status, setStatus] = useState({ type: '', message: '' });
     
@@ -23,6 +23,38 @@ const TranscriptEditor = ({ supabase }) => {
     const [history, setHistory] = useState([]);
     const [previewTheme, setPreviewTheme] = useState('sepia');
     const [activeTab, setActiveTab] = useState('build');
+
+    useEffect(() => {
+        if (selectedEpisodeForEdit) {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setSeriesName(selectedEpisodeForEdit.series_name || '');
+            setEpisodeNumber(selectedEpisodeForEdit.episode_number || '');
+            setIsHidden(selectedEpisodeForEdit.is_hidden || false);
+            
+            let parsedContent = [];
+            try {
+                parsedContent = typeof selectedEpisodeForEdit.content === 'string' 
+                    ? JSON.parse(selectedEpisodeForEdit.content) 
+                    : selectedEpisodeForEdit.content;
+                if (!Array.isArray(parsedContent)) parsedContent = [parsedContent];
+            } catch {
+                parsedContent = [];
+            }
+            
+            setParsedItems([{
+                id: selectedEpisodeForEdit.id,
+                series_name: selectedEpisodeForEdit.series_name,
+                episode_number: selectedEpisodeForEdit.episode_number,
+                title: selectedEpisodeForEdit.title,
+                speaker: selectedEpisodeForEdit.speaker,
+                primary_theme: selectedEpisodeForEdit.primary_theme,
+                source_link: selectedEpisodeForEdit.source_link,
+                content: parsedContent
+            }]);
+            
+            setActiveTab('build');
+        }
+    }, [selectedEpisodeForEdit]);
 
     const pushHistory = (state) => {
         setHistory(prev => [...prev, structuredClone(state)]);
@@ -650,8 +682,15 @@ const TranscriptEditor = ({ supabase }) => {
                                     className="w-16 bg-zinc-900 border border-zinc-700 rounded-md p-2 text-white text-sm text-center focus:border-[#c6a87c] outline-none"
                                 />
                                 <button 
+                                    onClick={() => onEditEpisode && onEditEpisode(item)}
+                                    className="p-2 sm:px-4 sm:py-2 bg-blue-900/20 text-blue-400 hover:bg-blue-500 hover:text-white rounded-md transition-colors flex items-center gap-1 font-bold text-xs uppercase tracking-widest shrink-0"
+                                    title="Edit Episode"
+                                >
+                                    ✏️ Edit
+                                </button>
+                                <button 
                                     onClick={() => handleTrashItem(item.id)}
-                                    className="p-2 bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition-colors"
+                                    className="p-2 bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition-colors shrink-0"
                                     title="Move to Trash"
                                 >
                                     <Trash2 className="w-4 h-4" />

@@ -9,6 +9,12 @@ const KisaCommandCenter = () => {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState('transcripts');
+    const [selectedEpisodeForEdit, setSelectedEpisodeForEdit] = useState(null);
+
+    const handleEditEpisode = (episode) => {
+        setSelectedEpisodeForEdit(episode);
+        setActiveTab('transcripts');
+    };
 
     useEffect(() => {
         supabase.auth.getSession().then(({ data: { session } }) => {
@@ -91,7 +97,11 @@ const KisaCommandCenter = () => {
                     <div className="max-w-4xl mx-auto">
                         <h1 className="text-3xl font-bold text-white mb-2">Transcript Studio</h1>
                         <p className="text-zinc-400 mb-8">Ingest, format, and publish translated lectures.</p>
-                        <TranscriptEditor supabase={supabase} />
+                        <TranscriptEditor 
+                            supabase={supabase} 
+                            selectedEpisodeForEdit={selectedEpisodeForEdit} 
+                            onEditEpisode={handleEditEpisode} 
+                        />
                     </div>
                 )}
             </div>
