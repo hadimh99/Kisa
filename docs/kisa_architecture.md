@@ -38,13 +38,15 @@ The local SQLite database contains the raw hadiths alongside three active tables
 ## 4. Current Features & Capabilities (Implemented)
 
 ### Phase 3 Completed: Full-Stack Headless CMS & Curriculum Engine
-1. **True Root Interception:** The Vault Door (Login Screen) was successfully injected at the absolute root in `src/main.jsx`, intercepting the `/admin` route before the public UI ever mounts.
+1. **Security Through Obscurity (Root Interception):** The Vault Door (Command Center) was successfully injected at the absolute root in `src/main.jsx`, intercepting the hidden `/kisacms99` route. Regular users on `/admin` or root naturally bypass the gate into the public UI.
 2. **Supabase Cloud Integration:** The application is fully decoupled from local static JSON. The `kisa_transcripts` table is live, protected by Row Level Security (RLS) policies (Admin = Write, Public = Read). The public `TranscriptLibrary.jsx` now dynamically fetches from this cloud database.
 3. **Bulk Ingestion Engine:** The `TranscriptEditor` Dropzone is fully array-aware. It can ingest massive legacy JSON arrays, automatically mapping legacy keys (like `series` to `series_name` and extracting `source_link`) while preserving strict mathematical sequence.
-4. **Master Curriculum Control (God-Mode):** Engineered a two-tier sorting system. 
-   - **Macro:** "Global Series Ranking" UI edits the `series_priority` column to reorder entire series on the public frontend.
-   - **Micro:** "Vault Library Manager" UI allows granular editing of `episode_number` to instantly re-sort episodes within a series.
-5. **Security Audit Passed:** `.gitignore` hardened against all `.env` files. `src/lib/supabase.js` strictly utilizes `import.meta.env` with zero hardcoded credentials.
+4. **Master Curriculum Control (God-Mode):** Engineered a two-tier sorting and macro-management system. 
+   - **Macro (Global Series Ranking):** UI to edit `series_priority` allowing global reordering of series. Includes bulk controls to instantly Toggle Visibility (`is_hidden`) and Trash (`is_trashed`) an entire series and all its descendants via single-click batched updates.
+   - **Micro (Vault Library Manager):** Granular episode-level UI to edit `episode_number`, re-sorting episodes within a series natively via adaptive Flex layouts without truncating dense theological titles.
+5. **Soft Delete Architecture (Trash Bin):** Implemented a full `is_trashed` lifecycle constraint. Trashed items are instantly hidden from the public UI queries and moved to an isolated "Trash Bin" interface in the Command Center, where they can be Restored to the active Vault or permanently Incinerated (hard `DELETE`).
+6. **Vercel SPA Deployment Optimization:** Deployed a root `vercel.json` utilizing wildcard `/(.*)` rewrites to `index.html`, aggressively eliminating 404 router desyncs upon direct URL visits.
+7. **Security Audit Passed:** `.gitignore` hardened against all `.env` files. `src/lib/supabase.js` strictly utilizes `import.meta.env` with zero hardcoded credentials.
 
 **Search & Navigation Engine:**
 * **Dual Search Engine:** 

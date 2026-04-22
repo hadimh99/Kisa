@@ -694,7 +694,7 @@ const TranscriptLibrary = ({
     // UPDATED: Invoking ContextualBridge as a pure function to bypass Strict Mode memory mutation
     const parseFormatting = (text) => {
         if (!text) return null;
-        const parts = text.split(/(\*\*.*?\*\*)/g);
+        const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|\[\[.*?\]\]|\~\~.*?\~\~)/g);
 
         // This memory bank covers the entire paragraph/segment
         const blockMemory = new Set();
@@ -704,14 +704,32 @@ const TranscriptLibrary = ({
                 const innerText = part.slice(2, -2);
                 return (
                     <strong key={index} className="font-bold text-zinc-900 dark:text-white">
-                        {/* Calling it as a function instead of a component tag */}
                         {ContextualBridge({ text: innerText, ontology: ontology, sharedMemory: blockMemory })}
                     </strong>
                 );
             }
+            if (part.startsWith('*') && part.endsWith('*')) {
+                const innerText = part.slice(1, -1);
+                return (
+                    <em key={index} className="italic font-editorial">
+                        {ContextualBridge({ text: innerText, ontology: ontology, sharedMemory: blockMemory })}
+                    </em>
+                );
+            }
+            if (part.startsWith('[[') && part.endsWith(']]')) {
+                const innerText = part.slice(2, -2);
+                return (
+                    <span key={index} className="underline decoration-dotted underline-offset-4 decoration-1 text-[#c6a87c]">
+                        {ContextualBridge({ text: innerText, ontology: ontology, sharedMemory: blockMemory })}
+                    </span>
+                );
+            }
+            if (part.startsWith('~~') && part.endsWith('~~')) {
+                const innerText = part.slice(2, -2);
+                return <span key={index}>{innerText}</span>; // Bypasses ContextualBridge
+            }
             return (
                 <span key={index}>
-                    {/* Calling it as a function instead of a component tag */}
                     {ContextualBridge({ text: part, ontology: ontology, sharedMemory: blockMemory })}
                 </span>
             );
