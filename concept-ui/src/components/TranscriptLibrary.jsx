@@ -3,12 +3,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight, ChevronLeft, Copy, ChevronDown, ChevronUp, List, Layout, BookOpen, History, Sparkles, X, Check, Clock, Trash2, Library as LibraryIcon, ArrowDown, Bookmark, Youtube, Database, Download } from 'lucide-react';
-import { supabase } from '../supabaseClient';
+import { supabase } from '../lib/supabase';
 import { jsPDF } from 'jspdf';
 import RevisionModule from './RevisionModule';
 import MasteryRing from './MasteryRing';
-import ContextualBridge from './ContextualBridge'; // NEW IMPORT
-import transcriptData from '../transcripts.json';
+import ContextualBridge from './ContextualBridge';
 
 const TranscriptBookmarkButton = ({ doc, vaultItems = [] }) => {
     const sourceRef = doc.title;
@@ -58,13 +57,50 @@ const TranscriptBookmarkButton = ({ doc, vaultItems = [] }) => {
 };
 
 const TranscriptLibrary = ({
-    transcripts, vaultItems, externalDocTarget, externalHighlightTarget,
+    vaultItems, externalDocTarget, externalHighlightTarget,
     theme, setTheme, activeTab, setActiveTab, handleHomeClick,
     showHistoryDrawer, setShowHistoryDrawer, appHistory, setAppHistory, handleHistoryClick,
     showUpdates, setShowUpdates, showInfo, setShowInfo,
     user, setShowAuthModal, setShowSignOutConfirm, setShowVault,
     setQuranTarget, setQuranVerseTarget, APP_UPDATES, timeAgo, KisaLogo
 }) => {
+    // Live Cloud State
+    const [transcripts, setTranscripts] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchLiveTranscripts = async () => {
+            try {
+                const { data, error } = await supabase
+                    .from('kisa_transcripts')
+                    .select('*')
+                    .eq('is_hidden', false)
+                    .eq('is_trashed', false)
+                    .order('series_priority', { ascending: true })
+                    .order('episode_number', { ascending: true });
+
+                if (error) {
+                    console.error("Error fetching live transcripts:", error);
+                    setTranscripts([]);
+                } else if (data) {
+                    // Map the standard database columns to match the expected UI components
+                    const mappedTranscripts = data.map(item => ({
+                        ...item,
+                        series: item.series_name,
+                        episode: item.episode_number
+                    }));
+                    setTranscripts(mappedTranscripts);
+                }
+            } catch (err) {
+                console.error("Critical error fetching transcripts:", err);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchLiveTranscripts();
+    }, []);
+
     const [currentView, setCurrentView] = useState('home');
     const [activeDoc, setActiveDoc] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
@@ -1391,6 +1427,8 @@ const TranscriptLibrary = ({
                                 </AnimatePresence>
                             </div>
                         )}
+
+
 
                         <div className={`text-zinc-800 dark:text-zinc-300 antialiased ${fontFamily === 'serif' ? 'font-editorial' : 'font-sans'}`} style={{ fontSize: `${fontSize}px`, lineHeight: 1.85 }}>
                             {(activeDoc.content || []).map((block, idx) => {
