@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import TranscriptEditor from './TranscriptEditor';
-import { Lock, LogOut, LayoutDashboard, FileText, Database } from 'lucide-react';
+import HadithManager from './HadithManager';
+import { Lock, LogOut, LayoutDashboard, FileText, Database, BookOpen } from 'lucide-react';
 
 const KisaCommandCenter = () => {
     const [session, setSession] = useState(null);
@@ -79,6 +80,9 @@ const KisaCommandCenter = () => {
                     <button onClick={() => setActiveTab('transcripts')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'transcripts' ? 'bg-[#c6a87c]/10 text-[#c6a87c] font-bold' : 'hover:bg-zinc-800/50'}`}>
                         <FileText className="w-5 h-5" /> Transcripts
                     </button>
+                    <button onClick={() => setActiveTab('hadiths')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'hadiths' ? 'bg-[#c6a87c]/10 text-[#c6a87c] font-bold' : 'hover:bg-zinc-800/50'}`}>
+                        <BookOpen className="w-5 h-5" /> Hadith Library
+                    </button>
                     <button onClick={() => setActiveTab('ontology')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'ontology' ? 'bg-[#c6a87c]/10 text-[#c6a87c] font-bold' : 'hover:bg-zinc-800/50'}`}>
                         <Database className="w-5 h-5" /> Brain Ontology
                     </button>
@@ -102,6 +106,12 @@ const KisaCommandCenter = () => {
                             selectedEpisodeForEdit={selectedEpisodeForEdit} 
                             onEditEpisode={handleEditEpisode} 
                         />
+                    </div>
+                )}
+                
+                {activeTab === 'hadiths' && (
+                    <div className="max-w-6xl mx-auto relative">
+                        <HadithManager supabase={supabase} />
                     </div>
                 )}
             </div>
