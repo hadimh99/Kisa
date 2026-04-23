@@ -127,7 +127,7 @@ const HadithManager = ({ supabase }) => {
                 .update({
                     manual_chain: formData.manual_chain,
                     manual_body: formData.manual_body,
-                    arabic_text: formData.arabicText
+                    arabicText: formData.arabicText
                 })
                 .eq('id', formData.id)
                 .select();

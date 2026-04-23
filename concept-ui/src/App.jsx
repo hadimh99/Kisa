@@ -130,7 +130,7 @@ export default function App() {
 
         const { data: edits, error } = await supabase
           .from('kisa_hadiths')
-          .select('id, manual_body, manual_chain')
+          .select('id, englishText, manual_body, manual_chain')
           .not('manual_body', 'is', null);
 
         if (error) {
@@ -138,14 +138,20 @@ export default function App() {
         }
 
         if (edits && edits.length > 0) {
-          const editMap = new Map(edits.map(e => [e.id, e]));
+          const overrideMap = new Map();
+          edits.forEach(row => {
+              if (row.englishText) overrideMap.set(row.englishText, row);
+          });
+          
           staticData = staticData.map(hadith => {
-            const edit = editMap.get(String(hadith.id));
+            const localText = hadith.englishText || hadith.en || hadith.english_text || "";
+            const edit = overrideMap.get(localText);
             if (edit) {
               return {
                 ...hadith,
                 manual_body: edit.manual_body,
-                manual_chain: edit.manual_chain
+                manual_chain: edit.manual_chain,
+                id: edit.id // CRITICAL: Inherit the new Supabase UUID so the inline editor can save future updates!
               };
             }
             return hadith;
