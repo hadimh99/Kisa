@@ -6,7 +6,7 @@ Al-Kisa is a highly sophisticated semantic search engine and theological workspa
 * **Mechanism:** A React frontend connects to a Node.js backend. It uses a hybrid architecture: querying a local SQLite database for raw text, keywords, and theological ontology anchors, while querying a cloud Pinecone database for 384-dimensional semantic hadith matching.
 
 ## 2. The Tech Stack
-* **Frontend:** React (Modularized architecture with `App.jsx` acting as the router/wrapper for isolated components like `QuranReader.jsx`, `KisaAcademy.jsx`, `TranscriptLibrary.jsx`, `CourseLibrary.jsx`, `HadithLibrary.jsx`, `StudyVault.jsx`, `HadithCard.jsx`, `DuaLibrary.jsx`, `SpiritualHub.jsx`, `TheKisaExperience.jsx`, `Home.jsx`, `MasteryRing.jsx`, `RevisionModule.jsx`, `ContextualBridge.jsx`, and `ChapterTitleHeading.jsx`), Framer Motion (animations), Tailwind CSS v4 (via `@tailwindcss/postcss`), Lucide React (iconography).
+* **Frontend:** React (Modularized architecture with `App.jsx` acting as the router/wrapper for isolated components like `QuranReader.jsx`, `KisaAcademy.jsx`, `TranscriptLibrary.jsx`, `CourseLibrary.jsx`, `HadithLibrary.jsx`, `StudyVault.jsx`, `HadithCard.jsx`, `DuaLibrary.jsx`, `SpiritualHub.jsx`, `TheKisaExperience.jsx`, `Home.jsx`, `MasteryRing.jsx`, `RevisionModule.jsx`, `ContextualBridge.jsx`, `ChapterTitleHeading.jsx`, `KisaCommandCenter.jsx`, `HadithManager.jsx`, `BrainOntology.jsx`, and `TranscriptEditor.jsx`), Framer Motion (animations), Tailwind CSS v4 (via `@tailwindcss/postcss`), Lucide React (iconography).
 * **Local Data:** `transcripts.json` (translated scholarly commentary — AI-translated Arabic lecture transcripts stored in a strict segmented JSON schema; see §4, Semantic Commentary Layer), `revision_data.json` (NotebookLM LMS data), `thaqalayn_complete.json` (14,500+ hadiths, hosted in `public/` for async streaming), `basair_complete.json` (*Basa'ir al-Darajat* narrations, hosted in `public/`), `quran.json` (Quranic text, mirrored in both `src/` and `public/`), `verse_map.json` (Tafsir connections), `quranBenefits.js` (Twelver Fadhaa'il database), `duas.json` (supplication library with Arabic, transliteration, and English passages), `daily_hadiths.json` (curated daily hadith pool), and `curated_exploration.json` (pre-built semantic search shortcuts for the home screen).
 * **Backend:** Node.js / Express (`server.js`) located in the `concept-api` folder. A secondary FastAPI / Python backend (`server.py`) exists at the project root for the standalone Concept Atlas vector search API (local SQLite + K-Means clustering).
 * **BaaS & Cloud:** Supabase (Authentication & PostgreSQL for user-saved data and live master database).
@@ -32,8 +32,11 @@ The local SQLite database contains the raw hadiths alongside three active tables
 2. `ontology_synonyms` (SQLite): The translation net linking English aliases and lazy-typing to core concepts. Highly tuned to capture common user search habits, automatically handling missing apostrophes, dropped 'al-' prefixes (e.g., 'Sufyani' instead of 'al-Sufyani'), and alternative transliterations (e.g., 'Ghaybatul Kubra'). (Columns: `id`, `concept_id`, `variant_text`, `language`, `weight`).
 3. `ontology_relations` (SQLite): The knowledge graph linking concepts to each other (Columns: `id`, `source_concept_id`, `target_concept_id`, `relation_type`).
 4. `vault_items` (Supabase Postgres): Secure cloud storage for user-saved narrations, Quranic verses, transcript passages, and Dua passages. (Columns: `id`, `user_id`, `content`, `arabic_text`, `chain`, `source`, `type` *(`hadith`, `quran`, `transcript`, `dua`)*, `folder_name` *(comma-separated for multi-tagging)*, `note`, `created_at`).
-5. `kisa_hadiths` (Supabase Postgres): The live, master repository for all narrations, supporting real-time administrative overrides. (Columns: `id`, `book`, `volume`, `category`, `chapter`, `hadith_number`, `author`, `englishText`, `arabicText`, `majlisiGrading`, `manual_body`, `manual_chain`).
+5. `kisa_hadiths` (Supabase Postgres): The live, master repository for all narrations, supporting real-time administrative overrides. (Columns: `id`, `book`, `volume`, `category`, `chapter`, `hadith_number`, `author`, `englishText`, `arabicText`, `majlisiGrading`, `manual_body`, `manual_chain`, `is_flagged` *(boolean — collaborative review flag)*, `assigned_to` *(text — admin assignment routing)*, `internal_notes` *(text — inter-admin commentary)*, `last_edited_by` *(text — audit trail via Supabase Auth email)*, `is_trashed` *(boolean — soft-delete)*, `updated_at`).
 6. `hadiths` (SQLite — `concept_atlas.db`): The standalone Concept Atlas embedding store. (Columns: `hadith_id`, `arabic_text`, `english_text`, `embedding` *(binary BLOB, float32 NumPy arrays)*).
+7. `ontology_concepts` (Supabase Postgres): Cloud-hosted master list of theological concepts for the Brain Ontology CMS. Mirrors the SQLite ontology schema but enables real-time collaborative editing via the Command Center. (Columns: `id`, `transliteration`, `primary_arabic`, `root_letters`, `primary_english`, `domain`, `definition`, `embedding`). Protected by RLS.
+8. `ontology_synonyms` (Supabase Postgres): Cloud-hosted synonym/spelling variants linked to concepts. (Columns: `id`, `concept_id`, `variant_text`, `language`, `weight`). Protected by RLS.
+9. `ontology_relations` (Supabase Postgres): Cloud-hosted directional knowledge-graph edges between concepts. (Columns: `id`, `source_concept_id`, `target_concept_id`, `relation_type`). Foreign key constraint: `ontology_relations_source_concept_id_fkey`. Protected by RLS.
 
 ## 4. Current Features & Capabilities (Implemented)
 
@@ -51,6 +54,18 @@ The local SQLite database contains the raw hadiths alongside three active tables
    - **Bi-Directional Schema Bridge:** The inline editor is rigidly mapped to pump manually separated structures right into `manual_chain` and `manual_body`, natively superseding the frontend's regex array-splitters generated inside `HadithCard.jsx`.
    - **Inbox Zero Auditing:** Introduces an automated vanish-on-save routing architecture via dynamically appended `.is('manual_body', null)` modifiers. This rips completed rows directly from the active admin queue during save, cementing a flawless editing workflow.
    - **Client-Side Lexicographical Override:** Because Volume and ID are stored mathematically as Strings, Supabase natively alphabetizes querying. The module downloads the raw query and runs a forced array integer coercion (`parseInt(vol)` then `parseInt(id)`) prior to mounting React state, guaranteeing the table sorts perfectly from Volume 1 to maximum.
+9. **Collaborative Flagging System (Multi-Admin Workflow):** Engineered a full multi-player editing workflow into `HadithManager.jsx` to support co-admin onboarding.
+   - **Review & Collaboration Panel:** Each hadith's inline editor includes an `is_flagged` toggle, an `assigned_to` dropdown ("Unassigned", "Master Admin", "Co-Admin (Pending)"), and an `internal_notes` textarea for inter-admin commentary.
+   - **Dynamic Action Buttons:** When `is_flagged` is toggled ON, the standard "Save Edit" button transforms into an amber-styled "Send to Review" button with a `Send` icon, eliminating action ambiguity.
+   - **Review Queue:** A dedicated review tab ignores standard Book/Volume filters and displays ALL flagged hadiths across the entire library, with a wired assignment sub-filter dropdown.
+   - **Audit Trail:** Every save operation captures the authenticated user's email via `supabase.auth.getSession()` and writes it to `last_edited_by`, establishing a permanent edit history.
+10. **Brain Ontology Relational Manager (`BrainOntology.jsx`):** A dedicated CMS module for managing the 3-tiered theological knowledge graph, mounted into the `KisaCommandCenter` sidebar.
+    - **Relational Data Engine:** Fetches all concepts with nested synonyms and outgoing relations in a single PostgREST query: `ontology_concepts → ontology_synonyms(*), outgoing_relations:ontology_relations!ontology_relations_source_concept_id_fkey(*)`.
+    - **Dual View Modes (Grid/List Toggle):** A segmented control in the header switches between a responsive card grid ("Kyoto Paper" aesthetic with domain-based color-coding for Theology/Aqa'id, Ethics/Akhlaq, Jurisprudence/Fiqh) and a high-density data table with Term, Category, English Title, Synonyms (inline pills), and Actions columns.
+    - **Concept CRUD:** The "+ New Concept" button opens the drawer with empty fields and performs a Supabase `.insert()`. Existing concepts use `.update()`. The drawer dynamically labels itself ("New Concept" vs. transliteration) and the save button adapts ("Save New Concept" vs. "Save Details").
+    - **Locked Sliding Drawer (Right-Side Editor):** A Framer Motion `AnimatePresence` drawer that prevents scroll-collision with the main grid. Contains 3 sub-forms: Main Details (English Title, Category, Arabic Script, Arabic Root, Definition & Context), Search Synonyms & Spellings (with Alternative Search Term input and Match Strength selector), and Theological Relations (Red String Weaver with relation type and target concept dropdowns).
+    - **Empty State UI:** When no concepts exist, renders a centered fallback with a `Network` icon and a large "Initialize First Concept" button.
+    - **Client-Side Name Resolution:** Outgoing relation edges resolve target concept IDs to human-readable transliterations via a client-side lookup function.
 
 **Search & Navigation Engine:**
 * **Dual Search Engine:** 
@@ -136,6 +151,15 @@ The local SQLite database contains the raw hadiths alongside three active tables
 * **App Update Changelog:** In-app versioned changelog (`APP_UPDATES` array) tracking platform evolution from v3.5.2 through v5.1.0.
 * **Supabase Auth Flow:** Full email/password authentication with sign-up, sign-in, session persistence, and sign-out confirmation modal.
 
+**In-App Documentation System (How-To Panels):**
+* **Architecture:** A reusable collapsible documentation panel pattern deployed across 3 CMS components (`BrainOntology.jsx`, `HadithManager.jsx`, `TranscriptEditor.jsx`). Each panel uses a `showDocs` state toggle, a `BookOpen` icon trigger labeled "How to use this page" with a rotating `ChevronDown`, and a Framer Motion `AnimatePresence` wrapper with `overflow: clip` (not `overflow-hidden`, which traps scroll) for smooth height animation without scroll-locking.
+* **Layout:** Full-width (`w-full`) dark panel (`bg-[#14171f]`) with a single-column intro paragraph followed by a `grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-5` for numbered sections. Sections 1 & 3 occupy the left column, Sections 2 & 4 the right, minimizing vertical height.
+* **Content:** Each panel is written in plain, non-technical English for co-admin accessibility. Uses native `list-disc list-inside` bullets, inline `<strong>` emphasis, and `leading-relaxed` typography. Section 5 (where present) spans both columns (`lg:col-span-2`) as a visual footer.
+* **Coverage:**
+  * *Brain Ontology:* 5 sections — What are we doing, Add/Edit a Concept, The Secret Weapon (Synonyms), Grid vs. List View, How does this affect the live site (search routing + hover tooltips).
+  * *Hadith Library:* 4 sections — What are we doing (14K narrations), The Editing Workflow (Standard/Review queues, filters), Tracking Our Progress (velocity/ETA), How does this affect the live site (public reading + search accuracy).
+  * *Transcript Studio:* 4 sections — What are we doing (Semantic Commentary Layer), How to Import a Lecture (Luminous Studio + metadata), Build Mode vs. Live Preview (crucial bolding rule), How does this affect the live site (Knowledge Graph + AI answers).
+
 ## 5. Future Roadmap & Long-Term Goals
 
 * **World-Class LMS Integration (Current Focus):** Evolving Kisa Academy based on evidence-based pedagogy:
@@ -176,7 +200,7 @@ The local SQLite database contains the raw hadiths alongside three active tables
     * **Strict UI Isolation:** The CMS will be strictly separated from the public-facing Kisa Academy UI. All editor modules (starting with the Transcript Editor) must be removed from public view components (such as `TranscriptLibrary.jsx`) and housed exclusively inside this dedicated, full-screen SaaS-style Command Center.
     * **Protected Route:** The Command Center lives on a hidden `/admin` (or `/studio`) route within the existing React application. The route is wrapped in an authentication guard. Unauthenticated visitors are immediately redirected to the public app root (`/`) with no UI indication that the admin route exists, and the route is excluded from the sitemap.
     * **SaaS-Style Layout:** The shell utilizes a persistent global sidebar for primary navigation across all CMS modules: **Transcripts** (Interactive Studio), **Foundation Library** (hadith management), **Brain Ontology** (concept CRUD), **Analytics** (engagement tracking), and **Media Vault** (audio/image hosting). The sidebar drives a dynamic **Main Canvas**.
-    * **Modular Component Architecture:** Each CMS tool is built as an independent React component designed to effortlessly inject into the Main Canvas, ensuring isolated development that easily unifies into the larger Command Center architecture later.
+    * **Modular Component Architecture:** Each CMS tool is built as an independent React component (`HadithManager.jsx`, `BrainOntology.jsx`, `TranscriptEditor.jsx`) designed to effortlessly inject into the Main Canvas via the `KisaCommandCenter.jsx` sidebar router. The sidebar dynamically passes the `supabase` client as a prop to each active module.
 
   * **Transcript Module Integration & Metadata Controls:**
     * **Metadata Formulation:** The Transcript Editor module inside the Command Center will feature a metadata control panel positioned natively situated above the Smart JSON Dropzone. 
@@ -247,7 +271,11 @@ alkafi-engine/
 │   │   │   ├── StudyVault.jsx              (Tri-pane study workspace: folders, multi-tag, margin notes)
 │   │   │   ├── TheKisaExperience.jsx       (5-phase 3D card onboarding widget with LayoutGroup transitions)
 │   │   │   ├── TranscriptLibrary.jsx       (Scholarly reading environment: Charcoal+Gold, export, 60fps scroll, Contextual Bridge)
-│   │   │   └── TranscriptVideoPlayer.jsx   (Embedded video player for lecture courses)
+│   │   │   ├── TranscriptEditor.jsx        (CMS Transcript Studio: tabbed Build/Preview, JSON dropzone, floating toolbar, How-To panel — 45 KB)
+│   │   │   ├── TranscriptVideoPlayer.jsx   (Embedded video player for lecture courses)
+│   │   │   ├── KisaCommandCenter.jsx       (CMS App Shell: sidebar router for Hadith Library, Brain Ontology, Transcript Studio — 6 KB)
+│   │   │   ├── HadithManager.jsx           (CMS Hadith Library: inline editor, collaborative flagging, analytics dashboard, How-To panel — 51 KB)
+│   │   │   └── BrainOntology.jsx           (CMS Brain Ontology: 3-tier relational manager, Grid/List views, CRUD drawer, How-To panel — 44 KB)
 │   │   ├── curated_exploration.json        (Pre-built semantic search shortcuts for home screen)
 │   │   ├── daily_hadiths.json              (Curated daily hadith rotation pool)
 │   │   ├── duas.json                       (Dua library: Arabic, transliteration, English, significance)
@@ -313,5 +341,9 @@ alkafi-engine/
 | Mastery Ring | `MasteryRing.jsx` | 3 KB | SVG progress visualization |
 | Video Player | `TranscriptVideoPlayer.jsx` | 2 KB | Embedded lecture player |
 | Chapter Heading | `ChapterTitleHeading.jsx` | 1 KB | Reusable heading component |
+| **Command Center** | `KisaCommandCenter.jsx` | **6 KB** | **CMS app shell: sidebar navigation, module routing, Supabase prop injection** |
+| **Hadith Manager** | `HadithManager.jsx` | **51 KB** | **CMS hadith editor: inline editing, collaborative flagging, analytics dashboard, How-To panel** |
+| **Brain Ontology** | `BrainOntology.jsx` | **44 KB** | **CMS ontology manager: Grid/List views, concept CRUD, synonym/relation editors, locked drawer, How-To panel** |
+| **Transcript Editor** | `TranscriptEditor.jsx` | **45 KB** | **CMS transcript studio: Build/Preview tabs, JSON dropzone, floating toolbar, How-To panel** |
 | Server (Node.js) | `server.js` | 23 KB | Express API: Dual search, Ontology, K-Means, Gemini, /api/ontology, strict CORS whitelist |
 | Server (Python) | `server.py` | 7 KB | FastAPI: Local vector search, clustering, RAM protection |

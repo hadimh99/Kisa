@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Save, PlusCircle, AlertCircle, FolderOpen, Hash, Eye, EyeOff, ExternalLink, Library, Layers, Trash2, RefreshCw, ArrowUp, ArrowDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Save, PlusCircle, AlertCircle, FolderOpen, Hash, Eye, EyeOff, ExternalLink, Library, Layers, Trash2, RefreshCw, ArrowUp, ArrowDown, BookOpen, ChevronDown } from 'lucide-react';
 
 const TranscriptEditor = ({ supabase, selectedEpisodeForEdit, onEditEpisode }) => {
     const [rawJson, setRawJson] = useState('');
     const [status, setStatus] = useState({ type: '', message: '' });
+    const [showDocs, setShowDocs] = useState(false);
     
     // Metadata Controls
     const [seriesName, setSeriesName] = useState('');
@@ -322,6 +324,67 @@ const TranscriptEditor = ({ supabase, selectedEpisodeForEdit, onEditEpisode }) =
                     <button onMouseDown={(e) => { e.preventDefault(); applyFormatting('~~', '~~'); }} className="px-3 py-1.5 hover:bg-zinc-700 rounded text-xs text-zinc-400 font-bold tracking-widest uppercase transition-colors" title="Hide False Tooltip Match">Mute</button>
                 </div>
             )}
+
+            {/* How-To Toggle & Panel */}
+            <div className="shrink-0 w-full">
+                <button 
+                    onClick={() => setShowDocs(!showDocs)}
+                    className="flex items-center gap-2 text-xs text-zinc-500 hover:text-[#c6a87c] transition-colors py-2"
+                >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    How to use this page
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${showDocs ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                    {showDocs && (
+                        <motion.div 
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                            style={{ overflow: 'clip' }}
+                        >
+                            <div className="bg-[#14171f] border border-zinc-800/80 rounded-2xl p-6 lg:p-8 mb-4 w-full">
+                                <h3 className="text-lg font-bold text-white mb-1">Welcome to Transcript Studio <span className="text-zinc-500 font-normal text-sm">(The Commentary Engine)</span></h3>
+                                <p className="text-zinc-400 text-sm leading-relaxed mt-2">This is where modern scholarship meets ancient texts. We use this studio to ingest the translated transcripts of Sheikh al-Ghizzi's lectures, converting raw subtitle data into readable, interactive articles.</p>
+
+                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-5 mt-6">
+                                    <div>
+                                        <h4 className="text-xs font-bold text-[#c6a87c] uppercase tracking-widest mb-2">1. What are we doing here?</h4>
+                                        <ul className="list-disc list-inside space-y-1.5 text-zinc-400 text-sm leading-relaxed">
+                                            <li>We are building the "Semantic Commentary Layer". By cleaning and publishing these transcripts, we map modern scholarly arguments directly to the foundational Hadiths they reference.</li>
+                                        </ul>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-xs font-bold text-[#c6a87c] uppercase tracking-widest mb-2">3. Build Mode vs. Live Preview</h4>
+                                        <ul className="list-disc list-inside space-y-1.5 text-zinc-400 text-sm leading-relaxed">
+                                            <li><strong className="text-zinc-200">Build Mode:</strong> Use this to clean up the text. <strong className="text-zinc-200">Crucial Rule:</strong> Emphasize (bold) weighty words and phrases designed to have an impact on the reader, but do not emphasize multiples of the same word.</li>
+                                            <li><strong className="text-zinc-200">Live Preview:</strong> Click this toggle to see exactly how the formatted article will look to the public before you hit publish.</li>
+                                        </ul>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-xs font-bold text-[#c6a87c] uppercase tracking-widest mb-2">2. How to Import a Lecture</h4>
+                                        <ul className="list-disc list-inside space-y-1.5 text-zinc-400 text-sm leading-relaxed">
+                                            <li><strong className="text-zinc-200">The Luminous Studio:</strong> Paste the raw JSON code (generated from our transcription pipeline) into the dark box. The engine will instantly spawn an interactive block editor.</li>
+                                            <li><strong className="text-zinc-200">Metadata:</strong> Make sure to assign the correct Series Name and Episode Number so it is organized correctly on the live site.</li>
+                                        </ul>
+                                    </div>
+
+                                    <div>
+                                        <h4 className="text-xs font-bold text-[#c6a87c] uppercase tracking-widest mb-2">4. How does this affect the live site?</h4>
+                                        <ul className="list-disc list-inside space-y-1.5 text-zinc-400 text-sm leading-relaxed">
+                                            <li><strong className="text-zinc-200">The Knowledge Graph:</strong> The transcripts published here are fed into the Al-Kisa AI. When a user asks a complex question, the engine will search these exact transcripts to provide answers grounded in modern Hawza-level commentary. Your formatting makes this readable.</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
 
             {/* TABBED WORKSPACE */}
             <div className="flex flex-col w-full gap-8">

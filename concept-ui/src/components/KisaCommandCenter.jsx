@@ -2,19 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import TranscriptEditor from './TranscriptEditor';
 import HadithManager from './HadithManager';
-import { Lock, LogOut, LayoutDashboard, FileText, Database, BookOpen } from 'lucide-react';
+import BrainOntology from './BrainOntology';
+import CMSDashboard from './CMSDashboard';
+import { Lock, LogOut, LayoutDashboard, FileText, Database, BookOpen, Home } from 'lucide-react';
 
 const KisaCommandCenter = () => {
     const [session, setSession] = useState(null);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
-    const [activeTab, setActiveTab] = useState('transcripts');
+    const [activeTab, setActiveTab] = useState('dashboard');
+
+    // Cross-Module Routing States
     const [selectedEpisodeForEdit, setSelectedEpisodeForEdit] = useState(null);
+    const [selectedHadithForEdit, setSelectedHadithForEdit] = useState(null); // NEW
 
     const handleEditEpisode = (episode) => {
         setSelectedEpisodeForEdit(episode);
         setActiveTab('transcripts');
+    };
+
+    // NEW: Function to route from Dashboard to Hadith Manager
+    const handleEditHadith = (hadithId) => {
+        setSelectedHadithForEdit(hadithId);
+        setActiveTab('hadiths');
     };
 
     useEffect(() => {
@@ -75,8 +86,11 @@ const KisaCommandCenter = () => {
                 <h2 className="text-xl font-bold text-white mb-8 flex items-center gap-2">
                     <LayoutDashboard className="text-[#c6a87c]" /> Al-Kisa CMS
                 </h2>
-                
+
                 <nav className="flex-1 space-y-2">
+                    <button onClick={() => setActiveTab('dashboard')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' ? 'bg-[#c6a87c]/10 text-[#c6a87c] font-bold' : 'hover:bg-zinc-800/50'}`}>
+                        <Home className="w-5 h-5" /> Command Center
+                    </button>
                     <button onClick={() => setActiveTab('transcripts')} className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'transcripts' ? 'bg-[#c6a87c]/10 text-[#c6a87c] font-bold' : 'hover:bg-zinc-800/50'}`}>
                         <FileText className="w-5 h-5" /> Transcripts
                     </button>
@@ -97,21 +111,40 @@ const KisaCommandCenter = () => {
             </div>
 
             <div className="flex-1 p-8 overflow-y-auto">
+                {activeTab === 'dashboard' && (
+                    <div className="max-w-7xl mx-auto relative">
+                        <CMSDashboard
+                            supabase={supabase}
+                            onEditHadith={handleEditHadith}
+                        />
+                    </div>
+                )}
+
                 {activeTab === 'transcripts' && (
                     <div className="max-w-4xl mx-auto">
                         <h1 className="text-3xl font-bold text-white mb-2">Transcript Studio</h1>
                         <p className="text-zinc-400 mb-8">Ingest, format, and publish translated lectures.</p>
-                        <TranscriptEditor 
-                            supabase={supabase} 
-                            selectedEpisodeForEdit={selectedEpisodeForEdit} 
-                            onEditEpisode={handleEditEpisode} 
+                        <TranscriptEditor
+                            supabase={supabase}
+                            selectedEpisodeForEdit={selectedEpisodeForEdit}
+                            onEditEpisode={handleEditEpisode}
                         />
                     </div>
                 )}
-                
+
                 {activeTab === 'hadiths' && (
                     <div className="max-w-6xl mx-auto relative">
-                        <HadithManager supabase={supabase} />
+                        <HadithManager
+                            supabase={supabase}
+                            selectedHadithForEdit={selectedHadithForEdit}
+                            clearSelectedHadith={() => setSelectedHadithForEdit(null)}
+                        />
+                    </div>
+                )}
+
+                {activeTab === 'ontology' && (
+                    <div className="max-w-7xl mx-auto relative">
+                        <BrainOntology supabase={supabase} />
                     </div>
                 )}
             </div>
