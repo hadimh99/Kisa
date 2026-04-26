@@ -14,9 +14,18 @@ import HadithLibrary from './components/HadithLibrary';
 import Home from './components/Home';
 import SpiritualHub from './components/SpiritualHub';
 import StudyVault from './components/StudyVault';
+import Glossary from './components/Glossary';
 
 
 const APP_UPDATES = [
+  {
+    version: "v5.2.0",
+    date: "April 26, 2026",
+    changes: [
+      "Theological Glossary: We've added a comprehensive A-Z dictionary of Twelver Shia terminology. You can browse all core concepts, filter them by category, share with your friends, copy to your notes, and save important terms directly to your Study Vault. You can easily access it anytime by opening the Search menu.",
+      "Smart Day/Night Themes: Al-Kisa now automatically adapts to your environment! It will gently switch to a bright theme during the day and a dark theme at night to protect your eyes. If you prefer a specific look, just choose your favorite theme from the menu—your device will remember your choice for every future visit."
+    ]
+  },
   {
     version: "v5.1.0",
     date: "April 20, 2026",
@@ -140,9 +149,9 @@ export default function App() {
         if (edits && edits.length > 0) {
           const overrideMap = new Map();
           edits.forEach(row => {
-              if (row.englishText) overrideMap.set(row.englishText, row);
+            if (row.englishText) overrideMap.set(row.englishText, row);
           });
-          
+
           staticData = staticData.map(hadith => {
             const localText = hadith.englishText || hadith.en || hadith.english_text || "";
             const edit = overrideMap.get(localText);
@@ -175,7 +184,22 @@ export default function App() {
   const [sourceFilter, setSourceFilter] = useState(SOURCES[0]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState('light');
+  // SMART THEME ENGINE: Auto-detects Day/Night unless user has a saved preference
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('kisa_theme_preference');
+      if (savedTheme) return savedTheme; // Respect manual overrides
+    }
+    // Auto-calculate based on local time if no preference exists
+    const currentHour = new Date().getHours();
+    const isNightTime = currentHour < 6 || currentHour >= 18; // 6 PM to 6 AM
+    return isNightTime ? 'dark' : 'light';
+  });
+
+  // Save to local memory whenever the user manually clicks a theme button
+  useEffect(() => {
+    localStorage.setItem('kisa_theme_preference', theme);
+  }, [theme]);
 
   const [showSearchOverlay, setShowSearchOverlay] = useState(false);
   const [showUserHub, setShowUserHub] = useState(false);
@@ -1170,6 +1194,31 @@ export default function App() {
                     </li>
                   ))}
                 </ul>
+
+                {/* ADD THIS NEW GLOSSARY BLOCK HERE */}
+                <div className="mt-8 border-t border-[#5C4A3D]/10 dark:border-[#c6a87c]/10 pt-6">
+                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5C4A3D]/70 dark:text-[#c6a87c]/70 mb-4">Dictionary</h3>
+                  <button
+                    onClick={() => {
+                      setActiveTab('glossary');
+                      setShowSearchOverlay(false);
+                    }}
+                    className="w-full bg-[#F8F5EE]/60 dark:bg-[#c6a87c]/5 hover:bg-[#FDFBF7] dark:hover:bg-[#c6a87c]/10 border border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 p-5 rounded-2xl flex items-center justify-between group transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="bg-[#c6a87c]/20 p-3 rounded-xl text-[#c6a87c]">
+                        <LibraryIcon className="w-6 h-6" />
+                      </div>
+                      <div className="text-left">
+                        <h4 className="text-[#2D241C] dark:text-[#FAFAFA] font-bold text-base tracking-tight group-hover:text-[#c6a87c] transition-colors">Browse the Theological Glossary</h4>
+                        <p className="text-[#5C4A3D]/70 dark:text-slate-400 text-xs mt-1 font-serif">Not sure what to search? Explore A-Z concepts.</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-[#5C4A3D]/50 dark:text-[#c6a87c]/60 group-hover:text-[#c6a87c] transition-colors" />
+                  </button>
+                </div>
+                {/* END OF GLOSSARY BLOCK */}
+
               </div>
             </motion.div>
           </motion.div>
@@ -1235,6 +1284,11 @@ export default function App() {
       </AnimatePresence>
 
       <main ref={containerRef} className={`relative w-full flex-grow flex flex-col ${lockMainScreen ? 'items-center justify-center h-screen overflow-hidden' : 'min-h-screen'}`}>
+        {activeTab === 'glossary' && (
+          <div className="w-full flex-grow flex flex-col relative pt-14">
+            <Glossary theme={theme} />
+          </div>
+        )}
         {activeTab === 'quran' && (
           <div className="w-full flex-grow flex flex-col relative pt-20 sm:pt-24">
             <QuranReader
