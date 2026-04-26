@@ -28,9 +28,18 @@ const Glossary = ({ theme = 'light' }) => {
         toggleInactive: isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-[#5C4A3D]/60 hover:text-[#5C4A3D]'
     };
 
+    // Fetch Ontology Data with Instant Memory Cache
     useEffect(() => {
         const fetchOntology = async () => {
+            // 1. INSTANT LOAD: Check if we have a saved copy on the user's device
+            const savedDictionary = localStorage.getItem('kisa_glossary_cache');
+            if (savedDictionary) {
+                setTerms(JSON.parse(savedDictionary));
+                setLoading(false); // Turn off the loading screen instantly!
+            }
+
             try {
+                // 2. BACKGROUND SYNC: Quietly ask the server for the newest updates
                 const baseUrl = import.meta.env.VITE_API_URL || '';
                 const response = await fetch(`${baseUrl}/api/ontology`);
                 if (!response.ok) throw new Error('Failed to fetch ontology');
@@ -39,13 +48,17 @@ const Glossary = ({ theme = 'light' }) => {
                 const sortedData = data.sort((a, b) =>
                     (a.transliteration || '').localeCompare(b.transliteration || '')
                 );
+
+                // 3. SEAMLESS UPDATE: Apply the fresh data and save it to the device for next time
                 setTerms(sortedData);
+                localStorage.setItem('kisa_glossary_cache', JSON.stringify(sortedData));
+                setLoading(false);
             } catch (error) {
                 console.error("Glossary Fetch Error:", error);
-            } finally {
                 setLoading(false);
             }
         };
+
         fetchOntology();
     }, []);
 
