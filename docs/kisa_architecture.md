@@ -77,10 +77,14 @@ The local SQLite database contains the raw hadiths alongside three active tables
 * **Dual Search Engine:** 
   * *Concept Mode:* Uses Hugging Face to embed queries, searching Pinecone for semantic matches, grouping results via K-Means clustering, and labeling them via the Gemini API.
   * *Keyword Mode:* Highly optimized SQLite index search pulling exact matches/partial variations for English and normalized Arabic.
-* **Apple-Inspired Global Omni-Search:** A dedicated, full-screen "Theater Curtain" search overlay deployed from the global header, completely replacing redundant inline search bars and providing a distraction-free query environment.
-* **Al-Kisa Brain Ontology Intercept (High-Gravity Blending):** Intercepts user queries before they reach the generic AI. Scans for Twelver synonyms, grabs the pre-computed 384-dimensional Twelver vector from SQLite, and applies an 85% "High Gravity" blend. This mathematically crushes linguistic collisions (e.g., Fiqh vs. Aqa'id).
+* **Unified Spotlight Search (The "Theater Curtain"):** A dedicated, full-screen search overlay deployed from the global header.
+  * **Exhaustive State Machine:** Rendering logic is strictly managed via a 3-state machine (LOADING, EMPTY, RESULTS) to prevent logical gaps (black screens) during asynchronous data handoffs.
+  * **iOS Safari Stability ("Delay & Lock"):** Implemented a 150ms "Delay & Lock" sequence in `handleSearchSubmit`. This ensures the DOM state transitions only *after* the iOS keyboard has finished its dismissal animation, preventing violent viewport height recalculations.
+  * **Viewport Anchoring:** Utilizes `100dvh` (Dynamic Viewport Height) for rigid container heights, ensuring the footer remains off-screen and the scroll position is anchored to `(0,0)` during the Framer Motion entrance animation.
+* **Global Routing Engine:** A regex-based navigational engine in `App.jsx` that programmatically parses queries for series names and episode numbers (e.g., "file of ashura ep3"). It automatically switches tabs, resets scroll, and mounts the target transcript within the Library.
+* **Al-Kisa Brain Ontology Intercept (High-Gravity Blending):** Scans user queries for Twelver synonyms, grabs pre-computed 384-dimensional vectors from SQLite, and applies an 85% "High Gravity" blend to crush linguistic collisions.
 * **Vector Hopping ("Find Similar"):** Pivots the search engine around the vector signature of any individual narration, featuring a persistent "Anchored Source" UI.
-* **Curated Exploration Widgets:** Pre-built semantic search shortcuts (`curated_exploration.json`) displayed on the home screen, routing users directly into deep concept searches (e.g., "The Intellect & Ignorance", "The Divine Covenant", "The Promised Era").
+* **Curated Exploration Widgets:** Pre-built semantic search shortcuts (`curated_exploration.json`) displayed on the home screen, routing users directly into deep concept searches.
 * **LRU Search Cache:** Server-side in-memory cache (`Map`, 200-entry limit) for instant repeat query responses.
 
 **The Scholar's Vault (Pro-Display Workspace):**
@@ -113,7 +117,7 @@ The local SQLite database contains the raw hadiths alongside three active tables
 * **"Ghost Writer" Entrance Choreography:** A zero-stutter typewriter-style animation cycling through example search queries in the global search bar.
 
 **Kisa Academy (The Educational Hub):**
-* **The Hub (`KisaAcademy.jsx`):** A centralized, Apple-style Bento Grid routing users between the text-based archive and video-based courses.
+* **The Hub (`KisaAcademy.jsx`):** A centralized, Apple-style Bento Grid routing users between the text-based archive and video-based courses. Features **External Target Awareness**—automatically switches to the archive view if a specific transcript is requested via the Global Routing Engine.
 * **The Scholarly Library (Transcripts):** A premium reading environment utilizing a Charcoal and Gold (`#c6a87c`) theme. Features a structured 2-Pillar layout on desktop and an edge-to-edge reading canvas on mobile. Utilizes direct DOM mutation (`useRef`) to track deep-scrolling without triggering React re-renders, preserving 60fps native iOS momentum scrolling.
 * **The Contextual Bridge (`ContextualBridge.jsx`):** An inline ontology tooltip system that scans transcript text for recognized theological terms from the Al-Kisa Brain. On desktop, hover triggers an elegant dark tooltip displaying the term's Arabic, English translation, domain classification, and full definition. On mobile, a tap-toggle mechanism replaces hover to prevent emulated mouse event conflicts. Features intelligent edge-detection math (`useLayoutEffect`) that dynamically shifts tooltip positioning to prevent viewport clipping, a CSS pointer arrow that counter-offsets to always point at the triggering term, and Framer Motion spring-scale entrance animations. Ontology data is fetched on mount from the new `GET /api/ontology` backend endpoint, which serves a lightweight payload (no vector embeddings) from the `ontology_concepts` SQLite table. Terms are regex-matched using a **Longest-Match-First** sort (descending by `variant.length`) to prevent partial collisions — e.g., the full phrase "Al-Ghaybat al-Kubra" is always matched as a single concept before the shorter "Al-Ghaybat" can claim a fragment.
   * **Nested Parsing Logic:** The rendering pipeline in `TranscriptLibrary.jsx` (`parseFormatting`) utilizes a regex-based splitter (`/(\*\*.*?\*\*)/g`) designed to preserve Markdown bolding (`**text**`) while recursively wrapping both plain and bolded text nodes in the `<ContextualBridge>` tooltip component. This ensures that theological ontology terms are accurately recognized and highlighted even when they appear within emphasized (`<strong>`) segments of the transcript, maintaining full tooltip coverage across all typographic contexts without breaking the Markdown formatting layer.
@@ -258,7 +262,7 @@ alkafi-engine/
 │   │   └── vite.svg
 │   ├── src/
 │   │   ├── App.css
-│   │   ├── App.jsx                         (MASTER router/wrapper — 1,853 lines. Auth, themes, search, Vault, navigation)
+│   │   ├── App.jsx                         (MASTER router/wrapper — 2,021 lines. Auth, themes, search, Vault, Global Routing Engine)
 │   │   ├── assets/
 │   │   │   └── react.svg
 │   │   ├── components/
@@ -330,7 +334,7 @@ alkafi-engine/
 
 | Component | File | Size | Primary Role |
 |---|---|---|---|
-| App (Router) | `App.jsx` | 130 KB | Master state, routing, auth, search, Vault orchestration |
+| App (Router) | `App.jsx` | 140 KB | Master state, routing, auth, search, Vault, Global Routing Engine |
 | Quran Reader | `QuranReader.jsx` | 63 KB | Full Quran with auto-resume, Tafsir, Virtues |
 | Transcript Library | `TranscriptLibrary.jsx` | 90 KB | Scholarly reading, export, native scrolling, Contextual Bridge integration, env-safe API routing |
 | Hadith Library | `HadithLibrary.jsx` | 82 KB | Browsable hadith archive with hybrid engine |
@@ -340,7 +344,7 @@ alkafi-engine/
 | Revision Module | `RevisionModule.jsx` | 23 KB | Flashcards, quizzes, confidence scoring |
 | Hadith Card | `HadithCard.jsx` | 17 KB | Individual narration display/actions |
 | Kisa Experience | `TheKisaExperience.jsx` | 16 KB | 3D onboarding widget |
-| Kisa Academy | `KisaAcademy.jsx` | 9 KB | Educational hub routing |
+| Kisa Academy | `KisaAcademy.jsx` | 10 KB | Educational hub routing with external target logic |
 | Spiritual Hub | `SpiritualHub.jsx` | 7 KB | Tabbed Quran/Dua/Ziyarat container |
 | Contextual Bridge | `ContextualBridge.jsx` | 6 KB | Ontology tooltips: hover/tap, edge-aware, animated |
 | Course Library | `CourseLibrary.jsx` | 4 KB | Video course catalog |

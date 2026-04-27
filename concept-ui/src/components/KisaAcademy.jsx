@@ -1,15 +1,24 @@
 // src/components/KisaAcademy.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, PlaySquare, ChevronLeft, Sparkles } from 'lucide-react';
 import TranscriptLibrary from './TranscriptLibrary';
 import CourseLibrary from './CourseLibrary';
 
 const KisaAcademy = (props) => {
+    const { externalDocTarget } = props;
+
     // State to track which section the user is currently viewing
     // 'hub' = the main landing page, 'archive' = Transcripts, 'courses' = Videos
     const [activeSection, setActiveSection] = useState('hub');
+
+    // Auto-switch to archive when a transcript is requested from global routing
+    useEffect(() => {
+        if (externalDocTarget) {
+            setActiveSection('archive');
+        }
+    }, [externalDocTarget]);
 
     // This intercepts the "Back" button clicks from inside the libraries
     const handleReturnToHub = () => {

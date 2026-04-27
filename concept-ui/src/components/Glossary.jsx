@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Bookmark, BookOpen, ChevronRight, Library, Copy, Check, Share2, ChevronDown } from 'lucide-react';
+import { Search, Bookmark, BookOpen, ChevronRight, Library, Copy, Check, Share2, ChevronDown, LayoutGrid, List, ChevronUp } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 const Glossary = ({ theme = 'light' }) => {
@@ -9,6 +9,11 @@ const Glossary = ({ theme = 'light' }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState('az'); // 'az' or 'domain'
     const [selectedDomain, setSelectedDomain] = useState('Show All');
+
+    // NEW STATES: Layout and Accordion
+    const [layout, setLayout] = useState('grid'); // 'grid' or 'list'
+    const [expandedId, setExpandedId] = useState(null); // Tracks which list item is open
+
     const [savingId, setSavingId] = useState(null);
     const [copiedId, setCopiedId] = useState(null);
 
@@ -28,18 +33,22 @@ const Glossary = ({ theme = 'light' }) => {
         toggleInactive: isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-[#5C4A3D]/60 hover:text-[#5C4A3D]'
     };
 
-    // Fetch Ontology Data with Instant Memory Cache
+    // Auto-switch to list view on mobile for better UX
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setLayout('list');
+        }
+    }, []);
+
     useEffect(() => {
         const fetchOntology = async () => {
-            // 1. INSTANT LOAD: Check if we have a saved copy on the user's device
             const savedDictionary = localStorage.getItem('kisa_glossary_cache');
             if (savedDictionary) {
                 setTerms(JSON.parse(savedDictionary));
-                setLoading(false); // Turn off the loading screen instantly!
+                setLoading(false);
             }
 
             try {
-                // 2. BACKGROUND SYNC: Quietly ask the server for the newest updates
                 const baseUrl = import.meta.env.VITE_API_URL || '';
                 const response = await fetch(`${baseUrl}/api/ontology`);
                 if (!response.ok) throw new Error('Failed to fetch ontology');
@@ -49,7 +58,6 @@ const Glossary = ({ theme = 'light' }) => {
                     (a.transliteration || '').localeCompare(b.transliteration || '')
                 );
 
-                // 3. SEAMLESS UPDATE: Apply the fresh data and save it to the device for next time
                 setTerms(sortedData);
                 localStorage.setItem('kisa_glossary_cache', JSON.stringify(sortedData));
                 setLoading(false);
@@ -58,7 +66,6 @@ const Glossary = ({ theme = 'light' }) => {
                 setLoading(false);
             }
         };
-
         fetchOntology();
     }, []);
 
@@ -87,14 +94,13 @@ const Glossary = ({ theme = 'light' }) => {
     const scrollToLetter = (letter) => {
         const element = document.getElementById(`letter-${letter}`);
         if (element) {
-            // Offset for fixed header
             const y = element.getBoundingClientRect().top + window.scrollY - 100;
             window.scrollTo({ top: y, behavior: 'smooth' });
         }
     };
 
-    const handleSaveToVault = async (term) => {
-        setSavingId(term.id);
+    const handleSaveToVault = async (term, key) => {
+        setSavingId(key); // Use the foolproof key here
         try {
             const { data: { session } } = await supabase.auth.getSession();
             if (!session) {
@@ -122,10 +128,10 @@ const Glossary = ({ theme = 'light' }) => {
         }
     };
 
-    const handleCopy = (term) => {
+    const handleCopy = (term, key) => {
         const text = `${term.transliteration} (${term.primary_arabic})\n${term.primary_english}\n\n${term.definition}\n\n— Via Al-Kisa Glossary`;
         navigator.clipboard.writeText(text).then(() => {
-            setCopiedId(term.id);
+            setCopiedId(key); // Use the foolproof key here
             setTimeout(() => setCopiedId(null), 2000);
         });
     };
@@ -137,11 +143,8 @@ const Glossary = ({ theme = 'light' }) => {
             url: window.location.href
         };
         try {
-            if (navigator.share) {
-                await navigator.share(shareData);
-            } else {
-                handleCopy(term); // Fallback to copy
-            }
+            if (navigator.share) await navigator.share(shareData);
+            else handleCopy(term);
         } catch (err) {
             console.log('Share dismissed or failed', err);
         }
@@ -153,7 +156,6 @@ const Glossary = ({ theme = 'light' }) => {
         <div className={`min-h-screen font-sans pb-20 sm:pt-10 transition-colors duration-500 ${colors.bg}`}>
             <div className="max-w-6xl mx-auto px-4 sm:px-6 relative flex gap-8">
 
-                {/* Main Content Area */}
                 <div className="flex-1 min-w-0">
                     {/* Header */}
                     <div className="mb-6 sm:mb-10 pt-4 sm:pt-0">
@@ -177,54 +179,45 @@ const Glossary = ({ theme = 'light' }) => {
                             />
                         </div>
 
-                        <div className="flex w-full md:w-auto gap-2">
-                            <div className={`flex p-1 rounded-xl border w-full md:w-auto ${colors.cardBg} ${colors.border}`}>
-                                <button
-                                    onClick={() => setViewMode('az')}
-                                    className={`flex-1 md:flex-none px-5 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${viewMode === 'az' ? colors.toggleActive : colors.toggleInactive}`}
-                                >
-                                    A-Z Index
+                        <div className="flex w-full md:w-auto gap-2 sm:gap-4 justify-between md:justify-start">
+                            {/* AZ vs Domain Toggle */}
+                            <div className={`flex p-1 rounded-xl border w-full sm:w-auto ${colors.cardBg} ${colors.border}`}>
+                                <button onClick={() => setViewMode('az')} className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${viewMode === 'az' ? colors.toggleActive : colors.toggleInactive}`}>A-Z</button>
+                                <button onClick={() => setViewMode('domain')} className={`flex-1 sm:flex-none px-4 sm:px-5 py-2 sm:py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${viewMode === 'domain' ? colors.toggleActive : colors.toggleInactive}`}>Domains</button>
+                            </div>
+
+                            {/* Grid vs List Layout Toggle */}
+                            <div className={`hidden sm:flex p-1 rounded-xl border shrink-0 ${colors.cardBg} ${colors.border}`}>
+                                <button onClick={() => setLayout('grid')} className={`p-2 rounded-lg transition-all ${layout === 'grid' ? colors.toggleActive : colors.toggleInactive}`} title="Card View">
+                                    <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
-                                <button
-                                    onClick={() => setViewMode('domain')}
-                                    className={`flex-1 md:flex-none px-5 py-2.5 text-[10px] sm:text-xs font-bold uppercase tracking-widest rounded-lg transition-all ${viewMode === 'domain' ? colors.toggleActive : colors.toggleInactive}`}
-                                >
-                                    Domains
+                                <button onClick={() => setLayout('list')} className={`p-2 rounded-lg transition-all ${layout === 'list' ? colors.toggleActive : colors.toggleInactive}`} title="Compact List View">
+                                    <List className="w-4 h-4 sm:w-5 sm:h-5" />
                                 </button>
                             </div>
                         </div>
                     </div>
 
-                    {/* Domain Filter Dropdown (Only visible in Domain Mode) */}
+                    {/* Domain Filter Dropdown */}
                     {viewMode === 'domain' && uniqueDomains.length > 1 && (
                         <div className="mb-8 relative max-w-xs">
-                            <select
-                                value={selectedDomain}
-                                onChange={(e) => setSelectedDomain(e.target.value)}
-                                className={`w-full appearance-none outline-none border rounded-xl py-3 px-4 pr-10 text-sm font-bold shadow-sm cursor-pointer transition-colors focus:border-[#c6a87c] ${colors.inputBg} ${colors.border} ${colors.textPrimary}`}
-                            >
-                                {uniqueDomains.map(domain => (
-                                    <option key={domain} value={domain}>{domain}</option>
-                                ))}
+                            <select value={selectedDomain} onChange={(e) => setSelectedDomain(e.target.value)} className={`w-full appearance-none outline-none border rounded-xl py-3 px-4 pr-10 text-sm font-bold shadow-sm cursor-pointer transition-colors focus:border-[#c6a87c] ${colors.inputBg} ${colors.border} ${colors.textPrimary}`}>
+                                {uniqueDomains.map(domain => <option key={domain} value={domain}>{domain}</option>)}
                             </select>
                             <ChevronDown className={`absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${colors.textSecondary}`} />
                         </div>
                     )}
 
-                    {/* Loading State */}
                     {loading && (
                         <div className={`flex justify-center py-20 text-sm tracking-widest uppercase font-bold ${colors.textSecondary}`}>
                             Loading Ontology Brain...
                         </div>
                     )}
 
-                    {/* Dictionary Rendering */}
                     {!loading && (
                         <div className="space-y-10 sm:space-y-12">
                             {(viewMode === 'az' ? Object.keys(groupedAZ).sort() : Object.keys(groupedDomain).sort()).map(groupKey => {
-                                // Skip if domain is filtered out
                                 if (viewMode === 'domain' && selectedDomain !== 'Show All' && groupKey !== selectedDomain) return null;
-
                                 const groupTerms = viewMode === 'az' ? groupedAZ[groupKey] : groupedDomain[groupKey];
                                 if (!groupTerms || groupTerms.length === 0) return null;
 
@@ -235,56 +228,90 @@ const Glossary = ({ theme = 'light' }) => {
                                             <div className={`h-px flex-1 ${colors.divider}`}></div>
                                         </div>
 
-                                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                                            {groupTerms.map(term => (
-                                                <div key={term.id} className={`border p-5 sm:p-6 rounded-2xl transition-colors group relative shadow-sm hover:border-[#c6a87c]/50 ${colors.cardBg} ${colors.border}`}>
+                                        {/* CONDITIONAL RENDERING: GRID vs LIST */}
+                                        <div className={layout === 'grid' ? "grid grid-cols-1 lg:grid-cols-2 gap-4" : "flex flex-col gap-2 sm:gap-3"}>
+                                            {groupTerms.map((term, index) => {
+                                                // FOOLPROOF ID: Falls back to transliteration or index if database ID is missing
+                                                const uniqueKey = term.id || term.transliteration || index;
+                                                const isExpanded = expandedId === uniqueKey;
 
-                                                    {/* Card Actions (Top Right) */}
-                                                    <div className="absolute top-4 right-4 flex items-center gap-1 sm:gap-2">
-                                                        <button
-                                                            onClick={() => handleShare(term)}
-                                                            className={`p-2 transition-colors rounded-full ${colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}
-                                                            title="Share"
-                                                        >
-                                                            <Share2 className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleCopy(term)}
-                                                            className={`p-2 transition-colors rounded-full ${colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}
-                                                            title="Copy Definition"
-                                                        >
-                                                            {copiedId === term.id ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => handleSaveToVault(term)}
-                                                            disabled={savingId === term.id}
-                                                            className={`p-2 transition-colors rounded-full ${savingId === term.id ? 'text-[#c6a87c]' : colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}
-                                                            title="Save to Study Vault"
-                                                        >
-                                                            <Bookmark className={`w-4 h-4 ${savingId === term.id ? 'fill-[#c6a87c]' : ''}`} />
-                                                        </button>
-                                                    </div>
+                                                if (layout === 'grid') {
+                                                    // ----------------- GRID CARD VIEW -----------------
+                                                    return (
+                                                        <div key={uniqueKey} className={`border p-5 sm:p-6 rounded-2xl transition-colors group relative shadow-sm hover:border-[#c6a87c]/50 ${colors.cardBg} ${colors.border}`}>
+                                                            {/* ... (Keep your existing grid card code here) ... */}
+                                                            <div className="absolute top-4 right-4 flex items-center gap-1 sm:gap-2">
+                                                                <button onClick={() => handleShare(term)} className={`p-2 transition-colors rounded-full ${colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}><Share2 className="w-4 h-4" /></button>
+                                                                <button onClick={() => handleCopy(term, uniqueKey)} className={`p-2 transition-colors rounded-full ${colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}>{copiedId === uniqueKey ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}</button>
+                                                                <button onClick={() => handleSaveToVault(term, uniqueKey)} disabled={savingId === uniqueKey} className={`p-2 transition-colors rounded-full ${savingId === uniqueKey ? 'text-[#c6a87c]' : colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}><Bookmark className={`w-4 h-4 ${savingId === uniqueKey ? 'fill-[#c6a87c]' : ''}`} /></button>
+                                                            </div>
 
-                                                    <div className="flex items-start justify-between mb-3 pr-28 sm:pr-32">
-                                                        <div>
-                                                            <h3 className={`text-lg sm:text-xl font-bold tracking-tight ${colors.textPrimary}`}>{term.transliteration}</h3>
-                                                            <p className="text-[10px] sm:text-xs uppercase tracking-widest text-[#c6a87c] mt-1">{term.primary_english}</p>
+                                                            <div className="flex items-start justify-between mb-3 pr-28 sm:pr-32">
+                                                                <div>
+                                                                    <h3 className={`text-lg sm:text-xl font-bold tracking-tight ${colors.textPrimary}`}>{term.transliteration}</h3>
+                                                                    <p className="text-[10px] sm:text-xs uppercase tracking-widest text-[#c6a87c] mt-1">{term.primary_english}</p>
+                                                                </div>
+                                                                <span className={`font-arabic text-xl sm:text-2xl ml-2 shrink-0 ${colors.textPrimary}`}>{term.primary_arabic}</span>
+                                                            </div>
+
+                                                            {viewMode === 'az' && term.domain && (
+                                                                <span className={`inline-block border text-[9px] sm:text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-md mb-3 sm:mb-4 ${isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-[#c6a87c]/10 border-[#c6a87c]/20 text-[#c6a87c] font-bold'}`}>{term.domain}</span>
+                                                            )}
+                                                            <p className={`text-sm sm:text-base leading-relaxed font-serif ${colors.textSecondary}`}>{term.definition}</p>
                                                         </div>
-                                                        {/* Force Arabic text to not overlap buttons on small mobile */}
-                                                        <span className={`font-arabic text-xl sm:text-2xl ml-2 shrink-0 ${colors.textPrimary}`}>{term.primary_arabic}</span>
-                                                    </div>
+                                                    );
+                                                } else {
+                                                    // ----------------- COMPACT ACCORDION LIST VIEW (Left-Lit Monolith) -----------------
+                                                    return (
+                                                        <div key={uniqueKey} className={`border rounded-xl transition-all overflow-hidden ${colors.cardBg} ${isExpanded ? 'border-[#c6a87c]/40 shadow-sm' : colors.border}`}>
+                                                            <button
+                                                                onClick={() => setExpandedId(isExpanded ? null : uniqueKey)}
+                                                                className={`w-full flex items-center justify-between p-4 sm:p-5 text-left transition-colors ${!isExpanded && 'hover:bg-black/5 dark:hover:bg-white/5'}`}
+                                                            >
+                                                                <div className="flex items-center gap-4">
+                                                                    <div>
+                                                                        <h3 className={`text-base sm:text-lg font-bold tracking-tight transition-colors ${isExpanded ? 'text-[#c6a87c]' : colors.textPrimary}`}>{term.transliteration}</h3>
+                                                                        <p className="text-[10px] uppercase tracking-widest text-[#c6a87c] mt-0.5">{term.primary_english}</p>
+                                                                    </div>
+                                                                    <span className={`font-arabic text-lg sm:text-xl hidden sm:block opacity-80 ${colors.textPrimary}`}>{term.primary_arabic}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-3">
+                                                                    {viewMode === 'az' && term.domain && <span className={`hidden md:inline-block border text-[9px] uppercase tracking-widest px-2 py-0.5 rounded ${isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-500' : 'bg-[#c6a87c]/10 border-[#c6a87c]/20 text-[#c6a87c]'}`}>{term.domain}</span>}
+                                                                    <div className={`p-1.5 rounded-full transition-colors ${isExpanded ? 'bg-[#c6a87c]/10 text-[#c6a87c]' : colors.textSecondary}`}>
+                                                                        {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                                                                    </div>
+                                                                </div>
+                                                            </button>
 
-                                                    {viewMode === 'az' && term.domain && (
-                                                        <span className={`inline-block border text-[9px] sm:text-[10px] uppercase tracking-widest px-2.5 py-1 rounded-md mb-3 sm:mb-4 ${isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-400' : 'bg-[#c6a87c]/10 border-[#c6a87c]/20 text-[#c6a87c] font-bold'}`}>
-                                                            {term.domain}
-                                                        </span>
-                                                    )}
+                                                            <AnimatePresence>
+                                                                {isExpanded && (
+                                                                    <motion.div
+                                                                        initial={{ height: 0, opacity: 0 }}
+                                                                        animate={{ height: 'auto', opacity: 1 }}
+                                                                        exit={{ height: 0, opacity: 0 }}
+                                                                        className="overflow-hidden"
+                                                                    >
+                                                                        <div className="px-4 sm:px-5 pb-4 sm:pb-5">
+                                                                            {/* The "Left-Lit" vertical accent line */}
+                                                                            <div className="pl-4 sm:pl-5 border-l-2 border-[#c6a87c]/40 ml-1">
+                                                                                <span className={`font-arabic text-xl sm:hidden block mb-3 opacity-90 ${colors.textPrimary}`}>{term.primary_arabic}</span>
+                                                                                <p className={`text-sm sm:text-base leading-relaxed font-serif mb-5 ${colors.textSecondary}`}>{term.definition}</p>
 
-                                                    <p className={`text-sm sm:text-base leading-relaxed font-serif ${colors.textSecondary}`}>
-                                                        {term.definition}
-                                                    </p>
-                                                </div>
-                                            ))}
+                                                                                {/* Action buttons aligned to the left accent line for typographic symmetry */}
+                                                                                <div className="flex items-center justify-start gap-1 sm:gap-2 pt-1">
+                                                                                    <button onClick={() => handleShare(term)} className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase rounded-lg transition-colors ${colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}><Share2 className="w-3.5 h-3.5" /> Share</button>
+                                                                                    <button onClick={() => handleCopy(term, uniqueKey)} className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase rounded-lg transition-colors ${colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}>{copiedId === uniqueKey ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />} Copy</button>
+                                                                                    <button onClick={() => handleSaveToVault(term, uniqueKey)} disabled={savingId === uniqueKey} className={`flex items-center gap-1.5 px-3 py-1.5 text-[10px] sm:text-[11px] font-bold tracking-wider uppercase rounded-lg transition-colors ${savingId === uniqueKey ? 'text-[#c6a87c]' : colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}><Bookmark className={`w-3.5 h-3.5 ${savingId === uniqueKey ? 'fill-[#c6a87c]' : ''}`} /> Save</button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    );
+                                                }
+                                            })}
                                         </div>
                                     </div>
                                 );
@@ -299,19 +326,13 @@ const Glossary = ({ theme = 'light' }) => {
                     )}
                 </div>
 
-                {/* The iOS-Style Rolodex (Desktop Only) */}
+                {/* Rolodex */}
                 {viewMode === 'az' && !loading && filteredTerms.length > 0 && (
                     <div className={`hidden lg:flex flex-col items-center sticky top-24 h-[calc(100vh-8rem)] w-8 py-4 border rounded-full shrink-0 shadow-sm ${colors.cardBg} ${colors.border}`}>
                         {alphabet.map(letter => {
                             const hasTerms = groupedAZ[letter] && groupedAZ[letter].length > 0;
                             return (
-                                <button
-                                    key={letter}
-                                    onClick={() => scrollToLetter(letter)}
-                                    disabled={!hasTerms}
-                                    className={`flex-1 text-[10px] font-bold w-full transition-all ${hasTerms ? `${colors.textSecondary} hover:text-[#c6a87c] cursor-pointer hover:scale-150` : 'opacity-20 cursor-default'
-                                        }`}
-                                >
+                                <button key={letter} onClick={() => scrollToLetter(letter)} disabled={!hasTerms} className={`flex-1 text-[10px] font-bold w-full transition-all ${hasTerms ? `${colors.textSecondary} hover:text-[#c6a87c] cursor-pointer hover:scale-150` : 'opacity-20 cursor-default'}`}>
                                     {letter}
                                 </button>
                             );
