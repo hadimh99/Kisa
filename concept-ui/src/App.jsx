@@ -16,6 +16,7 @@ import SpiritualHub from './components/SpiritualHub';
 import StudyVault from './components/StudyVault';
 import Glossary from './components/Glossary';
 import Footer from './components/Footer';
+import { Analytics } from '@vercel/analytics/react';
 
 
 const APP_UPDATES = [
@@ -2015,6 +2016,10 @@ export default function App() {
         )}
 
       </main>
+
+      {/* Vercel Analytics injected here */}
+      <Analytics />
+
     </div>
   );
 }
