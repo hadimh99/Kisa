@@ -9,7 +9,7 @@ const BrainOntology = ({ supabase }) => {
     const [searchQuery, setSearchQuery] = useState('');
     const [viewMode, setViewMode] = useState('grid');
     const [showDocs, setShowDocs] = useState(false);
-    
+
     // Editor Drawer State
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [activeConcept, setActiveConcept] = useState(null);
@@ -28,7 +28,7 @@ const BrainOntology = ({ supabase }) => {
                 .select('*, ontology_synonyms(*), outgoing_relations:ontology_relations!ontology_relations_source_concept_id_fkey(*)')
                 .order('domain', { ascending: true })
                 .order('transliteration', { ascending: true });
-                
+
             if (error) {
                 console.error("Supabase PostgREST Error:", error);
                 setErrorState(error);
@@ -126,7 +126,7 @@ const BrainOntology = ({ supabase }) => {
             if (error) throw error;
             setFormStatus({ type: 'success', message: 'Synonym injected.' });
             setNewSynonym({ variant_text: '', language: 'English', weight: 1.0 });
-            
+
             // Optimistic hook
             const updatedConcept = { ...activeConcept };
             if (!updatedConcept.ontology_synonyms) updatedConcept.ontology_synonyms = [];
@@ -152,7 +152,7 @@ const BrainOntology = ({ supabase }) => {
             if (error) throw error;
             setFormStatus({ type: 'success', message: 'Relation edge woven.' });
             setNewRelation({ target_concept_id: '', relation_type: 'requires' });
-            
+
             fetchOntology();
             // Optional: Hard delay reload inner active state because of deeply nested query execution time
             setTimeout(() => {
@@ -164,7 +164,7 @@ const BrainOntology = ({ supabase }) => {
         }
     };
 
-    const filteredConcepts = concepts.filter(c => 
+    const filteredConcepts = concepts.filter(c =>
         (c.transliteration || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (c.primary_english || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
         (c.domain || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -184,11 +184,12 @@ const BrainOntology = ({ supabase }) => {
         return "bg-zinc-800/50 text-zinc-400 border-zinc-700";
     };
 
-    // Semantic weight pill styling
+    // SURGICAL FIX: Safely parse weight into a Number before math operations
     const getWeightColor = (weight) => {
-        if (weight >= 1.0) return "bg-green-500 text-black";
-        if (weight >= 0.8) return "bg-amber-500 text-black";
-        if (weight >= 0.5) return "bg-zinc-500 text-white";
+        const safeWeight = Number(weight || 1);
+        if (safeWeight >= 1.0) return "bg-green-500 text-black";
+        if (safeWeight >= 0.8) return "bg-amber-500 text-black";
+        if (safeWeight >= 0.5) return "bg-zinc-500 text-white";
         return "bg-red-500 text-white";
     };
 
@@ -206,29 +207,29 @@ const BrainOntology = ({ supabase }) => {
                 <div className="flex items-center gap-3">
                     <div className="relative w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
-                        <input 
-                            type="text" 
-                            placeholder="Search Theology Matrix..." 
+                        <input
+                            type="text"
+                            placeholder="Search Theology Matrix..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full bg-[#121212] border border-zinc-800 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:border-[#c6a87c] outline-none shadow-inner transition-colors"
                         />
                     </div>
-                    <button 
+                    <button
                         onClick={handleNewConcept}
                         className="bg-[#c6a87c] hover:bg-[#b0956b] text-black font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-[#c6a87c]/10 whitespace-nowrap"
                     >
                         <Plus className="w-4 h-4" /> New Concept
                     </button>
                     <div className="flex bg-[#121212] border border-zinc-800 rounded-xl overflow-hidden">
-                        <button 
+                        <button
                             onClick={() => setViewMode('grid')}
                             className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-zinc-800 text-[#c6a87c]' : 'text-zinc-600 hover:text-zinc-300'}`}
                             title="Grid View"
                         >
                             <LayoutGrid className="w-4 h-4" />
                         </button>
-                        <button 
+                        <button
                             onClick={() => setViewMode('list')}
                             className={`p-2.5 transition-colors ${viewMode === 'list' ? 'bg-zinc-800 text-[#c6a87c]' : 'text-zinc-600 hover:text-zinc-300'}`}
                             title="List View"
@@ -241,7 +242,7 @@ const BrainOntology = ({ supabase }) => {
 
             {/* How-To Toggle & Panel */}
             <div className="shrink-0 px-2">
-                <button 
+                <button
                     onClick={() => setShowDocs(!showDocs)}
                     className="flex items-center gap-2 text-xs text-zinc-500 hover:text-[#c6a87c] transition-colors py-2"
                 >
@@ -252,7 +253,7 @@ const BrainOntology = ({ supabase }) => {
 
                 <AnimatePresence>
                     {showDocs && (
-                        <motion.div 
+                        <motion.div
                             initial={{ height: 0, opacity: 0 }}
                             animate={{ height: 'auto', opacity: 1 }}
                             exit={{ height: 0, opacity: 0 }}
@@ -328,7 +329,7 @@ const BrainOntology = ({ supabase }) => {
                             <h3 className="text-xl font-bold text-zinc-400 mb-2">The Ontology Matrix is empty.</h3>
                             <p className="text-sm text-zinc-600 max-w-md">No theological concepts have been mapped yet. Initialize your first concept to begin building the knowledge graph.</p>
                         </div>
-                        <button 
+                        <button
                             onClick={handleNewConcept}
                             className="bg-[#c6a87c] hover:bg-[#b0956b] text-black font-bold text-sm uppercase tracking-widest px-8 py-3 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-[#c6a87c]/20"
                         >
@@ -347,7 +348,7 @@ const BrainOntology = ({ supabase }) => {
                                         <div className="text-[10px] text-zinc-600 font-mono tracking-widest">{c.root_letters}</div>
                                     </div>
                                 </div>
-                                
+
                                 {/* Sub-header */}
                                 <div className="flex items-center gap-3 mb-4 pb-4 border-b border-zinc-800/60">
                                     <span className="text-sm font-medium text-white">{c.primary_english}</span>
@@ -357,33 +358,34 @@ const BrainOntology = ({ supabase }) => {
                                         </span>
                                     )}
                                 </div>
-                                
+
                                 {/* Body */}
                                 <div className="text-xs text-zinc-400 mb-6 flex-1 line-clamp-3 leading-relaxed">
                                     {c.definition || 'No definition encoded.'}
                                 </div>
-                                
+
                                 {/* Synonym Pills */}
                                 {c.ontology_synonyms && c.ontology_synonyms.length > 0 && (
                                     <div className="mb-5">
-                                        <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 flex items-center gap-1.5"><Database className="w-3 h-3"/> Semantic Variants</div>
+                                        <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 flex items-center gap-1.5"><Database className="w-3 h-3" /> Semantic Variants</div>
                                         <div className="flex flex-wrap gap-2">
                                             {c.ontology_synonyms.map(syn => (
                                                 <div key={syn.id || syn.variant_text} className="bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-1 text-[11px] text-zinc-300 flex items-center gap-2">
                                                     {syn.variant_text}
+                                                    {/* SURGICAL FIX: Force Number before .toFixed */}
                                                     <span className={`w-3 h-3 flex items-center justify-center rounded-full text-[7px] font-bold ${getWeightColor(syn.weight)}`}>
-                                                        {syn.weight.toFixed(1).replace('.0', '')}
+                                                        {Number(syn.weight || 1).toFixed(1).replace('.0', '')}
                                                     </span>
                                                 </div>
                                             ))}
                                         </div>
                                     </div>
                                 )}
-                                
+
                                 {/* Red Strings */}
                                 {c.outgoing_relations && c.outgoing_relations.length > 0 && (
                                     <div className="mb-6 p-4 bg-zinc-900/40 border border-zinc-800/60 rounded-xl">
-                                        <div className="text-[10px] text-red-400/80 uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5"><Network className="w-3 h-3"/> Theological Relations</div>
+                                        <div className="text-[10px] text-red-400/80 uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5"><Network className="w-3 h-3" /> Theological Relations</div>
                                         <div className="flex flex-col gap-2">
                                             {c.outgoing_relations.map(rel => (
                                                 <div key={rel.id} className="flex justify-between items-center text-[11px] border-b border-zinc-800/40 pb-1.5 last:border-0 last:pb-0">
@@ -396,7 +398,7 @@ const BrainOntology = ({ supabase }) => {
                                 )}
 
                                 {/* Card Button */}
-                                <button 
+                                <button
                                     onClick={() => handleOpenDrawer(c)}
                                     className="mt-auto w-full py-2.5 rounded-lg bg-[#c6a87c]/10 text-[#c6a87c] hover:bg-[#c6a87c] hover:text-black font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
                                 >
@@ -445,7 +447,7 @@ const BrainOntology = ({ supabase }) => {
                                     </div>
                                 </div>
                                 <div className="col-span-1 flex justify-end">
-                                    <button 
+                                    <button
                                         onClick={() => handleOpenDrawer(c)}
                                         className="p-2 text-zinc-600 hover:text-[#c6a87c] hover:bg-zinc-800 rounded-lg transition-colors"
                                         title="Edit Concept"
@@ -464,16 +466,16 @@ const BrainOntology = ({ supabase }) => {
                 {isDrawerOpen && activeConcept && (
                     <>
                         {/* Overlay backdrop */}
-                        <motion.div 
+                        <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={handleCloseDrawer}
                             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
                         />
-                        
+
                         {/* Drawer Panel */}
-                        <motion.div 
+                        <motion.div
                             initial={{ x: '100%' }}
                             animate={{ x: 0 }}
                             exit={{ x: '100%' }}
@@ -495,11 +497,10 @@ const BrainOntology = ({ supabase }) => {
                             <div className="flex-1 overflow-y-auto p-6 space-y-10" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
                                 {/* Alerts */}
                                 {formStatus.message && (
-                                    <div className={`p-4 rounded-xl flex items-center text-xs font-bold tracking-widest shadow-md ${
-                                        formStatus.type === 'error' ? 'bg-red-900/20 text-red-400 border border-red-900/50' : 
-                                        formStatus.type === 'success' ? 'bg-green-900/20 text-green-400 border border-green-900/50' : 
-                                        'bg-[#c6a87c]/10 text-[#c6a87c] border border-[#c6a87c]/30'
-                                    }`}>
+                                    <div className={`p-4 rounded-xl flex items-center text-xs font-bold tracking-widest shadow-md ${formStatus.type === 'error' ? 'bg-red-900/20 text-red-400 border border-red-900/50' :
+                                            formStatus.type === 'success' ? 'bg-green-900/20 text-green-400 border border-green-900/50' :
+                                                'bg-[#c6a87c]/10 text-[#c6a87c] border border-[#c6a87c]/30'
+                                        }`}>
                                         <AlertCircle className="w-4 h-4 mr-2" /> {formStatus.message}
                                     </div>
                                 )}
@@ -511,51 +512,51 @@ const BrainOntology = ({ supabase }) => {
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">English Title</label>
-                                                <input 
-                                                    value={activeConcept.primary_english || ''} 
-                                                    onChange={e => setActiveConcept({...activeConcept, primary_english: e.target.value})}
-                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c]" 
+                                                <input
+                                                    value={activeConcept.primary_english || ''}
+                                                    onChange={e => setActiveConcept({ ...activeConcept, primary_english: e.target.value })}
+                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c]"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Category</label>
-                                                <input 
-                                                    value={activeConcept.domain || ''} 
-                                                    onChange={e => setActiveConcept({...activeConcept, domain: e.target.value})}
-                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c]" 
+                                                <input
+                                                    value={activeConcept.domain || ''}
+                                                    onChange={e => setActiveConcept({ ...activeConcept, domain: e.target.value })}
+                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c]"
                                                 />
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
                                                 <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Arabic Script</label>
-                                                <input 
-                                                    value={activeConcept.primary_arabic || ''} 
-                                                    onChange={e => setActiveConcept({...activeConcept, primary_arabic: e.target.value})}
-                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c] text-right font-arabic" 
+                                                <input
+                                                    value={activeConcept.primary_arabic || ''}
+                                                    onChange={e => setActiveConcept({ ...activeConcept, primary_arabic: e.target.value })}
+                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c] text-right font-arabic"
                                                     dir="rtl"
                                                 />
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Arabic Root</label>
-                                                <input 
-                                                    value={activeConcept.root_letters || ''} 
-                                                    onChange={e => setActiveConcept({...activeConcept, root_letters: e.target.value})}
-                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c] text-right font-arabic" 
+                                                <input
+                                                    value={activeConcept.root_letters || ''}
+                                                    onChange={e => setActiveConcept({ ...activeConcept, root_letters: e.target.value })}
+                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c] text-right font-arabic"
                                                     dir="rtl"
                                                 />
                                             </div>
                                         </div>
                                         <div>
                                             <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Definition & Context</label>
-                                            <textarea 
-                                                value={activeConcept.definition || ''} 
-                                                onChange={e => setActiveConcept({...activeConcept, definition: e.target.value})}
+                                            <textarea
+                                                value={activeConcept.definition || ''}
+                                                onChange={e => setActiveConcept({ ...activeConcept, definition: e.target.value })}
                                                 className="w-full bg-black border border-zinc-800 rounded p-3 text-xs text-zinc-300 outline-none focus:border-[#c6a87c] resize-y"
                                                 rows={4}
                                             />
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={handleSaveConcept}
                                             className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-[10px] tracking-widest uppercase rounded flex items-center justify-center gap-2 transition-colors"
                                         >
@@ -572,18 +573,18 @@ const BrainOntology = ({ supabase }) => {
                                     <div className="flex items-end gap-2 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800/80">
                                         <div className="flex-1">
                                             <label className="text-[9px] text-zinc-500 uppercase tracking-widest mb-1 block">Alternative Search Term</label>
-                                            <input 
-                                                value={newSynonym.variant_text} 
-                                                onChange={e => setNewSynonym({...newSynonym, variant_text: e.target.value})}
+                                            <input
+                                                value={newSynonym.variant_text}
+                                                onChange={e => setNewSynonym({ ...newSynonym, variant_text: e.target.value })}
                                                 placeholder="e.g. Divine Unity"
-                                                className="w-full bg-black border border-zinc-700 rounded p-2 text-xs text-white outline-none" 
+                                                className="w-full bg-black border border-zinc-700 rounded p-2 text-xs text-white outline-none"
                                             />
                                         </div>
                                         <div className="w-20">
                                             <label className="text-[9px] text-zinc-500 uppercase tracking-widest mb-1 block">Match Strength</label>
-                                            <select 
-                                                value={newSynonym.weight} 
-                                                onChange={e => setNewSynonym({...newSynonym, weight: e.target.value})}
+                                            <select
+                                                value={newSynonym.weight}
+                                                onChange={e => setNewSynonym({ ...newSynonym, weight: e.target.value })}
                                                 className="w-full bg-black border border-zinc-700 rounded p-2 text-xs text-white outline-none"
                                             >
                                                 <option value="1.0">1.0</option>
@@ -591,7 +592,7 @@ const BrainOntology = ({ supabase }) => {
                                                 <option value="0.5">0.5</option>
                                             </select>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={handleAddSynonym}
                                             className="bg-green-600 hover:bg-green-500 text-white p-2.5 rounded transition-colors"
                                             title="Inject Synonym"
@@ -610,9 +611,9 @@ const BrainOntology = ({ supabase }) => {
                                     <div className="flex flex-col gap-3 p-4 bg-red-950/20 rounded-xl border border-red-900/30">
                                         <div>
                                             <label className="text-[9px] text-red-500/70 uppercase tracking-widest mb-1 block">Relationship Edge Type</label>
-                                            <select 
-                                                value={newRelation.relation_type} 
-                                                onChange={e => setNewRelation({...newRelation, relation_type: e.target.value})}
+                                            <select
+                                                value={newRelation.relation_type}
+                                                onChange={e => setNewRelation({ ...newRelation, relation_type: e.target.value })}
                                                 className="w-full bg-black border border-red-900/50 rounded p-2 text-xs text-red-200 outline-none"
                                             >
                                                 <option value="requires">Requires</option>
@@ -624,9 +625,9 @@ const BrainOntology = ({ supabase }) => {
                                         </div>
                                         <div>
                                             <label className="text-[9px] text-red-500/70 uppercase tracking-widest mb-1 block">Target Concept</label>
-                                            <select 
-                                                value={newRelation.target_concept_id} 
-                                                onChange={e => setNewRelation({...newRelation, target_concept_id: e.target.value})}
+                                            <select
+                                                value={newRelation.target_concept_id}
+                                                onChange={e => setNewRelation({ ...newRelation, target_concept_id: e.target.value })}
                                                 className="w-full bg-black border border-red-900/50 rounded p-2 text-xs text-red-200 outline-none"
                                             >
                                                 <option value="">Select Target Concept...</option>
@@ -635,7 +636,7 @@ const BrainOntology = ({ supabase }) => {
                                                 ))}
                                             </select>
                                         </div>
-                                        <button 
+                                        <button
                                             onClick={handleAddRelation}
                                             className="w-full py-2 bg-red-900 hover:bg-red-800 text-white font-bold text-[10px] tracking-widest uppercase rounded flex items-center justify-center gap-2 transition-colors mt-2"
                                         >

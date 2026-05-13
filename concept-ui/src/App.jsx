@@ -450,6 +450,7 @@ function AppContent() {
   
   const navigate = useNavigate();
   const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   const activeTab = useMemo(() => {
     if (location.pathname.startsWith('/quran')) return 'quran';
@@ -1121,6 +1122,7 @@ const [quranPopup, setQuranPopup] = useState(null);
       {/* ======================================================================= */}
       {/* 1. THE NATIVE GLOBAL HEADER */}
       {/* ======================================================================= */}
+      {!isAdminRoute && (
       <header
         ref={headerRef}
         className={`fixed top-0 left-0 right-0 z-[500] h-12 sm:h-14 transition-all duration-400 will-change-transform border-b flex items-center justify-center ${(showMobileNav || showSearchOverlay || showUserHub)
@@ -1224,6 +1226,7 @@ const [quranPopup, setQuranPopup] = useState(null);
           </div>
         </div>
       </header>
+      )}
 
       {/* ======================================================================= */}
       {/* CANVAS A: THE SEARCH OVERLAY (APPLE CURTAIN PHYSICS) */}
@@ -2102,7 +2105,7 @@ const [quranPopup, setQuranPopup] = useState(null);
         )}
 
         {/* --- DYNAMIC FOOTER --- */}
-        {!hideFooter && (
+        {!hideFooter && !isAdminRoute && (
           <Footer theme={theme} setActiveTab={setActiveTab} KisaLogo={KisaLogo} setShowSearchOverlay={setShowSearchOverlay} />
         )}
 
