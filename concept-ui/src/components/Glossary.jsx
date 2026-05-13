@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Bookmark, BookOpen, ChevronRight, Library, Copy, Check, Share2, ChevronDown, LayoutGrid, List, ChevronUp } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../supabaseClient'; // SURGICAL FIX: Direct Import!
 
 const Glossary = ({ theme = 'light' }) => {
     const [terms, setTerms] = useState([]);
@@ -40,19 +40,23 @@ const Glossary = ({ theme = 'light' }) => {
         }
     }, []);
 
+    // SURGICAL FIX: Directly fetch from Supabase instead of a missing API route
     useEffect(() => {
         const fetchOntology = async () => {
+            setLoading(true);
             const savedDictionary = localStorage.getItem('kisa_glossary_cache');
             if (savedDictionary) {
                 setTerms(JSON.parse(savedDictionary));
                 setLoading(false);
+                // We don't return here so we can still fetch fresh data in the background
             }
 
             try {
-                const baseUrl = import.meta.env.VITE_API_URL || '';
-                const response = await fetch(`${baseUrl}/api/ontology`);
-                if (!response.ok) throw new Error('Failed to fetch ontology');
-                const data = await response.json();
+                const { data, error } = await supabase
+                    .from('ontology_concepts')
+                    .select('*');
+
+                if (error) throw error;
 
                 const sortedData = data.sort((a, b) =>
                     (a.transliteration || '').localeCompare(b.transliteration || '')
@@ -60,9 +64,9 @@ const Glossary = ({ theme = 'light' }) => {
 
                 setTerms(sortedData);
                 localStorage.setItem('kisa_glossary_cache', JSON.stringify(sortedData));
-                setLoading(false);
             } catch (error) {
                 console.error("Glossary Fetch Error:", error);
+            } finally {
                 setLoading(false);
             }
         };
@@ -239,7 +243,6 @@ const Glossary = ({ theme = 'light' }) => {
                                                     // ----------------- GRID CARD VIEW -----------------
                                                     return (
                                                         <div key={uniqueKey} className={`border p-5 sm:p-6 rounded-2xl transition-colors group relative shadow-sm hover:border-[#c6a87c]/50 ${colors.cardBg} ${colors.border}`}>
-                                                            {/* ... (Keep your existing grid card code here) ... */}
                                                             <div className="absolute top-4 right-4 flex items-center gap-1 sm:gap-2">
                                                                 <button onClick={() => handleShare(term)} className={`p-2 transition-colors rounded-full ${colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}><Share2 className="w-4 h-4" /></button>
                                                                 <button onClick={() => handleCopy(term, uniqueKey)} className={`p-2 transition-colors rounded-full ${colors.textSecondary} hover:bg-[#c6a87c]/10 hover:text-[#c6a87c]`}>{copiedId === uniqueKey ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}</button>

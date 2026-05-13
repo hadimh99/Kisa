@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Database, Search, X, Edit, Plus, Link as LinkIcon, Network, Save, AlertCircle, LayoutGrid, List, BookOpen, ChevronDown } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
-const BrainOntology = ({ supabase }) => {
+const BrainOntology = () => {
     const [concepts, setConcepts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [errorState, setErrorState] = useState(null);
@@ -43,7 +45,7 @@ const BrainOntology = ({ supabase }) => {
 
     useEffect(() => {
         fetchOntology();
-    }, [supabase]);
+    }, []);
 
     const handleOpenDrawer = (concept) => {
         setActiveConcept(concept);
@@ -175,7 +177,6 @@ const BrainOntology = ({ supabase }) => {
         return found ? found.transliteration : 'Unknown Node';
     };
 
-    // Color mapper for domains
     const getDomainColor = (domain) => {
         const d = (domain || '').toLowerCase();
         if (d.includes("aqa'id") || d.includes("theology")) return "bg-rose-900/30 text-rose-400 border-rose-900/50";
@@ -184,7 +185,6 @@ const BrainOntology = ({ supabase }) => {
         return "bg-zinc-800/50 text-zinc-400 border-zinc-700";
     };
 
-    // SURGICAL FIX: Safely parse weight into a Number before math operations
     const getWeightColor = (weight) => {
         const safeWeight = Number(weight || 1);
         if (safeWeight >= 1.0) return "bg-green-500 text-black";
@@ -194,54 +194,58 @@ const BrainOntology = ({ supabase }) => {
     };
 
     return (
-        <div className="flex flex-col gap-6 w-full relative h-[85vh] overflow-hidden">
-            {/* Top Navigation */}
-            <div className="flex justify-between items-end border-b border-zinc-800 pb-4 shrink-0 px-2 mt-2">
-                <div>
-                    <h2 className="text-3xl font-bold text-white flex items-center gap-3">
-                        <Database className="w-8 h-8 text-[#c6a87c]" />
-                        Brain Ontology Mapper
+        <div className="flex flex-col gap-6 w-full relative h-full sm:h-[85vh] overflow-hidden">
+
+            {/* Top Navigation - Mobile Optimized */}
+            <div className="flex flex-col lg:flex-row lg:justify-between lg:items-end border-b border-zinc-800 pb-4 shrink-0 mt-2 gap-4">
+                <div className="w-full">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-white flex items-center gap-2 sm:gap-3">
+                        <Database className="w-6 h-6 sm:w-8 sm:h-8 text-[#c6a87c] shrink-0" />
+                        <span>Brain Ontology Mapper</span>
                     </h2>
-                    <p className="text-zinc-400 mt-2 text-sm">Manage the 3-tiered relational theological knowledge graph architecture.</p>
+                    <p className="text-zinc-400 mt-2 text-xs sm:text-sm">Manage the 3-tiered relational theological knowledge graph architecture.</p>
                 </div>
-                <div className="flex items-center gap-3">
-                    <div className="relative w-72">
+
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+                    <div className="relative w-full sm:w-72">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
                         <input
                             type="text"
                             placeholder="Search Theology Matrix..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-[#121212] border border-zinc-800 rounded-xl py-2 pl-10 pr-4 text-sm text-white focus:border-[#c6a87c] outline-none shadow-inner transition-colors"
+                            className="w-full bg-[#121212] border border-zinc-800 rounded-xl py-2.5 pl-10 pr-4 text-sm text-white focus:border-[#c6a87c] outline-none shadow-inner transition-colors"
                         />
                     </div>
-                    <button
-                        onClick={handleNewConcept}
-                        className="bg-[#c6a87c] hover:bg-[#b0956b] text-black font-bold text-xs uppercase tracking-widest px-5 py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-[#c6a87c]/10 whitespace-nowrap"
-                    >
-                        <Plus className="w-4 h-4" /> New Concept
-                    </button>
-                    <div className="flex bg-[#121212] border border-zinc-800 rounded-xl overflow-hidden">
+                    <div className="flex items-stretch sm:items-center gap-2 w-full sm:w-auto">
                         <button
-                            onClick={() => setViewMode('grid')}
-                            className={`p-2.5 transition-colors ${viewMode === 'grid' ? 'bg-zinc-800 text-[#c6a87c]' : 'text-zinc-600 hover:text-zinc-300'}`}
-                            title="Grid View"
+                            onClick={handleNewConcept}
+                            className="flex-1 sm:flex-none justify-center bg-[#c6a87c] hover:bg-[#b0956b] text-black font-bold text-[10px] sm:text-xs uppercase tracking-widest px-4 sm:px-5 py-3 sm:py-2.5 rounded-xl transition-colors flex items-center gap-2 shadow-lg shadow-[#c6a87c]/10 whitespace-nowrap"
                         >
-                            <LayoutGrid className="w-4 h-4" />
+                            <Plus className="w-4 h-4 shrink-0" /> New Concept
                         </button>
-                        <button
-                            onClick={() => setViewMode('list')}
-                            className={`p-2.5 transition-colors ${viewMode === 'list' ? 'bg-zinc-800 text-[#c6a87c]' : 'text-zinc-600 hover:text-zinc-300'}`}
-                            title="List View"
-                        >
-                            <List className="w-4 h-4" />
-                        </button>
+                        <div className="flex bg-[#121212] border border-zinc-800 rounded-xl overflow-hidden shrink-0">
+                            <button
+                                onClick={() => setViewMode('grid')}
+                                className={`flex-1 sm:flex-none p-3 sm:p-2.5 flex justify-center transition-colors ${viewMode === 'grid' ? 'bg-zinc-800 text-[#c6a87c]' : 'text-zinc-600 hover:text-zinc-300'}`}
+                                title="Grid View"
+                            >
+                                <LayoutGrid className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => setViewMode('list')}
+                                className={`flex-1 sm:flex-none p-3 sm:p-2.5 flex justify-center transition-colors ${viewMode === 'list' ? 'bg-zinc-800 text-[#c6a87c]' : 'text-zinc-600 hover:text-zinc-300'}`}
+                                title="List View"
+                            >
+                                <List className="w-4 h-4" />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* How-To Toggle & Panel */}
-            <div className="shrink-0 px-2">
+            <div className="shrink-0">
                 <button
                     onClick={() => setShowDocs(!showDocs)}
                     className="flex items-center gap-2 text-xs text-zinc-500 hover:text-[#c6a87c] transition-colors py-2"
@@ -315,13 +319,13 @@ const BrainOntology = ({ supabase }) => {
             </div>
 
             {/* Grid Layout Container */}
-            <div className="flex-1 overflow-y-auto px-2 pb-10" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
+            <div className="flex-1 overflow-y-auto pb-10" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
                 {loading && concepts.length === 0 ? (
                     <div className="flex justify-center items-center h-40 text-[#c6a87c] font-mono text-sm tracking-widest uppercase animate-pulse">
                         Synchronizing Ontology Engine...
                     </div>
                 ) : !loading && concepts.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[50vh] gap-6">
+                    <div className="flex flex-col items-center justify-center h-[50vh] gap-6 px-4">
                         <div className="w-20 h-20 rounded-full bg-zinc-900 border border-zinc-800 flex items-center justify-center">
                             <Network className="w-10 h-10 text-zinc-700" />
                         </div>
@@ -339,21 +343,21 @@ const BrainOntology = ({ supabase }) => {
                 ) : viewMode === 'grid' ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {filteredConcepts.map(c => (
-                            <div key={c.id} className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 shadow-xl flex flex-col transition-all hover:border-zinc-600 group">
+                            <div key={c.id} className="bg-[#121212] border border-zinc-800 rounded-2xl p-5 sm:p-6 shadow-xl flex flex-col transition-all hover:border-zinc-600 group">
                                 {/* Header */}
-                                <div className="flex justify-between items-start mb-2">
-                                    <h3 className="text-xl font-bold text-[#c6a87c] font-serif">{c.transliteration}</h3>
-                                    <div className="text-right">
+                                <div className="flex justify-between items-start mb-2 gap-3">
+                                    <h3 className="text-lg sm:text-xl font-bold text-[#c6a87c] font-serif break-words min-w-0">{c.transliteration}</h3>
+                                    <div className="text-right shrink-0">
                                         <div className="text-lg font-arabic text-zinc-200">{c.primary_arabic}</div>
                                         <div className="text-[10px] text-zinc-600 font-mono tracking-widest">{c.root_letters}</div>
                                     </div>
                                 </div>
 
                                 {/* Sub-header */}
-                                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-zinc-800/60">
-                                    <span className="text-sm font-medium text-white">{c.primary_english}</span>
+                                <div className="flex items-center flex-wrap gap-2 sm:gap-3 mb-4 pb-4 border-b border-zinc-800/60">
+                                    <span className="text-xs sm:text-sm font-medium text-white">{c.primary_english}</span>
                                     {c.domain && (
-                                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border ${getDomainColor(c.domain)}`}>
+                                        <span className={`text-[9px] sm:text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border ${getDomainColor(c.domain)}`}>
                                             {c.domain}
                                         </span>
                                     )}
@@ -370,9 +374,8 @@ const BrainOntology = ({ supabase }) => {
                                         <div className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold mb-2 flex items-center gap-1.5"><Database className="w-3 h-3" /> Semantic Variants</div>
                                         <div className="flex flex-wrap gap-2">
                                             {c.ontology_synonyms.map(syn => (
-                                                <div key={syn.id || syn.variant_text} className="bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-1 text-[11px] text-zinc-300 flex items-center gap-2">
+                                                <div key={syn.id || syn.variant_text} className="bg-zinc-900 border border-zinc-800 rounded-full px-2.5 py-1 text-[10px] sm:text-[11px] text-zinc-300 flex items-center gap-2">
                                                     {syn.variant_text}
-                                                    {/* SURGICAL FIX: Force Number before .toFixed */}
                                                     <span className={`w-3 h-3 flex items-center justify-center rounded-full text-[7px] font-bold ${getWeightColor(syn.weight)}`}>
                                                         {Number(syn.weight || 1).toFixed(1).replace('.0', '')}
                                                     </span>
@@ -384,13 +387,13 @@ const BrainOntology = ({ supabase }) => {
 
                                 {/* Red Strings */}
                                 {c.outgoing_relations && c.outgoing_relations.length > 0 && (
-                                    <div className="mb-6 p-4 bg-zinc-900/40 border border-zinc-800/60 rounded-xl">
+                                    <div className="mb-6 p-3 sm:p-4 bg-zinc-900/40 border border-zinc-800/60 rounded-xl">
                                         <div className="text-[10px] text-red-400/80 uppercase tracking-widest font-bold mb-3 flex items-center gap-1.5"><Network className="w-3 h-3" /> Theological Relations</div>
                                         <div className="flex flex-col gap-2">
                                             {c.outgoing_relations.map(rel => (
-                                                <div key={rel.id} className="flex justify-between items-center text-[11px] border-b border-zinc-800/40 pb-1.5 last:border-0 last:pb-0">
-                                                    <span className="text-zinc-500 font-mono tracking-wider">{rel.relation_type}</span>
-                                                    <span className="text-red-400 font-medium">→ {getConceptName(rel.target_concept_id)}</span>
+                                                <div key={rel.id} className="flex justify-between items-center text-[10px] sm:text-[11px] border-b border-zinc-800/40 pb-1.5 last:border-0 last:pb-0 gap-2">
+                                                    <span className="text-zinc-500 font-mono tracking-wider truncate">{rel.relation_type}</span>
+                                                    <span className="text-red-400 font-medium truncate text-right">→ {getConceptName(rel.target_concept_id)}</span>
                                                 </div>
                                             ))}
                                         </div>
@@ -400,7 +403,7 @@ const BrainOntology = ({ supabase }) => {
                                 {/* Card Button */}
                                 <button
                                     onClick={() => handleOpenDrawer(c)}
-                                    className="mt-auto w-full py-2.5 rounded-lg bg-[#c6a87c]/10 text-[#c6a87c] hover:bg-[#c6a87c] hover:text-black font-bold text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
+                                    className="mt-auto w-full py-2.5 rounded-lg bg-[#c6a87c]/10 text-[#c6a87c] hover:bg-[#c6a87c] hover:text-black font-bold text-[10px] sm:text-xs uppercase tracking-widest transition-colors flex items-center justify-center gap-2"
                                 >
                                     <Edit className="w-3.5 h-3.5" /> Configure Vector
                                 </button>
@@ -408,247 +411,254 @@ const BrainOntology = ({ supabase }) => {
                         ))}
                     </div>
                 ) : (
-                    /* LIST / TABLE VIEW */
-                    <div className="bg-[#121212] border border-zinc-800 rounded-2xl overflow-hidden shadow-xl">
-                        <div className="grid grid-cols-12 gap-4 p-4 bg-zinc-900/50 border-b border-zinc-800 text-[10px] font-bold uppercase tracking-widest text-zinc-500 sticky top-0 z-10">
-                            <div className="col-span-3">Term</div>
-                            <div className="col-span-2">Category</div>
-                            <div className="col-span-2">English Title</div>
-                            <div className="col-span-4">Synonyms</div>
-                            <div className="col-span-1 text-right">Actions</div>
-                        </div>
-                        {filteredConcepts.map(c => (
-                            <div key={c.id} className="grid grid-cols-12 gap-4 p-4 border-b border-zinc-800/50 items-center hover:bg-zinc-900/50 transition-colors">
-                                <div className="col-span-3">
-                                    <div className="text-sm font-bold text-[#c6a87c] font-serif">{c.transliteration}</div>
-                                    <div className="text-xs text-zinc-500 font-arabic mt-0.5">{c.primary_arabic}</div>
-                                </div>
-                                <div className="col-span-2">
-                                    {c.domain ? (
-                                        <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border inline-block ${getDomainColor(c.domain)}`}>
-                                            {c.domain}
-                                        </span>
-                                    ) : (
-                                        <span className="text-zinc-600 text-xs">—</span>
-                                    )}
-                                </div>
-                                <div className="col-span-2 text-sm text-zinc-300 truncate">{c.primary_english || '—'}</div>
-                                <div className="col-span-4">
-                                    <div className="flex flex-wrap gap-1.5">
-                                        {c.ontology_synonyms && c.ontology_synonyms.length > 0 ? (
-                                            c.ontology_synonyms.map(syn => (
-                                                <span key={syn.id || syn.variant_text} className="bg-zinc-900 border border-zinc-800 rounded-full px-2 py-0.5 text-[10px] text-zinc-400">
-                                                    {syn.variant_text}
-                                                </span>
-                                            ))
+                    /* LIST / TABLE VIEW (Horizontal Scroll on Mobile) */
+                    <div className="bg-[#121212] border border-zinc-800 rounded-2xl shadow-xl overflow-x-auto">
+                        <div className="min-w-[800px]">
+                            <div className="grid grid-cols-12 gap-4 p-4 bg-zinc-900/50 border-b border-zinc-800 text-[10px] font-bold uppercase tracking-widest text-zinc-500 sticky top-0 z-10">
+                                <div className="col-span-3">Term</div>
+                                <div className="col-span-2">Category</div>
+                                <div className="col-span-3">English Title</div>
+                                <div className="col-span-3">Synonyms</div>
+                                <div className="col-span-1 text-right">Actions</div>
+                            </div>
+                            {filteredConcepts.map(c => (
+                                <div key={c.id} className="grid grid-cols-12 gap-4 p-4 border-b border-zinc-800/50 items-center hover:bg-zinc-900/50 transition-colors">
+                                    <div className="col-span-3">
+                                        <div className="text-sm font-bold text-[#c6a87c] font-serif truncate pr-2">{c.transliteration}</div>
+                                        <div className="text-xs text-zinc-500 font-arabic mt-0.5 truncate">{c.primary_arabic}</div>
+                                    </div>
+                                    <div className="col-span-2">
+                                        {c.domain ? (
+                                            <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border inline-block truncate max-w-full ${getDomainColor(c.domain)}`}>
+                                                {c.domain}
+                                            </span>
                                         ) : (
-                                            <span className="text-zinc-600 text-[10px] italic">No aliases</span>
+                                            <span className="text-zinc-600 text-xs">—</span>
                                         )}
                                     </div>
+                                    <div className="col-span-3 text-sm text-zinc-300 truncate pr-2">{c.primary_english || '—'}</div>
+                                    <div className="col-span-3">
+                                        <div className="flex flex-wrap gap-1.5 h-6 overflow-hidden">
+                                            {c.ontology_synonyms && c.ontology_synonyms.length > 0 ? (
+                                                c.ontology_synonyms.map(syn => (
+                                                    <span key={syn.id || syn.variant_text} className="bg-zinc-900 border border-zinc-800 rounded-full px-2 py-0.5 text-[10px] text-zinc-400 whitespace-nowrap">
+                                                        {syn.variant_text}
+                                                    </span>
+                                                ))
+                                            ) : (
+                                                <span className="text-zinc-600 text-[10px] italic">No aliases</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="col-span-1 flex justify-end">
+                                        <button
+                                            onClick={() => handleOpenDrawer(c)}
+                                            className="p-2 text-zinc-600 hover:text-[#c6a87c] hover:bg-zinc-800 rounded-lg transition-colors"
+                                            title="Edit Concept"
+                                        >
+                                            <Edit className="w-4 h-4" />
+                                        </button>
+                                    </div>
                                 </div>
-                                <div className="col-span-1 flex justify-end">
-                                    <button
-                                        onClick={() => handleOpenDrawer(c)}
-                                        className="p-2 text-zinc-600 hover:text-[#c6a87c] hover:bg-zinc-800 rounded-lg transition-colors"
-                                        title="Edit Concept"
-                                    >
-                                        <Edit className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
 
-            {/* LOCKED SLIDING DRAW MODAL */}
-            <AnimatePresence>
-                {isDrawerOpen && activeConcept && (
-                    <>
-                        {/* Overlay backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={handleCloseDrawer}
-                            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-                        />
+            {/* PORTAL: TELEPORTS MODAL OUT OF STACKING TRAP */}
+            {typeof document !== 'undefined' && createPortal(
+                <AnimatePresence>
+                    {isDrawerOpen && activeConcept && (
+                        <div className="fixed inset-0 z-[9999] isolate">
+                            {/* Overlay backdrop */}
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                onClick={handleCloseDrawer}
+                                className="absolute inset-0 bg-black/70 backdrop-blur-sm z-40"
+                            />
 
-                        {/* Drawer Panel */}
-                        <motion.div
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="fixed top-0 right-0 h-full w-full sm:w-[500px] bg-[#121212] border-l border-zinc-800 shadow-2xl z-50 flex flex-col"
-                        >
-                            <div className="flex justify-between items-center p-6 border-b border-zinc-800 bg-[#1c1c1e]">
-                                <div>
-                                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                                        <Edit className="w-5 h-5 text-[#c6a87c]" /> Edit Concept
-                                    </h3>
-                                    <div className="text-xs text-[#c6a87c] font-mono tracking-widest uppercase mt-1">{activeConcept.id ? activeConcept.transliteration : 'New Concept'}</div>
-                                </div>
-                                <button onClick={handleCloseDrawer} className="p-2 text-zinc-500 hover:text-white bg-black rounded-lg transition-colors border border-zinc-800">
-                                    <X className="w-5 h-5" />
-                                </button>
-                            </div>
-
-                            <div className="flex-1 overflow-y-auto p-6 space-y-10" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
-                                {/* Alerts */}
-                                {formStatus.message && (
-                                    <div className={`p-4 rounded-xl flex items-center text-xs font-bold tracking-widest shadow-md ${formStatus.type === 'error' ? 'bg-red-900/20 text-red-400 border border-red-900/50' :
-                                            formStatus.type === 'success' ? 'bg-green-900/20 text-green-400 border border-green-900/50' :
-                                                'bg-[#c6a87c]/10 text-[#c6a87c] border border-[#c6a87c]/30'
-                                        }`}>
-                                        <AlertCircle className="w-4 h-4 mr-2" /> {formStatus.message}
+                            {/* Drawer Panel */}
+                            <motion.div
+                                initial={{ x: '100%' }}
+                                animate={{ x: 0 }}
+                                exit={{ x: '100%' }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                                className="absolute top-0 right-0 h-full w-full sm:w-[500px] bg-[#121212] border-l border-zinc-800 shadow-2xl z-50 flex flex-col"
+                            >
+                                <div className="flex justify-between items-center p-4 sm:p-6 border-b border-zinc-800 bg-[#1c1c1e] shrink-0">
+                                    <div className="min-w-0 pr-4">
+                                        <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2 truncate">
+                                            <Edit className="w-5 h-5 text-[#c6a87c] shrink-0" /> <span className="truncate">Edit Concept</span>
+                                        </h3>
+                                        <div className="text-[10px] sm:text-xs text-[#c6a87c] font-mono tracking-widest uppercase mt-1 truncate">{activeConcept.id ? activeConcept.transliteration : 'New Concept'}</div>
                                     </div>
-                                )}
-
-                                {/* CONCEPT CORE UPDATE FORM */}
-                                <div>
-                                    <h4 className="text-xs font-bold text-zinc-500 tracking-widest uppercase mb-4">Main Details</h4>
-                                    <div className="space-y-4">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">English Title</label>
-                                                <input
-                                                    value={activeConcept.primary_english || ''}
-                                                    onChange={e => setActiveConcept({ ...activeConcept, primary_english: e.target.value })}
-                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c]"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Category</label>
-                                                <input
-                                                    value={activeConcept.domain || ''}
-                                                    onChange={e => setActiveConcept({ ...activeConcept, domain: e.target.value })}
-                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c]"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Arabic Script</label>
-                                                <input
-                                                    value={activeConcept.primary_arabic || ''}
-                                                    onChange={e => setActiveConcept({ ...activeConcept, primary_arabic: e.target.value })}
-                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c] text-right font-arabic"
-                                                    dir="rtl"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Arabic Root</label>
-                                                <input
-                                                    value={activeConcept.root_letters || ''}
-                                                    onChange={e => setActiveConcept({ ...activeConcept, root_letters: e.target.value })}
-                                                    className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white outline-none focus:border-[#c6a87c] text-right font-arabic"
-                                                    dir="rtl"
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Definition & Context</label>
-                                            <textarea
-                                                value={activeConcept.definition || ''}
-                                                onChange={e => setActiveConcept({ ...activeConcept, definition: e.target.value })}
-                                                className="w-full bg-black border border-zinc-800 rounded p-3 text-xs text-zinc-300 outline-none focus:border-[#c6a87c] resize-y"
-                                                rows={4}
-                                            />
-                                        </div>
-                                        <button
-                                            onClick={handleSaveConcept}
-                                            className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-[10px] tracking-widest uppercase rounded flex items-center justify-center gap-2 transition-colors"
-                                        >
-                                            <Save className="w-3 h-3" /> {activeConcept.id ? 'Save Details' : 'Save New Concept'}
-                                        </button>
-                                    </div>
+                                    <button onClick={handleCloseDrawer} className="p-2 text-zinc-500 hover:text-white bg-black rounded-lg transition-colors border border-zinc-800 shrink-0">
+                                        <X className="w-5 h-5" />
+                                    </button>
                                 </div>
 
-                                {/* SYNONYM INJECTOR */}
-                                <div className="pt-6 border-t border-zinc-800">
-                                    <h4 className="text-xs font-bold text-zinc-500 tracking-widest uppercase mb-4">
-                                        Search Synonyms & Spellings
-                                    </h4>
-                                    <div className="flex items-end gap-2 p-4 bg-zinc-900/50 rounded-xl border border-zinc-800/80">
-                                        <div className="flex-1">
-                                            <label className="text-[9px] text-zinc-500 uppercase tracking-widest mb-1 block">Alternative Search Term</label>
-                                            <input
-                                                value={newSynonym.variant_text}
-                                                onChange={e => setNewSynonym({ ...newSynonym, variant_text: e.target.value })}
-                                                placeholder="e.g. Divine Unity"
-                                                className="w-full bg-black border border-zinc-700 rounded p-2 text-xs text-white outline-none"
-                                            />
+                                <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-8 sm:space-y-10" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
+                                    {/* Alerts */}
+                                    {formStatus.message && (
+                                        <div className={`p-3 sm:p-4 rounded-xl flex items-center text-[10px] sm:text-xs font-bold tracking-widest shadow-md ${formStatus.type === 'error' ? 'bg-red-900/20 text-red-400 border border-red-900/50' :
+                                                formStatus.type === 'success' ? 'bg-green-900/20 text-green-400 border border-green-900/50' :
+                                                    'bg-[#c6a87c]/10 text-[#c6a87c] border border-[#c6a87c]/30'
+                                            }`}>
+                                            <AlertCircle className="w-4 h-4 mr-2 shrink-0" /> {formStatus.message}
                                         </div>
-                                        <div className="w-20">
-                                            <label className="text-[9px] text-zinc-500 uppercase tracking-widest mb-1 block">Match Strength</label>
-                                            <select
-                                                value={newSynonym.weight}
-                                                onChange={e => setNewSynonym({ ...newSynonym, weight: e.target.value })}
-                                                className="w-full bg-black border border-zinc-700 rounded p-2 text-xs text-white outline-none"
+                                    )}
+
+                                    {/* CONCEPT CORE UPDATE FORM */}
+                                    <div>
+                                        <h4 className="text-[10px] sm:text-xs font-bold text-zinc-500 tracking-widest uppercase mb-3 sm:mb-4">Main Details</h4>
+                                        <div className="space-y-3 sm:space-y-4">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                                <div>
+                                                    <label className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">English Title</label>
+                                                    <input
+                                                        value={activeConcept.primary_english || ''}
+                                                        onChange={e => setActiveConcept({ ...activeConcept, primary_english: e.target.value })}
+                                                        className="w-full bg-black border border-zinc-800 rounded p-2.5 sm:p-2 text-xs text-white outline-none focus:border-[#c6a87c]"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Category</label>
+                                                    <input
+                                                        value={activeConcept.domain || ''}
+                                                        onChange={e => setActiveConcept({ ...activeConcept, domain: e.target.value })}
+                                                        className="w-full bg-black border border-zinc-800 rounded p-2.5 sm:p-2 text-xs text-white outline-none focus:border-[#c6a87c]"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                                                <div>
+                                                    <label className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Arabic Script</label>
+                                                    <input
+                                                        value={activeConcept.primary_arabic || ''}
+                                                        onChange={e => setActiveConcept({ ...activeConcept, primary_arabic: e.target.value })}
+                                                        className="w-full bg-black border border-zinc-800 rounded p-2.5 sm:p-2 text-sm sm:text-xs text-white outline-none focus:border-[#c6a87c] text-right font-arabic"
+                                                        dir="rtl"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Arabic Root</label>
+                                                    <input
+                                                        value={activeConcept.root_letters || ''}
+                                                        onChange={e => setActiveConcept({ ...activeConcept, root_letters: e.target.value })}
+                                                        className="w-full bg-black border border-zinc-800 rounded p-2.5 sm:p-2 text-sm sm:text-xs text-white outline-none focus:border-[#c6a87c] text-right font-arabic"
+                                                        dir="rtl"
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] sm:text-[10px] text-zinc-500 uppercase tracking-widest mb-1 block">Definition & Context</label>
+                                                <textarea
+                                                    value={activeConcept.definition || ''}
+                                                    onChange={e => setActiveConcept({ ...activeConcept, definition: e.target.value })}
+                                                    className="w-full bg-black border border-zinc-800 rounded p-3 text-xs text-zinc-300 outline-none focus:border-[#c6a87c] resize-y"
+                                                    rows={4}
+                                                />
+                                            </div>
+                                            <button
+                                                onClick={handleSaveConcept}
+                                                className="w-full py-3 sm:py-2 bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-[10px] tracking-widest uppercase rounded flex items-center justify-center gap-2 transition-colors"
                                             >
-                                                <option value="1.0">1.0</option>
-                                                <option value="0.8">0.8</option>
-                                                <option value="0.5">0.5</option>
-                                            </select>
+                                                <Save className="w-3 h-3" /> {activeConcept.id ? 'Save Details' : 'Save New Concept'}
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={handleAddSynonym}
-                                            className="bg-green-600 hover:bg-green-500 text-white p-2.5 rounded transition-colors"
-                                            title="Inject Synonym"
-                                        >
-                                            <Plus className="w-4 h-4" />
-                                        </button>
                                     </div>
-                                </div>
 
-                                {/* RED STRING WEAVER */}
-                                <div className="pt-6 border-t border-zinc-800">
-                                    <h4 className="text-xs font-bold text-zinc-500 tracking-widest uppercase mb-4 flex items-center justify-between">
-                                        Theological Relations
-                                        <span className="bg-red-900/20 text-red-500 border border-red-900/50 px-2 py-0.5 rounded text-[9px]">Red String Weaver</span>
-                                    </h4>
-                                    <div className="flex flex-col gap-3 p-4 bg-red-950/20 rounded-xl border border-red-900/30">
-                                        <div>
-                                            <label className="text-[9px] text-red-500/70 uppercase tracking-widest mb-1 block">Relationship Edge Type</label>
-                                            <select
-                                                value={newRelation.relation_type}
-                                                onChange={e => setNewRelation({ ...newRelation, relation_type: e.target.value })}
-                                                className="w-full bg-black border border-red-900/50 rounded p-2 text-xs text-red-200 outline-none"
-                                            >
-                                                <option value="requires">Requires</option>
-                                                <option value="manifests_as">Manifests As</option>
-                                                <option value="part_of">Part Of</option>
-                                                <option value="contradicts">Contradicts</option>
-                                                <option value="culminates_in">Culminates In</option>
-                                            </select>
+                                    {/* SYNONYM INJECTOR */}
+                                    <div className="pt-5 sm:pt-6 border-t border-zinc-800">
+                                        <h4 className="text-[10px] sm:text-xs font-bold text-zinc-500 tracking-widest uppercase mb-3 sm:mb-4">
+                                            Search Synonyms & Spellings
+                                        </h4>
+                                        <div className="flex flex-col sm:flex-row sm:items-end gap-2 p-3 sm:p-4 bg-zinc-900/50 rounded-xl border border-zinc-800/80">
+                                            <div className="flex-1 w-full">
+                                                <label className="text-[9px] text-zinc-500 uppercase tracking-widest mb-1 block">Alternative Search Term</label>
+                                                <input
+                                                    value={newSynonym.variant_text}
+                                                    onChange={e => setNewSynonym({ ...newSynonym, variant_text: e.target.value })}
+                                                    placeholder="e.g. Divine Unity"
+                                                    className="w-full bg-black border border-zinc-700 rounded p-2.5 sm:p-2 text-xs text-white outline-none"
+                                                />
+                                            </div>
+                                            <div className="flex items-end gap-2 w-full sm:w-auto">
+                                                <div className="flex-1 sm:w-20">
+                                                    <label className="text-[9px] text-zinc-500 uppercase tracking-widest mb-1 block">Match Strength</label>
+                                                    <select
+                                                        value={newSynonym.weight}
+                                                        onChange={e => setNewSynonym({ ...newSynonym, weight: e.target.value })}
+                                                        className="w-full bg-black border border-zinc-700 rounded p-2.5 sm:p-2 text-xs text-white outline-none"
+                                                    >
+                                                        <option value="1.0">1.0</option>
+                                                        <option value="0.8">0.8</option>
+                                                        <option value="0.5">0.5</option>
+                                                    </select>
+                                                </div>
+                                                <button
+                                                    onClick={handleAddSynonym}
+                                                    className="bg-green-600 hover:bg-green-500 text-white p-2.5 rounded transition-colors shrink-0"
+                                                    title="Inject Synonym"
+                                                >
+                                                    <Plus className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="text-[9px] text-red-500/70 uppercase tracking-widest mb-1 block">Target Concept</label>
-                                            <select
-                                                value={newRelation.target_concept_id}
-                                                onChange={e => setNewRelation({ ...newRelation, target_concept_id: e.target.value })}
-                                                className="w-full bg-black border border-red-900/50 rounded p-2 text-xs text-red-200 outline-none"
+                                    </div>
+
+                                    {/* RED STRING WEAVER */}
+                                    <div className="pt-5 sm:pt-6 border-t border-zinc-800">
+                                        <h4 className="text-[10px] sm:text-xs font-bold text-zinc-500 tracking-widest uppercase mb-3 sm:mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                            Theological Relations
+                                            <span className="bg-red-900/20 text-red-500 border border-red-900/50 px-2 py-0.5 rounded text-[8px] sm:text-[9px] w-max">Red String Weaver</span>
+                                        </h4>
+                                        <div className="flex flex-col gap-3 p-3 sm:p-4 bg-red-950/20 rounded-xl border border-red-900/30">
+                                            <div>
+                                                <label className="text-[9px] text-red-500/70 uppercase tracking-widest mb-1 block">Relationship Edge Type</label>
+                                                <select
+                                                    value={newRelation.relation_type}
+                                                    onChange={e => setNewRelation({ ...newRelation, relation_type: e.target.value })}
+                                                    className="w-full bg-black border border-red-900/50 rounded p-2.5 sm:p-2 text-xs text-red-200 outline-none"
+                                                >
+                                                    <option value="requires">Requires</option>
+                                                    <option value="manifests_as">Manifests As</option>
+                                                    <option value="part_of">Part Of</option>
+                                                    <option value="contradicts">Contradicts</option>
+                                                    <option value="culminates_in">Culminates In</option>
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="text-[9px] text-red-500/70 uppercase tracking-widest mb-1 block">Target Concept</label>
+                                                <select
+                                                    value={newRelation.target_concept_id}
+                                                    onChange={e => setNewRelation({ ...newRelation, target_concept_id: e.target.value })}
+                                                    className="w-full bg-black border border-red-900/50 rounded p-2.5 sm:p-2 text-xs text-red-200 outline-none"
+                                                >
+                                                    <option value="">Select Target Concept...</option>
+                                                    {concepts.filter(c => c.id !== activeConcept.id).map(c => (
+                                                        <option key={c.id} value={c.id}>{c.transliteration} ({c.domain})</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button
+                                                onClick={handleAddRelation}
+                                                className="w-full py-3 sm:py-2 bg-red-900 hover:bg-red-800 text-white font-bold text-[10px] tracking-widest uppercase rounded flex items-center justify-center gap-2 transition-colors mt-2"
                                             >
-                                                <option value="">Select Target Concept...</option>
-                                                {concepts.filter(c => c.id !== activeConcept.id).map(c => (
-                                                    <option key={c.id} value={c.id}>{c.transliteration} ({c.domain})</option>
-                                                ))}
-                                            </select>
+                                                <LinkIcon className="w-3 h-3" /> Weave Edge Map
+                                            </button>
                                         </div>
-                                        <button
-                                            onClick={handleAddRelation}
-                                            className="w-full py-2 bg-red-900 hover:bg-red-800 text-white font-bold text-[10px] tracking-widest uppercase rounded flex items-center justify-center gap-2 transition-colors mt-2"
-                                        >
-                                            <LinkIcon className="w-3 h-3" /> Weave Edge Map
-                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
+                            </motion.div>
+                        </div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 };
