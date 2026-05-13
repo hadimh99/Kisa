@@ -1,12 +1,32 @@
 // src/components/HadithLibrary.jsx
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useScroll, useMotionValueEvent } from 'framer-motion';
 import { supabase } from '../supabaseClient';
 import { Book, ChevronRight, ChevronLeft, ChevronDown, ChevronUp, Menu, X, Copy, Check, PenTool, History, Clock, Search, List, MapPin, Sparkles, Edit3, Save, MoreHorizontal, Share2, Link, BookmarkPlus } from 'lucide-react';
 import ChapterTitleHeading from './ChapterTitleHeading';
 
 // --- CORE TEXT PARSING ENGINE ---
+export const slugifyHadithParam = (text) => {
+    if (!text) return '';
+    return text.toString()
+        .normalize('NFD')                   // Decompose combined characters
+        .replace(/[\u0300-\u036f]/g, '')    // Remove diacritics/accents
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9 -]/g, '')        // Remove remaining invalid chars
+        .replace(/\s+/g, '-')               // Replace spaces with hyphens
+        .replace(/-+/g, '-');               // Collapse multiple hyphens
+};
+
+export const slugifyVolume = (text) => {
+    if (!text) return '';
+    const numMatch = text.match(/\d+/);
+    if (numMatch) return `vol-${numMatch[0]}`;
+    return slugifyHadithParam(text);
+};
+
 const splitText = (text) => {
     const markers = ["in a marfu‘ manner who has narrated the following:", "in a marfu' manner who has narrated the following:", "in a marfu‘ manner the following:", "in a marfu' manner the following:", "who has narrated the following:", "said the following:", "who said:", "who has said:", "is narrated from", "narrated that:", "following Hadith:", "the following is narrated:", "said:"];
     for (let marker of markers) {
@@ -184,6 +204,7 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId, isAdmin }) => {
 
         if (message) {
             setTimeout(() => {
+                const elements = Array.from(document.querySelectorAll('.hadith-block'));
                 setToastMessage(null);
             }, 3000);
         }
@@ -425,7 +446,20 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
     const [currentView, setCurrentView] = useState(() => localStorage.getItem('kisa_hl_view') || 'home');
     useEffect(() => { localStorage.setItem('kisa_hl_view', currentView); }, [currentView]);
 
+    const navigate = useNavigate();
+    const { book: urlBook, volume: urlVolume, category: urlCategory, chapter: urlChapter } = useParams();
+
+    const handleNavigate = (loc) => {
+        if (!loc || !loc.book) return;
+        let url = `/hadith/${slugifyHadithParam(loc.book)}`;
+        if (loc.volume) url += `/${slugifyVolume(loc.volume)}`;
+        if (loc.category) url += `/${slugifyHadithParam(loc.category)}`;
+        if (loc.chapter) url += `/${slugifyHadithParam(loc.chapter)}`;
+        navigate(url);
+    };
+
     const [searchQuery, setSearchQuery] = useState('');
+
     const [dashExpanded, setDashExpanded] = useState({});
 
     const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -577,7 +611,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
 
                         if (targetChapKey) {
                             lastOpenedTargetRef.current = externalTarget;
-                            openReader({
+                            handleNavigate({
                                 book: targetBookKey,
                                 volume: targetVolKey,
                                 category: targetCatKey,
@@ -643,6 +677,9 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
         setExpandedBooks({ [loc.book]: true });
         setExpandedVolumes({ [`${loc.book}-${loc.volume}`]: true });
         setExpandedCategories({ [`${loc.book}-${loc.volume}-${loc.category}`]: true });
+
+        // Keep URL perfectly synced when opening a chapter from dashboard or search
+        handleNavigate(loc);
     };
 
     const closeReader = () => {
@@ -672,6 +709,75 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
         setCurrentView('home');
         setSearchQuery('');
     };
+
+    // URL -> State Synchronization
+    useEffect(() => {
+        if (!hierarchy || Object.keys(hierarchy).length === 0) return;
+
+        if (urlBook) {
+            const matchKey = (obj, slug, slugifier) => {
+                if (!obj || !slug) return null;
+                const safeSlug = decodeURIComponent(slug).toLowerCase();
+                return Object.keys(obj).find(k => slugifier(k) === safeSlug);
+            };
+
+            const realBook = matchKey(hierarchy, urlBook, slugifyHadithParam);
+            if (realBook) {
+                const bookNode = hierarchy[realBook];
+                let realVol = null, realCat = null, realChap = null;
+
+                if (urlVolume) {
+                    realVol = matchKey(bookNode, urlVolume, slugifyVolume);
+                    if (realVol) {
+                        const volNode = bookNode[realVol];
+                        if (urlCategory) {
+                            realCat = matchKey(volNode, urlCategory, slugifyHadithParam);
+                            if (realCat) {
+                                const catNode = volNode[realCat];
+                                if (urlChapter) {
+                                    realChap = matchKey(catNode, urlChapter, slugifyHadithParam);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Strictly update local state without panicking or forcibly navigating
+                const loc = { book: realBook, volume: realVol, category: realCat, chapter: realChap };
+
+                if (realChap) {
+                    // It's a valid chapter URL, open the reader
+                    if (getChapterKey(activeLocation) !== getChapterKey(loc)) {
+                        openReader(loc);
+                    }
+                } else {
+                    // Valid parent URL but missing/invalid chapter. Just set the active location and expand.
+                    setActiveLocation(loc);
+                    setExpandedBooks(prev => ({ ...prev, [realBook]: true }));
+                    if (realVol) setExpandedVolumes(prev => ({ ...prev, [`${realBook}-${realVol}`]: true }));
+                    if (realCat) setExpandedCategories(prev => ({ ...prev, [`${realBook}-${realVol}-${realCat}`]: true }));
+                    // If they are in the reader but the URL lacks a chapter, return to dashboard gracefully
+                    if (currentView !== 'home') {
+                        setCurrentView('home');
+                        setSearchQuery('');
+                    }
+                }
+            } else {
+                // Invalid book, revert to dashboard
+                if (currentView !== 'home') {
+                    setCurrentView('home');
+                    setSearchQuery('');
+                }
+            }
+        } else {
+            // Root /hadith URL, stay on dashboard
+            if (currentView !== 'home') {
+                setCurrentView('home');
+                setSearchQuery('');
+            }
+        }
+    }, [urlBook, urlVolume, urlCategory, urlChapter, hierarchy]);
+
 
     useEffect(() => {
         if (currentView !== 'reader' || !activeLocation.chapter) return;
@@ -776,17 +882,29 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
         };
         setReadingProgress(newProg);
         localStorage.setItem('kisa_hadith_progress', JSON.stringify(newProg));
-        openReader(nextChapterInfo);
+        handleNavigate(nextChapterInfo);
     };
 
     const handlePrev = () => {
         if (!prevChapterInfo) return;
-        openReader(prevChapterInfo);
+        handleNavigate(prevChapterInfo);
     };
 
-    const toggleBook = (bookName) => setExpandedBooks(prev => ({ ...prev, [bookName]: !prev[bookName] }));
-    const toggleVolume = (volumeKey) => setExpandedVolumes(prev => ({ ...prev, [volumeKey]: !prev[volumeKey] }));
-    const toggleCategory = (categoryKey) => setExpandedCategories(prev => ({ ...prev, [categoryKey]: !prev[categoryKey] }));
+    // SURGICAL FIX: Folders simply expand/collapse without touching the URL
+    const toggleBook = (e, bookName) => {
+        e.stopPropagation();
+        setExpandedBooks(prev => ({ ...prev, [bookName]: !prev[bookName] }));
+    };
+
+    const toggleVolume = (e, bookName, volumeName, volumeKey) => {
+        e.stopPropagation();
+        setExpandedVolumes(prev => ({ ...prev, [volumeKey]: !prev[volumeKey] }));
+    };
+
+    const toggleCategory = (e, bookName, volumeName, categoryName, categoryKey) => {
+        e.stopPropagation();
+        setExpandedCategories(prev => ({ ...prev, [categoryKey]: !prev[categoryKey] }));
+    };
 
     const renderSidebarContent = (isMobile) => (
         <div className="flex flex-col h-full bg-[#f7f7f9] dark:bg-[#151518]">
@@ -807,7 +925,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
                     return (
                         <div key={bookName} className="mb-4">
                             <button
-                                onClick={() => toggleBook(bookName)}
+                                onClick={(e) => toggleBook(e, bookName)}
                                 className={`w-full text-left font-serif font-bold text-xl mb-2 pl-2 border-l-2 flex items-center justify-between group cursor-pointer transition-colors text-slate-800 dark:text-[#ededf0] ${isActiveBook ? 'border-[#c6a87c]' : 'border-transparent hover:border-slate-300 dark:hover:border-slate-700'}`}
                             >
                                 <span className="leading-tight pr-2">{bookName}</span>
@@ -828,7 +946,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
                                             return (
                                                 <div key={volumeName} className="mb-3 mt-3">
                                                     <button
-                                                        onClick={() => toggleVolume(volumeKey)}
+                                                        onClick={(e) => toggleVolume(e, bookName, volumeName, volumeKey)}
                                                         className="w-full text-left text-[10px] font-bold uppercase tracking-widest mb-2 flex items-center justify-between group cursor-pointer transition-colors py-1.5 px-2 rounded-md bg-black/5 dark:bg-white/5 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-[#ededf0]"
                                                     >
                                                         <span>{volumeName}</span>
@@ -849,7 +967,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
                                                                     return (
                                                                         <div key={categoryName} className="mb-1.5">
                                                                             <button
-                                                                                onClick={() => toggleCategory(categoryKey)}
+                                                                                onClick={(e) => toggleCategory(e, bookName, volumeName, categoryName, categoryKey)}
                                                                                 className="w-full text-left text-xs font-bold py-2 px-2 rounded-md transition-colors flex items-center justify-between group cursor-pointer text-slate-700 dark:text-[#ededf0] hover:bg-slate-200/50 dark:hover:bg-[#1c1c20]"
                                                                             >
                                                                                 <span className="pr-2 leading-snug flex-1">{categoryName}</span>
@@ -867,8 +985,10 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
                                                                                             return (
                                                                                                 <button
                                                                                                     key={chapterName}
-                                                                                                    onClick={() => {
-                                                                                                        openReader({ book: bookName, volume: volumeName, category: categoryName, chapter: chapterName });
+                                                                                                    onClick={(e) => {
+                                                                                                        e.stopPropagation();
+                                                                                                        // SURGICAL FIX: Only Chapters trigger a URL navigation
+                                                                                                        handleNavigate({ book: bookName, volume: volumeName, category: categoryName, chapter: chapterName });
                                                                                                         if (isMobile) setIsMobileDrawerOpen(false);
                                                                                                     }}
                                                                                                     className={`text-left text-xs py-2.5 px-3 rounded-lg transition-colors cursor-pointer flex items-start gap-2 ${isActiveChapter ? 'bg-[#c6a87c]/10 text-[#c6a87c] font-bold border border-[#c6a87c]/20' : 'text-slate-500 hover:text-slate-800 dark:text-[#9a9a9f] dark:hover:text-[#ededf0] hover:bg-slate-100 dark:hover:bg-[#1c1c20]'}`}
@@ -1084,7 +1204,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
             <div className="w-full min-h-screen flex items-center justify-center pt-24 px-4 text-center">
                 <div>
                     <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 mb-4">Content could not be loaded.</h2>
-                    <button onClick={closeReader} className="px-6 py-2.5 bg-[#c6a87c] text-white font-bold rounded-lg uppercase tracking-wider text-xs cursor-pointer">Return to Dashboard</button>
+                    <button onClick={() => navigate('/hadith')} className="px-6 py-2.5 bg-[#c6a87c] text-white font-bold rounded-lg uppercase tracking-wider text-xs cursor-pointer">Return to Dashboard</button>
                 </div>
             </div>
         );
@@ -1114,7 +1234,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
             </AnimatePresence>
 
             <div className="md:hidden w-full max-w-[1400px] mx-auto mb-6 px-4 sm:px-0 flex justify-start pointer-events-auto">
-                <button onClick={closeReader} className="flex items-center gap-2 text-zinc-500 hover:text-[#c6a87c] transition-colors text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer">
+                <button onClick={() => navigate('/hadith')} className="flex items-center gap-2 text-zinc-500 hover:text-[#c6a87c] transition-colors text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer">
                     <ChevronLeft className="w-4 h-4" /> Dashboard
                 </button>
             </div>
@@ -1161,7 +1281,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
                     transition={{ duration: 0.4, ease: "easeInOut" }}
                     className="hidden md:flex shrink-0 overflow-hidden sticky top-28 self-start h-[calc(100vh-120px)] flex-col gap-4"
                 >
-                    <button onClick={closeReader} className="flex items-center gap-2 text-zinc-500 hover:text-[#c6a87c] transition-colors text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer pl-1 w-max">
+                    <button onClick={() => navigate('/hadith')} className="flex items-center gap-2 text-zinc-500 hover:text-[#c6a87c] transition-colors text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer pl-1 w-max">
                         <ChevronLeft className="w-4 h-4" /> Dashboard
                     </button>
                     <div className="w-[340px] flex-1 border border-slate-200 dark:border-[#2d2d33] rounded-2xl flex flex-col shadow-sm min-h-0 overflow-hidden">
@@ -1175,7 +1295,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
                         <div className="flex items-center justify-between w-full mb-12 px-4 sm:px-0 mt-2">
 
                             <button
-                                onClick={closeReader}
+                                onClick={() => navigate('/hadith')}
                                 className="flex items-center gap-1.5 bg-slate-50 dark:bg-[#1c1c20] hover:bg-white dark:hover:bg-[#2d2d33] rounded-full py-2 px-4 border border-slate-200 dark:border-[#2d2d33] shadow-sm transition-all text-slate-500 dark:text-slate-400 hover:text-[#c6a87c] dark:hover:text-[#c6a87c] text-[10px] sm:text-xs font-bold uppercase tracking-widest cursor-pointer"
                             >
                                 <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" /> Library
@@ -1229,7 +1349,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
                                 <LibraryHadithNode
                                     key={hadith.id || index}
                                     hadith={hadith}
-                                    isAdmin={isAdmin} // <--- PASS ADMIN FLAG DOWN HERE
+                                    isAdmin={isAdmin}
                                 />
                             ))}
                         </div>

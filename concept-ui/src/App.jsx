@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Moon, Sun, Sparkles, X, ChevronRight, ChevronLeft, Home as HomeIcon, Copy, ChevronDown, ChevronUp, List, Layout, Info, BookOpen, History, HelpCircle, Database, Filter, Share2, Check, Settings2, Menu, Clock, Trash2, LibraryBig, Youtube, Library as LibraryIcon, ArrowDown, ArrowRight, User, Bookmark, Coins, HeartPulse, ShieldAlert, MoreHorizontal, PenLine, FolderPlus, FolderMinus, Book, CalendarDays } from 'lucide-react';
 import quranData from './quran.json';
@@ -12,10 +13,12 @@ import HadithCard from './components/HadithCard';
 import KisaAcademy from './components/KisaAcademy'; // <-- CHANGED THIS IMPORT
 import HadithLibrary from './components/HadithLibrary';
 import Home from './components/Home';
-import SpiritualHub from './components/SpiritualHub';
 import StudyVault from './components/StudyVault';
 import Glossary from './components/Glossary';
 import Footer from './components/Footer';
+import KisaCommandCenter from './components/KisaCommandCenter';
+import TranscriptLibrary from './components/TranscriptLibrary';
+import CourseLibrary from './components/CourseLibrary';
 import { Analytics } from '@vercel/analytics/react';
 
 
@@ -119,7 +122,43 @@ const TwoLineMenu = ({ className }) => (
 
 const ADMIN_ID = '54ac00e5-b3d3-4ce8-bd8b-a8e2d502e9bb';
 
-export default function App() {
+
+
+const DeepLinkCatcher = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const tab = params.get('tab');
+    if (tab) {
+       if (tab === 'quran') navigate('/quran', {replace: true});
+       else if (tab === 'duas') navigate('/duas', {replace: true});
+       else if (tab === 'transcripts') {
+          const id = params.get('id');
+          navigate(`/kisa-academy/library${id ? `/${id}` : ''}`, {replace: true});
+       }
+       else if (tab === 'library') navigate('/kisa-academy', {replace: true});
+       else if (tab === 'hadith') navigate('/hadith', {replace: true});
+       else if (tab === 'ziyarats') navigate('/ziyarats', {replace: true});
+       else navigate('/', {replace: true});
+    }
+  }, [location, navigate]);
+  return null;
+};
+
+
+const ScrollToTop = () => {
+  const location = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  return null;
+};
+
+function AppContent() {
+
+
 
   const [alKafiData, setAlKafiData] = useState([]);
   const [isHadithLoading, setIsHadithLoading] = useState(true);
@@ -408,13 +447,29 @@ export default function App() {
   const [copiedLink, setCopiedLink] = useState(false);
 
   // NATIVE MEMORY: Remembers your exact tab when switching apps
-  const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window !== 'undefined') return localStorage.getItem('kisa_active_tab') || 'home';
-    return 'home';
-  });
-  useEffect(() => { localStorage.setItem('kisa_active_tab', activeTab); }, [activeTab]);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [quranPopup, setQuranPopup] = useState(null);
+  const activeTab = useMemo(() => {
+    if (location.pathname.startsWith('/quran')) return 'quran';
+    if (location.pathname.startsWith('/duas')) return 'duas';
+    if (location.pathname.startsWith('/ziyarats')) return 'ziyarats';
+    if (location.pathname.startsWith('/hadith')) return 'hadith';
+    if (location.pathname.startsWith('/kisa-academy')) return 'library';
+    if (location.pathname.startsWith('/admin')) return 'admin';
+    if (location.pathname.startsWith('/glossary')) return 'glossary';
+    if (location.pathname.startsWith('/search')) return 'search';
+    if (location.pathname === '/') return 'home';
+    return 'home';
+  }, [location.pathname]);
+
+  const setActiveTab = (tab) => {
+    if (tab === 'home') navigate('/');
+    else if (tab === 'library') navigate('/kisa-academy');
+    else navigate(`/${tab}`);
+  };
+const [quranPopup, setQuranPopup] = useState(null);
 
   const [tafsirData, setTafsirData] = useState(null);
   const [tafsirLoading, setTafsirLoading] = useState(false);
@@ -1395,12 +1450,13 @@ export default function App() {
       </AnimatePresence>
 
       <main ref={containerRef} className={`relative w-full flex-grow flex flex-col ${lockMainScreen ? 'items-center justify-center h-screen overflow-hidden' : 'min-h-screen'}`}>
-        {activeTab === 'glossary' && (
+        <Routes>
+        <Route path="/glossary" element={
           <div className="w-full flex-grow flex flex-col relative pt-14">
             <Glossary theme={theme} />
           </div>
-        )}
-        {activeTab === 'quran' && (
+        } />
+        <Route path="/quran" element={
           <div className="w-full flex-grow flex flex-col relative pt-20 sm:pt-24">
             <QuranReader
               activeFontFamily={activeFontFamily}
@@ -1418,9 +1474,9 @@ export default function App() {
               isAdmin={isAdmin}
             />
           </div>
-        )}
+        } />
 
-        {activeTab === 'duas' && (
+        <Route path="/duas" element={
           <div className="w-full flex-grow flex flex-col relative pt-20 sm:pt-24">
             <DuaLibrary
               vaultItems={vaultItems}
@@ -1428,9 +1484,9 @@ export default function App() {
               externalTarget={duaTarget}
             />
           </div>
-        )}
+        } />
 
-        {activeTab === 'ziyarats' && (
+        <Route path="/ziyarats" element={
           <div className="flex flex-col items-center justify-center min-h-screen pt-20 px-6 text-center">
             <BookOpen className="w-12 h-12 text-[#c6a87c] opacity-50 mb-6" />
             <h2 className="font-serif text-3xl sm:text-4xl text-[#2D241C] dark:text-[#FAFAFA] mb-3 tracking-tight">The Book of Ziyarats</h2>
@@ -1438,10 +1494,10 @@ export default function App() {
               The dedicated visitation library is currently being compiled and will be available in an upcoming update.
             </p>
           </div>
-        )}
+        } />
 
         {/* --- THIS BLOCK NOW RENDERS THE NEW HUB --- */}
-        {activeTab === 'library' && (
+        <Route path="/kisa-academy" element={
           <KisaAcademy
             transcripts={transcriptData}
             vaultItems={vaultItems}
@@ -1471,9 +1527,9 @@ export default function App() {
             timeAgo={timeAgo}
             KisaLogo={KisaLogo}
           />
-        )}
+        } />
 
-        {activeTab === 'hadith' && (
+        <Route path="/hadith/:book?/:volume?/:category?/:chapter?" element={
           isHadithLoading ? (
             <div className="flex flex-col items-center justify-center min-h-screen text-[#5C4A3D]/60 dark:text-[#c6a87c]/60 pt-20">
               <KisaLogo className="w-12 h-12 animate-pulse mb-4" />
@@ -1492,9 +1548,9 @@ export default function App() {
               isAdmin={isAdmin}
             />
           )
-        )}
+        } />
 
-        {activeTab === 'home' && (
+        <Route path="/" element={
           <Home
             setActiveTab={setActiveTab}
             setQuery={setQuery}
@@ -1508,10 +1564,10 @@ export default function App() {
             KisaLogo={KisaLogo}
             setShowUpdates={setShowUpdates}
           />
-        )}
+        } />
 
 
-        {activeTab === 'search' && (
+        <Route path="/search" element={
           <div className="relative w-full max-w-[1400px] mx-auto px-4 sm:px-6 pt-24 pb-32 min-h-[100dvh]">
 
             {/* STATE 1: LOADING */}
@@ -1693,7 +1749,42 @@ export default function App() {
               </motion.div>
             )}
           </div>
-        )}
+        } />
+<Route path="/admin" element={<KisaCommandCenter />} />
+          <Route path="/kisa-academy/library/:series?/:episode?" element={
+            <TranscriptLibrary 
+                transcripts={transcriptData}
+                vaultItems={vaultItems}
+                externalDocTarget={transcriptTarget}
+                externalHighlightTarget={transcriptHighlight}
+                theme={theme}
+                setTheme={setTheme}
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+                handleHomeClick={handleHomeClick}
+                showHistoryDrawer={showHistoryDrawer}
+                setShowHistoryDrawer={setShowHistoryDrawer}
+                appHistory={appHistory}
+                setAppHistory={setAppHistory}
+                handleHistoryClick={handleHistoryClick}
+                showUpdates={showUpdates}
+                setShowUpdates={setShowUpdates}
+                showInfo={showInfo}
+                setShowInfo={setShowInfo}
+                user={user}
+                setShowAuthModal={setShowAuthModal}
+                setShowSignOutConfirm={setShowSignOutConfirm}
+                setShowVault={setShowVault}
+                setQuranTarget={setQuranTarget}
+                setQuranVerseTarget={setQuranVerseTarget}
+                APP_UPDATES={APP_UPDATES}
+                timeAgo={timeAgo}
+                KisaLogo={KisaLogo}
+            />
+          } />
+          <Route path="/kisa-academy/courses" element={<CourseLibrary />} />
+        
+        </Routes>
 
         <AnimatePresence>
           {activeCluster !== null && data?.clusters && data.clusters[activeCluster] && (() => {
@@ -2015,11 +2106,22 @@ export default function App() {
           <Footer theme={theme} setActiveTab={setActiveTab} KisaLogo={KisaLogo} setShowSearchOverlay={setShowSearchOverlay} />
         )}
 
+      
+          
       </main>
 
       {/* Vercel Analytics injected here */}
       <Analytics />
 
     </div>
+  );
+}
+export default function App() {
+  return (
+    <BrowserRouter>
+      <ScrollToTop />
+      <DeepLinkCatcher />
+      <AppContent />
+    </BrowserRouter>
   );
 }

@@ -1,6 +1,7 @@
 // src/components/TranscriptLibrary.jsx
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ChevronRight, ChevronLeft, Copy, ChevronDown, ChevronUp, List, Layout, BookOpen, History, Sparkles, X, Check, Clock, Trash2, Library as LibraryIcon, ArrowDown, Bookmark, Youtube, Database, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -8,6 +9,16 @@ import { jsPDF } from 'jspdf';
 import RevisionModule from './RevisionModule';
 import MasteryRing from './MasteryRing';
 import ContextualBridge from './ContextualBridge';
+
+
+export const createSlug = (text) => {
+    if (!text) return 'general';
+    return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+};
+
+export const formatEpisodeParam = (num) => {
+    return `ep${num || 1}`;
+};
 
 const TranscriptBookmarkButton = ({ doc, vaultItems = [] }) => {
     const sourceRef = doc.title;
@@ -67,6 +78,18 @@ const TranscriptLibrary = ({
     // Live Cloud State
     const [transcripts, setTranscripts] = useState([]);
     const [loading, setLoading] = useState(true);
+
+    // React Router Hooks
+    const navigate = useNavigate();
+    const { series: urlSeries, episode: urlEpisode } = useParams();
+
+    const navigateToDoc = (doc) => {
+        if (!doc) return;
+        const seriesSlug = createSlug(doc.series || 'general');
+        const episodeParam = formatEpisodeParam(doc.episode || doc.episode_number || 1);
+        navigate(`/kisa-academy/library/${seriesSlug}/${episodeParam}`);
+    };
+
 
     useEffect(() => {
         const fetchLiveTranscripts = async () => {
@@ -390,6 +413,34 @@ const TranscriptLibrary = ({
         setSearchQuery('');
     };
 
+    // Sync URL with View State
+    useEffect(() => {
+        if (transcripts.length === 0) return;
+        
+        if (urlSeries && urlEpisode) {
+            const epMatch = urlEpisode.match(/\d+/);
+            const epNum = epMatch ? parseInt(epMatch[0], 10) : 1;
+            
+            const targetDoc = transcripts.find(t => 
+                createSlug(t.series || 'general') === urlSeries && 
+                (t.episode === epNum || t.episode_number === epNum)
+            );
+            
+            if (targetDoc) {
+                if (!activeDoc || activeDoc.id !== targetDoc.id) {
+                    openReader(targetDoc);
+                }
+            } else {
+                navigate('/kisa-academy/library', { replace: true });
+            }
+        } else {
+            if (currentView !== 'home') {
+                closeReader();
+            }
+        }
+    }, [urlSeries, urlEpisode, transcripts]);
+
+
     useEffect(() => {
         if (currentView !== 'reader' || !activeDoc) return;
 
@@ -418,7 +469,7 @@ const TranscriptLibrary = ({
     useEffect(() => {
         if (externalDocTarget && currentView !== 'reader') {
             const targetDoc = transcripts.find(t => t.id === externalDocTarget);
-            if (targetDoc) openReader(targetDoc);
+            if (targetDoc) navigateToDoc(targetDoc);
         }
     }, [externalDocTarget]);
 
@@ -907,7 +958,7 @@ const TranscriptLibrary = ({
                                     return (
                                         <button
                                             key={doc.id}
-                                            onClick={() => { openReader(doc); setIsMobileDrawerOpen(false); }}
+                                            onClick={() => { navigateToDoc(doc); setIsMobileDrawerOpen(false); }}
                                             className={`text-left py-2.5 px-3 rounded-xl transition-all duration-200 cursor-pointer flex items-center justify-between gap-3 ${activeDoc?.id === doc.id ? 'bg-zinc-50 dark:bg-[#1c1c1e] text-zinc-900 dark:text-white font-bold shadow-sm border border-zinc-200 dark:border-zinc-700' : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 border border-transparent hover:bg-zinc-50 dark:hover:bg-[#2c2c2e]'}`}
                                         >
                                             <span className="text-sm leading-snug block flex-1">{displayTitle}</span>
@@ -1021,7 +1072,7 @@ const TranscriptLibrary = ({
 
                     return (
                         <div
-                            onClick={() => openReader(targetDoc)}
+                            onClick={() => navigateToDoc(targetDoc)}
                             className={`w-full bg-gradient-to-r ${isUpNext ? 'from-emerald-500/5' : 'from-[#c6a87c]/10'} to-transparent border ${isUpNext ? 'border-emerald-500/20 hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-[#c6a87c]/30 hover:bg-[#c6a87c]/20'} rounded-2xl p-6 sm:p-8 mb-12 cursor-pointer transition-all duration-300 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 shadow-sm group`}
                         >
                             <div>
@@ -1087,7 +1138,7 @@ const TranscriptLibrary = ({
                             searchResults.map((res, idx) => (
                                 <div
                                     key={idx}
-                                    onClick={() => openReader(res.doc)}
+                                    onClick={() => navigateToDoc(res.doc)}
                                     className="bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 cursor-pointer hover:shadow-lg hover:border-[#c6a87c]/50 transition-all duration-300 group"
                                 >
                                     <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{res.doc.series}</span>
@@ -1138,7 +1189,7 @@ const TranscriptLibrary = ({
                                                     return (
                                                         <div
                                                             key={doc.id}
-                                                            onClick={() => openReader(doc)}
+                                                            onClick={() => navigateToDoc(doc)}
                                                             className="bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 rounded-xl p-5 cursor-pointer hover:shadow-lg hover:border-[#c6a87c]/50 transition-all duration-300 flex flex-col justify-between group h-full relative overflow-hidden"
                                                         >
                                                             {status === 'in-progress' && (
@@ -1192,7 +1243,7 @@ const TranscriptLibrary = ({
 
             <div className="md:hidden w-full max-w-[1400px] mx-auto mb-6 px-4 sm:px-0 flex justify-start pointer-events-auto">
                 <button
-                    onClick={closeReader}
+                    onClick={() => navigate('/kisa-academy/library')}
                     className="flex items-center gap-2 text-zinc-500 hover:text-[#c6a87c] transition-colors text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer"
                 >
                     <ChevronLeft className="w-4 h-4" /> Back to Dashboard
@@ -1279,7 +1330,7 @@ const TranscriptLibrary = ({
                     className="hidden md:flex shrink-0 overflow-hidden sticky top-28 self-start h-[calc(100vh-120px)] flex-col gap-4"
                 >
                     <button
-                        onClick={closeReader}
+                        onClick={() => navigate('/kisa-academy/library')}
                         className="flex items-center gap-2 text-zinc-500 hover:text-[#c6a87c] transition-colors text-xs sm:text-sm font-bold uppercase tracking-widest cursor-pointer pl-1 w-max"
                     >
                         <ChevronLeft className="w-4 h-4" /> Back to Dashboard
@@ -1497,7 +1548,7 @@ const TranscriptLibrary = ({
                                         <div className="flex flex-col sm:flex-row items-center gap-4">
                                             {nextDocInSeries ? (
                                                 <button
-                                                    onClick={() => openReader(nextDocInSeries)}
+                                                    onClick={() => navigateToDoc(nextDocInSeries)}
                                                     className="px-6 py-2.5 bg-zinc-50 dark:bg-[#1c1c1e] text-zinc-800 dark:text-zinc-200 font-bold rounded-full border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-[#c6a87c] hover:text-[#c6a87c] transition-all duration-300 flex items-center gap-2 text-xs uppercase tracking-widest cursor-pointer"
                                                 >
                                                     <span>Start Next Episode</span>

@@ -6,7 +6,7 @@ Al-Kisa is a highly sophisticated semantic search engine and theological workspa
 * **Mechanism:** A React frontend connects to a Node.js backend. It uses a hybrid architecture: querying a local SQLite database for raw text, keywords, and theological ontology anchors, while querying a cloud Pinecone database for 384-dimensional semantic hadith matching.
 
 ## 2. The Tech Stack
-* **Frontend:** React (Modularized architecture with `App.jsx` acting as the router/wrapper for isolated components like `QuranReader.jsx`, `KisaAcademy.jsx`, `TranscriptLibrary.jsx`, `CourseLibrary.jsx`, `HadithLibrary.jsx`, `StudyVault.jsx`, `HadithCard.jsx`, `DuaLibrary.jsx`, `SpiritualHub.jsx`, `TheKisaExperience.jsx`, `Home.jsx`, `MasteryRing.jsx`, `RevisionModule.jsx`, `ContextualBridge.jsx`, `ChapterTitleHeading.jsx`, `KisaCommandCenter.jsx`, `HadithManager.jsx`, `BrainOntology.jsx`, and `TranscriptEditor.jsx`), Framer Motion (animations), Tailwind CSS v4 (via `@tailwindcss/postcss`), Lucide React (iconography).
+* **Frontend:** React (Modularized architecture with `App.jsx` acting as the router/wrapper for isolated components like `QuranReader.jsx`, `KisaAcademy.jsx`, `TranscriptLibrary.jsx`, `CourseLibrary.jsx`, `HadithLibrary.jsx`, `StudyVault.jsx`, `HadithCard.jsx`, `DuaLibrary.jsx`, `TheKisaExperience.jsx`, `Home.jsx`, `MasteryRing.jsx`, `RevisionModule.jsx`, `ContextualBridge.jsx`, `ChapterTitleHeading.jsx`, `KisaCommandCenter.jsx`, `HadithManager.jsx`, `BrainOntology.jsx`, `TranscriptEditor.jsx`, `CMSDashboard.jsx`, `Glossary.jsx`, and `Footer.jsx`), Framer Motion (animations), Tailwind CSS v4 (via `@tailwindcss/postcss`), Lucide React (iconography), `@vercel/analytics` (tracking), `clsx` & `tailwind-merge` (dynamic class management), and `jspdf` & `html2pdf.js` (native PDF exports).
 * **Local Data:** `transcripts.json` (translated scholarly commentary — AI-translated Arabic lecture transcripts stored in a strict segmented JSON schema; see §4, Semantic Commentary Layer), `revision_data.json` (NotebookLM LMS data), `thaqalayn_complete.json` (14,500+ hadiths, hosted in `public/` for async streaming), `basair_complete.json` (*Basa'ir al-Darajat* narrations, hosted in `public/`), `quran.json` (Quranic text, mirrored in both `src/` and `public/`), `verse_map.json` (Tafsir connections), `quranBenefits.js` (Twelver Fadhaa'il database), `duas.json` (supplication library with Arabic, transliteration, and English passages), `daily_hadiths.json` (curated daily hadith pool), `curated_exploration.json` (pre-built semantic search shortcuts for the home screen), and `alayhis_salam.svg` (HD vector honorific calligraphy).
 * **Backend:** Node.js / Express (`server.js`) located in the `concept-api` folder. A secondary FastAPI / Python backend (`server.py`) exists at the project root for the standalone Concept Atlas vector search API (local SQLite + K-Means clustering).
 * **BaaS & Cloud:** Supabase (Authentication & PostgreSQL for user-saved data and live master database).
@@ -43,7 +43,10 @@ The local SQLite database contains the raw hadiths alongside three active tables
 ### Phase 3 Completed: Full-Stack Headless CMS & Curriculum Engine
 1. **Security Through Obscurity (Root Interception):** The Vault Door (Command Center) was successfully injected at the absolute root in `src/main.jsx`, intercepting the hidden `/kisacms99` route. Regular users on `/admin` or root naturally bypass the gate into the public UI.
 2. **Supabase Cloud Integration:** The application is fully decoupled from local static JSON. The `kisa_transcripts` table is live, protected by Row Level Security (RLS) policies (Admin = Write, Public = Read). The public `TranscriptLibrary.jsx` now dynamically fetches from this cloud database.
-3. **Luminous Studio (Transcript Editor):** Originally a bulk ingestion dropzone, the editor was refactored into a full-scale Tabbed workspace (Build Mode vs. Live Preview) matching the Live site's 3-tier theme engine implicitly. It operates on a robust `.upsert()` pipeline enabling "Cloud Hydration"—clicking any existing episode directly injects it back into the studio for rolling updates. Text block mutations are guarded by a deep-copy (`structuredClone`) state array serving as a granular Undo History engine.
+3. **Luminous Studio (Transcript Editor):** Originally a bulk ingestion dropzone, the editor was refactored into a full-scale CMS workspace with a robust `.upsert()` pipeline enabling "Cloud Hydration" (clicking any existing episode directly injects it back into the studio).
+   - **The Seamless Canvas:** Abandoned the clunky drag-and-drop block interface for a unified "Fixed Viewport Split-Pane" architecture (locked 70vh scrolling canvas with a real-time Live Preview pane).
+   - **Floating Contextual Toolbar:** Implemented a Notion-style contextual menu that triggers on text selection (`onMouseUp`), allowing the admin to inject Bold, Italic, Bridge Overrides (`[[ ]]`), and Mute tags (`~~ ~~`) directly into the text.
+   - **String-to-JSON Serialization:** Implemented a parser that converts the strict JSON array into a single readable string using Markdown prefixes (`## ` for H2, `> ` for quotes, `✨ ` for summaries, `---` for dividers). On save, it perfectly splits the string back into our strict block-level JSON schema for Supabase, protecting the formatting engine.
 4. **Master Curriculum Control (God-Mode):** Engineered a two-tier sorting and macro-management system. 
    - **Macro (Global Series Ranking):** UI to edit `series_priority` allowing global reordering of series. Includes bulk controls to instantly Toggle Visibility (`is_hidden`) and Trash (`is_trashed`) an entire series and all its descendants via single-click batched updates.
    - **Micro (Vault Library Manager):** Granular episode-level UI to edit `episode_number`, re-sorting episodes within a series natively via adaptive Flex layouts without truncating dense theological titles.
@@ -81,11 +84,16 @@ The local SQLite database contains the raw hadiths alongside three active tables
   * **Exhaustive State Machine:** Rendering logic is strictly managed via a 3-state machine (LOADING, EMPTY, RESULTS) to prevent logical gaps (black screens) during asynchronous data handoffs.
   * **iOS Safari Stability ("Delay & Lock"):** Implemented a 150ms "Delay & Lock" sequence in `handleSearchSubmit`. This ensures the DOM state transitions only *after* the iOS keyboard has finished its dismissal animation, preventing violent viewport height recalculations.
   * **Viewport Anchoring:** Utilizes `100dvh` (Dynamic Viewport Height) for rigid container heights, ensuring the footer remains off-screen and the scroll position is anchored to `(0,0)` during the Framer Motion entrance animation.
-* **Global Routing Engine:** A regex-based navigational engine in `App.jsx` that programmatically parses queries for series names and episode numbers (e.g., "file of ashura ep3"). It automatically switches tabs, resets scroll, and mounts the target transcript within the Library.
+* **Global Routing Engine (React Router v6):** A robust, state-safe URL routing architecture replacing legacy state-based (`activeTab`) navigation. Features deep, absolute URL routing for core libraries (e.g. `/hadith/:book?/:volume?/:category?/:chapter?` and `/kisa-academy/library/:series/:episode`).
+  * **Single Source of Truth:** UI state derives strictly from `useParams()`. The URL acts as the master record, instantly unlocking native browser history (Back/Forward) and deep-link bookmarking without bleeding state remnants.
+  * **Symmetric Slugification:** Hardened text parsing utilities (`slugifyHadithParam`) utilizing Unicode normalization (`NFD`) to instantly convert transliterated Arabic text into clean URL slugs, and seamlessly decode them back into exact database keys.
+  * **Graceful Degradation:** URL parser engines utilize defensive synchronization. If a user modifies a deeply nested URL and a chapter parameter becomes invalid, the engine gracefully degrades to the deepest valid parent (e.g., the volume) instead of violently resetting to the dashboard.
+  * **Regex Target Routing:** Automatically parses English spotlight search queries for series names and episode numbers (e.g., "file of ashura ep3"), dynamically constructing the absolute deep-link path and routing the user directly into the active transcript.
 * **Al-Kisa Brain Ontology Intercept (High-Gravity Blending):** Scans user queries for Twelver synonyms, grabs pre-computed 384-dimensional vectors from SQLite, and applies an 85% "High Gravity" blend to crush linguistic collisions.
 * **Vector Hopping ("Find Similar"):** Pivots the search engine around the vector signature of any individual narration, featuring a persistent "Anchored Source" UI.
 * **Curated Exploration Widgets:** Pre-built semantic search shortcuts (`curated_exploration.json`) displayed on the home screen, routing users directly into deep concept searches.
 * **LRU Search Cache:** Server-side in-memory cache (`Map`, 200-entry limit) for instant repeat query responses.
+* **Theological Glossary:** An A-Z dictionary of Twelver Shia terminology (`Glossary.jsx`), accessible via the global Search menu. Users can browse core concepts, filter by category, share via clipboard, and save important terms directly to the Study Vault.
 
 **The Scholar's Vault (Pro-Display Workspace):**
 * **Decoupled Architecture:** Vault logic has been isolated into a dedicated `StudyVault.jsx` component, featuring robust internal state management for dynamic folder generation, multi-tag filtering, and deep search capabilities.
@@ -104,10 +112,10 @@ The local SQLite database contains the raw hadiths alongside three active tables
 * **Cinematic Auto-Resume:** A high-performance physics engine that tracks exact verse positioning. Upon return, it uses Layout Stabilization mathematics to wait for the DOM to paint massive Surahs, then executes a smooth Ease-Out-Quart warp directly to the user's last read verse.
 * **Reverse Tafsir:** Automatically detects verses referenced in the hadith database and spawns seamless popups of contextual narrations.
 
-**The Spiritual Hub (Liturgical Engine):**
-* **The Hub (`SpiritualHub.jsx`):** A unified, tabbed container wrapping the Quran Reader, the Dua Library, and a placeholder Ziyarat module. Features iOS-tier spring-animated tab switching with Framer Motion `layoutId` transitions.
+**The Liturgical Engine (Quran, Duas, Ziyarats):**
+* **Top-Level Navigation:** The global navigation routes directly to independent full-screen components for Quran, Duas, and Ziyarats, ensuring immediate access to foundational liturgical texts.
 * **The Dua Library (`DuaLibrary.jsx`):** A full-featured supplication reader powered by `duas.json`. Features a premium card-based dashboard, an editorial passage-by-passage reading canvas with centered Arabic, transliteration, and English, cinematic GPU-accelerated scroll progress bars, a scroll-direction-aware sticky header HUD, per-passage clipboard copying with full reference formatting, Vault bookmarking for individual passages, an expandable "Significance" panel for historical context, universal pre-Dua invocations (Bismillah & Salawat), and deep-link routing from `App.jsx` via `externalTarget` prop. Wrapped in a React Error Boundary for crash protection.
-* **Ziyarat (Under Construction):** Placeholder module in `SpiritualHub.jsx` with a premium "Geography of Light" under-construction card.
+* **Ziyarat (Under Construction):** Dedicated module with a premium "Geography of Light" under-construction card.
 
 **The Kisa Experience (`TheKisaExperience.jsx`):**
 * **Interactive Onboarding Widget:** A 5-phase morphological UI demo using 3D CSS card flips with `preserve-3d` and hardware-accelerated `backface-visibility`. Progressively reveals the platform's capabilities (Semantic Engine → Unbroken Chain → Theological Fortress) before expanding into a cinematic full-screen "Know Your Imam" call-to-action. Features `useReducedMotion` accessibility fallback, Framer Motion `LayoutGroup` shared element transitions, and direct routing to the Transcript Library.
@@ -153,6 +161,7 @@ The local SQLite database contains the raw hadiths alongside three active tables
 * **Universal Clipboard Formatting:** Features a mathematically precise copy-to-clipboard engine that defeats WhatsApp's aggressive Bidi text-rendering bugs, injecting Unicode Left-to-Right Marks (`\u200E`) to guarantee perfect right-aligned Arabic and left-aligned English across third-party apps.
 
 **Platform Infrastructure:**
+* **Keep-Alive Strategy (Zero Cold-Start):** To eliminate the "First Load Penalty" for the Brain Ontology, a 10-minute HTTP ping monitor (via cron-job.org) targets the live backend, preventing the Render free-tier server from entering a cold-sleep state.
 * **Dynamic API Routing (Frontend Security Rule):** Frontend components (`TranscriptLibrary.jsx`, `ContextualBridge.jsx`, `App.jsx`, etc.) **must never use hardcoded URLs, IP addresses, or port numbers** (e.g., `http://hostname:8000`) for API calls. All fetch calls strictly resolve their base URL via `import.meta.env.VITE_API_URL || ''`. Falling back to an empty string produces a relative path (e.g., `/api/ontology`), which automatically inherits the current page's protocol and origin (`https://`). This eliminates Mixed Content blocks (HTTPS page → HTTP fetch) and ensures seamless operation behind any reverse proxy without code changes.
 * **Strict CORS Policy (Backend Security Rule):** The Node.js backend (`server.js`) **strictly forbids wildcard (`origin: '*'`) CORS configurations**. The `cors` middleware uses an explicit whitelist function that validates the `Origin` header against an approved array: production domains (`https://www.al-kisa.org`, `https://al-kisa.org`) and local development servers (`http://localhost:5173`, `http://localhost:3000`). Requests with no `Origin` header (server-to-server, `curl`, mobile apps) are permitted. All unrecognized origins are rejected and logged to the console with a `[CORS] Blocked request from origin:` warning.
 * **Native Tab Memory:** Active tab persisted to `localStorage` so the app reopens exactly where the user left off.
@@ -191,14 +200,8 @@ The local SQLite database contains the raw hadiths alongside three active tables
     * **Smart JSON Dropzone (Admin Ingestion UI):** A dedicated admin-only UI panel accepting raw AI-generated JSON arrays via paste or file upload. The dropzone automatically parses and classifies content blocks — blockquotes (`type: 'quote'`), segment summaries (`type: 'summary'`), section headings (`type: 'h2'`), dividers (`type: 'divider'`), and standard paragraphs — preserving the existing AI translation workflow without manual reformatting. A live React preview renders the imported content in real-time using the production `parseFormatting` engine, allowing the admin to visually verify formatting, Contextual Bridge highlights, and block ordering before committing to the database.
     * **Safe Overwrite Protocol:** When modifying an existing transcript, the system **must** execute an SQL `UPDATE` on the `content` column targeting the row by its existing `id` primary key — never a `DELETE` + `INSERT` cycle. This is a non-negotiable architectural constraint: user Vault bookmarks (`vault_items`) reference transcripts by stable identifiers, and destroying and re-creating rows would orphan those bookmarks. The previous content is automatically archived to `kisa_transcript_backups` before the update is committed.
 
-  * **Interactive WYSIWYG Editor (Markdown-Backed Toolbar):**
-    * **The Floating Toolbar:** A Notion/Medium-inspired highlight-and-click editing interface replacing manual Markdown typing. When the admin selects text within the editor preview, a floating contextual toolbar appears offering: **Bold** (`**text**`), **Italics** (`*text*`), and two Contextual Bridge override actions. The frontend UI handles the visual interaction (button clicks, selection ranges) but invisibly applies lightweight Markdown tags to the underlying JSON payload — preventing messy HTML injection and maintaining a clean, portable data format that the production `parseFormatting` engine already knows how to render.
-    * **Contextual Bridge Overrides:** Two inline override tokens integrated into both the toolbar and the `parseFormatting` engine: `[[Term]]` forcefully triggers an ontology tooltip for the enclosed term (bypassing the regex matcher's word-boundary rules for terms the auto-detector misses), and `~~Term~~` suppresses the regex matcher entirely for the enclosed term, hiding unwanted underline decorations on false-positive matches. Both tokens are stripped from the rendered output after processing, producing clean visible text.
+  * **Interactive WYSIWYG Editor Enhancements:**
     * **"Luminous Text" (Theological Highlighting):** A custom formatting button that applies a permanent, subtle `#c6a87c` glow and color-shift to profound theological axioms — visually distinguishing divinely significant passages without relying on standard bolding. Implemented as a custom Markdown token (e.g., `{{text}}`) that the `parseFormatting` engine renders as a `<span>` with the signature gold luminance styling, ensuring the highlighting persists across exports (Markdown, PDF) and is not confused with structural emphasis.
-
-  * **Block-Level Manipulation (Visual JSON Editing):**
-    * **Drag-to-Reorder:** The editor preview renders each JSON content block (paragraph, quote, summary, heading, divider) with a tactile drag-handle grip on the left edge. Admins can click and drag blocks vertically to visually reorder the JSON array, with the underlying `content` JSONB payload updating its array indices in real-time. Framer Motion `Reorder` primitives provide smooth spring-physics animations during drag operations.
-    * **Block Type Transformation:** Each block displays a small type indicator (e.g., "¶", "❝", "✦", "H2") that doubles as a dropdown trigger. Clicking it reveals a transformation menu allowing the admin to convert any block between types (paragraph → quote, quote → summary, paragraph → heading, etc.) without manually editing JSON — the system updates the `type` field in the content array and the preview re-renders instantly.
 
   * **The Community Triage Queue (Crowd-Sourced QA):**
     * **"Report Typo" User Action:** A new action button added to the existing user-facing text selection popup (the same popup used for "Save to Vault" highlight actions in `TranscriptLibrary.jsx`). When a user selects text and taps "Report Typo," the selected snippet, its parent transcript `id`, and a timestamp are submitted to a new `kisa_typo_reports` Supabase table. No authentication is required for submission to minimize friction, but a lightweight rate limiter prevents spam.
@@ -277,12 +280,10 @@ alkafi-engine/
 │   │   │   ├── MasteryRing.jsx             (SVG ring visualization for quiz/mastery progress)
 │   │   │   ├── QuranReader.jsx             (Full Quran reader: auto-resume, Tafsir Map, Reverse Tafsir, Virtues panel)
 │   │   │   ├── RevisionModule.jsx          (LMS: flashcards, MCQ quizzes, confidence scoring, archetypes)
-│   │   │   ├── SpiritualHub.jsx            (Tabbed container: Quran + Dua + Ziyarat with spring tabs)
 │   │   │   ├── StudyVault.jsx              (Tri-pane study workspace: folders, multi-tag, margin notes)
 │   │   │   ├── TheKisaExperience.jsx       (5-phase 3D card onboarding widget with LayoutGroup transitions)
 │   │   │   ├── TranscriptLibrary.jsx       (Scholarly reading environment: Charcoal+Gold, export, 60fps scroll, Contextual Bridge)
 │   │   │   ├── TranscriptEditor.jsx        (CMS Transcript Studio: tabbed Build/Preview, JSON dropzone, floating toolbar, How-To panel — 45 KB)
-│   │   │   ├── TranscriptVideoPlayer.jsx   (Embedded video player for lecture courses)
 │   │   │   ├── KisaCommandCenter.jsx       (CMS App Shell: sidebar router for Hadith Library, Brain Ontology, Transcript Studio — 6 KB)
 │   │   │   ├── HadithManager.jsx           (CMS Hadith Library: inline editor, collaborative flagging, analytics dashboard, How-To panel — 51 KB)
 │   │   │   └── BrainOntology.jsx           (CMS Brain Ontology: 3-tier relational manager, Grid/List views, CRUD drawer, How-To panel — 44 KB)
@@ -334,7 +335,7 @@ alkafi-engine/
 
 | Component | File | Size | Primary Role |
 |---|---|---|---|
-| App (Router) | `App.jsx` | 140 KB | Master state, routing, auth, search, Vault, Global Routing Engine |
+| App (Router) | `App.jsx` | 140 KB | Master state, routing, auth, search, Vault states (folders/tags), deep-link targeting (anchorHadith/quranTarget), global history drawer, and 3-tier font selection. |
 | Quran Reader | `QuranReader.jsx` | 63 KB | Full Quran with auto-resume, Tafsir, Virtues |
 | Transcript Library | `TranscriptLibrary.jsx` | 90 KB | Scholarly reading, export, native scrolling, Contextual Bridge integration, env-safe API routing |
 | Hadith Library | `HadithLibrary.jsx` | 82 KB | Browsable hadith archive with hybrid engine |
@@ -345,12 +346,13 @@ alkafi-engine/
 | Hadith Card | `HadithCard.jsx` | 17 KB | Individual narration display/actions |
 | Kisa Experience | `TheKisaExperience.jsx` | 16 KB | 3D onboarding widget |
 | Kisa Academy | `KisaAcademy.jsx` | 10 KB | Educational hub routing with external target logic |
-| Spiritual Hub | `SpiritualHub.jsx` | 7 KB | Tabbed Quran/Dua/Ziyarat container |
 | Contextual Bridge | `ContextualBridge.jsx` | 6 KB | Ontology tooltips: hover/tap, edge-aware, animated |
 | Course Library | `CourseLibrary.jsx` | 4 KB | Video course catalog |
 | Mastery Ring | `MasteryRing.jsx` | 3 KB | SVG progress visualization |
-| Video Player | `TranscriptVideoPlayer.jsx` | 2 KB | Embedded lecture player |
 | Chapter Heading | `ChapterTitleHeading.jsx` | 1 KB | Reusable heading component |
+| Glossary | `Glossary.jsx` | 24 KB | Comprehensive A-Z dictionary of Twelver Shia terminology |
+| CMS Dashboard | `CMSDashboard.jsx` | 18 KB | Admin overview dashboard within the Command Center |
+| Footer | `Footer.jsx` | 8 KB | Global footer component handling secondary navigation |
 | **Command Center** | `KisaCommandCenter.jsx` | **6 KB** | **CMS app shell: sidebar navigation, module routing, Supabase prop injection** |
 | **Hadith Manager** | `HadithManager.jsx` | **51 KB** | **CMS hadith editor: inline editing, collaborative flagging, analytics dashboard, How-To panel** |
 | **Brain Ontology** | `BrainOntology.jsx` | **44 KB** | **CMS ontology manager: Grid/List views, concept CRUD, synonym/relation editors, locked drawer, How-To panel** |
