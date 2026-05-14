@@ -227,7 +227,7 @@ const RevisionModule = ({ docId, onComplete }) => {
                     Revision & <span className="italic text-[#c6a87c]">Theological Mastery</span>
                 </h2>
                 <p className="text-sm sm:text-base text-zinc-500 dark:text-zinc-400 mt-3 max-w-md antialiased">
-                    Active Recall designed specifically to reinforce the dense materials in this transcript.
+                    Active Recall designed specifically to reinforce the dense materials in this lesson.
                 </p>
             </div >
 

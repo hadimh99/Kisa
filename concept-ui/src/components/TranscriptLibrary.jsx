@@ -416,16 +416,16 @@ const TranscriptLibrary = ({
     // Sync URL with View State
     useEffect(() => {
         if (transcripts.length === 0) return;
-        
+
         if (urlSeries && urlEpisode) {
             const epMatch = urlEpisode.match(/\d+/);
             const epNum = epMatch ? parseInt(epMatch[0], 10) : 1;
-            
-            const targetDoc = transcripts.find(t => 
-                createSlug(t.series || 'general') === urlSeries && 
+
+            const targetDoc = transcripts.find(t =>
+                createSlug(t.series || 'general') === urlSeries &&
                 (t.episode === epNum || t.episode_number === epNum)
             );
-            
+
             if (targetDoc) {
                 if (!activeDoc || activeDoc.id !== targetDoc.id) {
                     openReader(targetDoc);
@@ -1022,7 +1022,7 @@ const TranscriptLibrary = ({
 
                 <div className="mb-10 text-center sm:text-left">
                     <h1 className="text-4xl sm:text-5xl font-serif font-bold text-zinc-900 dark:text-white mb-3">Scholarly Library</h1>
-                    <p className="text-zinc-500 dark:text-zinc-400 text-lg">Explore translated scholarly series and foundational lectures.</p>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-lg">Explore translated scholarly series and foundational lessons.</p>
                 </div>
 
                 <div className="w-full bg-white dark:bg-[#1c1c1e] border border-zinc-200 dark:border-zinc-800 rounded-2xl p-5 sm:p-6 mb-10 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

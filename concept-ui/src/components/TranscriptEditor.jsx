@@ -1,585 +1,725 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Save, PlusCircle, AlertCircle, FolderOpen, Hash, Eye, EyeOff, ExternalLink, Library, Layers, Trash2, RefreshCw, BookOpen, ChevronDown } from 'lucide-react';
+import { Save, Plus, Trash2, FileText, Hash, Link as LinkIcon, User, AlertCircle, Wand2, X, ChevronDown, ChevronUp, Eye, Edit3, Library, RefreshCw, LayoutList, Clock, FolderGit2, Edit2, Check } from 'lucide-react';
 
-const TranscriptEditor = ({ supabase, selectedEpisodeForEdit, onEditEpisode }) => {
-    const [rawJson, setRawJson] = useState('');
+// Robust helper to render bold/italics in preview mode
+const MarkdownPreview = ({ text, type }) => {
+    if (!text) return null;
+    let html = text
+        .replace(/\*\*(.*?)\*\*/g, '<strong class="text-white font-bold">$1</strong>')
+        .replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, '<em class="italic text-zinc-300">$1</em>');
+
+    return <div
+        className={`leading-relaxed ${type === 'quote' ? 'font-serif text-lg' : 'font-sans'}`}
+        dangerouslySetInnerHTML={{ __html: html }}
+    />;
+};
+
+// Auto-expanding Textarea Component
+const AutoResizingTextarea = ({ value, onChange, className, placeholder }) => {
+    const textareaRef = useRef(null);
+
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
+        }
+    }, [value]);
+
+    return (
+        <textarea
+            ref={textareaRef}
+            value={value}
+            onChange={onChange}
+            className={`resize-none overflow-hidden block w-full ${className}`}
+            placeholder={placeholder}
+            rows={1}
+        />
+    );
+};
+
+const TranscriptEditor = ({ supabase }) => {
+    const [activeView, setActiveTab] = useState('library');
+    const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState({ type: '', message: '' });
-    const [showDocs, setShowDocs] = useState(false);
 
-    // Metadata Controls
-    const [seriesName, setSeriesName] = useState('');
-    const [episodeNumber, setEpisodeNumber] = useState('');
-    const [isHidden, setIsHidden] = useState(false);
+    // Data stores
+    const [existingEpisodes, setExistingEpisodes] = useState([]);
+    const [trashedEpisodes, setTrashedEpisodes] = useState([]);
+    const [seriesList, setSeriesList] = useState([]);
 
-    // Track ID after save to auto-link
-    const [savedId, setSavedId] = useState(null);
+    // UI Toggles
+    const [isSmartPasteOpen, setIsSmartPasteOpen] = useState(false);
+    const [isSeriesManagerOpen, setIsSeriesManagerOpen] = useState(false);
+    const [isRecentsOpen, setIsRecentsOpen] = useState(true);
+    const [rawText, setRawText] = useState('');
 
-    // Vault Manager State
-    const [vaultItems, setVaultItems] = useState([]);
-    const [trashedItems, setTrashedItems] = useState([]);
+    // Series Renaming State
+    const [editingSeriesName, setEditingSeriesName] = useState(null);
+    const [newSeriesNameInput, setNewSeriesNameInput] = useState('');
 
-    // Luminous Studio State
-    const [parsedItems, setParsedItems] = useState([]);
-    const [selectionParams, setSelectionParams] = useState(null);
-    const [history, setHistory] = useState([]);
-    const [previewTheme, setPreviewTheme] = useState('sepia');
-    const [activeTab, setActiveTab] = useState('build');
-    const [canvasTexts, setCanvasTexts] = useState({});
-
-    const textareaRefs = useRef({});
-
-    // Seamless Canvas Utilities
-    const joinBlocksToString = (blocks) => {
-        if (!Array.isArray(blocks)) return '';
-        return blocks.map(b => {
-            const text = b.text !== undefined ? b.text : (b.content || '');
-            if (b.type === 'h2') return `## ${text}`;
-            if (b.type === 'quote') return `> ${text}`;
-            if (b.type === 'summary') return `✨ ${text}`;
-            if (b.type === 'divider') return `---`;
-            return text;
-        }).join('\n\n');
-    };
-
-    const parseStringToBlocks = (text) => {
-        if (!text) return [];
-        return text.split('\n\n').map(blockText => {
-            const trimmed = blockText.trim();
-            if (trimmed.startsWith('## ')) return { type: 'h2', content: blockText.substring(3).trimStart() };
-            if (trimmed.startsWith('> ')) return { type: 'quote', content: blockText.substring(2).trimStart() };
-            if (trimmed.startsWith('✨ ')) return { type: 'summary', content: blockText.substring(2).trimStart() };
-            if (trimmed === '---') return { type: 'divider', content: '' };
-            return { type: 'paragraph', content: blockText };
-        });
-    };
+    // Editor State
+    const [isPreviewMode, setIsPreviewMode] = useState(false);
+    const [episodeId, setEpisodeId] = useState('');
+    const [episodeData, setEpisodeData] = useState({
+        series_name: '',
+        title: '',
+        speaker: '',
+        source_link: '',
+        is_hidden: false,
+        series_priority: 0
+    });
+    const [blocks, setBlocks] = useState([]);
 
     useEffect(() => {
-        if (selectedEpisodeForEdit) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            setSeriesName(selectedEpisodeForEdit.series_name || '');
-            setEpisodeNumber(selectedEpisodeForEdit.episode_number || '');
-            setIsHidden(selectedEpisodeForEdit.is_hidden || false);
-
-            let parsedContent = [];
-            try {
-                parsedContent = typeof selectedEpisodeForEdit.content === 'string'
-                    ? JSON.parse(selectedEpisodeForEdit.content)
-                    : selectedEpisodeForEdit.content;
-                if (!Array.isArray(parsedContent)) parsedContent = [parsedContent];
-            } catch {
-                parsedContent = [];
-            }
-
-            setParsedItems([{
-                id: selectedEpisodeForEdit.id,
-                series_name: selectedEpisodeForEdit.series_name,
-                episode_number: selectedEpisodeForEdit.episode_number,
-                title: selectedEpisodeForEdit.title,
-                speaker: selectedEpisodeForEdit.speaker,
-                primary_theme: selectedEpisodeForEdit.primary_theme,
-                source_link: selectedEpisodeForEdit.source_link,
-                content: parsedContent
-            }]);
-
-            const textString = joinBlocksToString(parsedContent);
-            setCanvasTexts({ 0: textString });
-
-            // Force recalculation of height after text is set
-            setTimeout(() => {
-                if (textareaRefs.current[0]) {
-                    textareaRefs.current[0].style.height = '0px';
-                    textareaRefs.current[0].style.height = `${textareaRefs.current[0].scrollHeight}px`;
-                }
-            }, 50);
-        }
-    }, [selectedEpisodeForEdit]);
-
-    const pushHistory = (state) => {
-        setHistory(prev => [...prev, structuredClone(state)]);
-    };
-
-    const handleUndo = () => {
-        if (history.length === 0) return;
-        const newHistory = [...history];
-        const previousState = newHistory.pop();
-        setHistory(newHistory);
-        setParsedItems(previousState);
-
-        // Sync text and height
-        const initialTexts = {};
-        previousState.forEach((ep, i) => {
-            initialTexts[i] = joinBlocksToString(ep.content);
-        });
-        setCanvasTexts(initialTexts);
-
-        setTimeout(() => {
-            Object.values(textareaRefs.current).forEach(ref => {
-                if (ref) {
-                    ref.style.height = '0px';
-                    ref.style.height = `${ref.scrollHeight}px`;
-                }
-            });
-        }, 50);
-    };
-
-    useEffect(() => {
-        const handleGlobalClick = () => {
-            if (selectionParams) setSelectionParams(null);
-        };
-        window.addEventListener('mousedown', handleGlobalClick);
-        return () => window.removeEventListener('mousedown', handleGlobalClick);
-    }, [selectionParams]);
-
-    useEffect(() => {
-        try {
-            if (!rawJson.trim()) {
-                setParsedItems([]);
-                return;
-            }
-            const parsed = JSON.parse(rawJson);
-            const items = Array.isArray(parsed) ? parsed : [parsed];
-            setParsedItems(items);
-
-            const initialTexts = {};
-            items.forEach((ep, i) => {
-                initialTexts[i] = joinBlocksToString(ep.content);
-            });
-            setCanvasTexts(initialTexts);
-            setHistory([]);
-
-            setTimeout(() => {
-                Object.values(textareaRefs.current).forEach(ref => {
-                    if (ref) {
-                        ref.style.height = '0px';
-                        ref.style.height = `${ref.scrollHeight}px`;
-                    }
-                });
-            }, 50);
-        } catch {
-            // Wait for valid JSON
-        }
-    }, [rawJson]);
-
-    // Canvas Handlers
-    const handleCanvasChange = (itemIndex, newText, element) => {
-        setCanvasTexts(prev => ({ ...prev, [itemIndex]: newText }));
-        const updated = [...parsedItems];
-        updated[itemIndex].content = parseStringToBlocks(newText);
-        setParsedItems(updated);
-
-        // Dynamic Height recalculation
-        if (element) {
-            element.style.height = '0px';
-            element.style.height = `${element.scrollHeight}px`;
-        }
-    };
-
-    const applyFormatting = (prefix, suffix) => {
-        pushHistory(parsedItems);
-        if (!selectionParams) return;
-        const { itemIndex, start, end } = selectionParams;
-
-        const currentText = canvasTexts[itemIndex] || '';
-        const before = currentText.substring(0, start);
-        const selected = currentText.substring(start, end);
-        const after = currentText.substring(end);
-
-        const newText = before + prefix + selected + suffix + after;
-
-        setCanvasTexts(prev => ({ ...prev, [itemIndex]: newText }));
-        const updated = [...parsedItems];
-        updated[itemIndex].content = parseStringToBlocks(newText);
-        setParsedItems(updated);
-
-        setSelectionParams(null);
-
-        setTimeout(() => {
-            if (textareaRefs.current[itemIndex]) {
-                textareaRefs.current[itemIndex].style.height = '0px';
-                textareaRefs.current[itemIndex].style.height = `${textareaRefs.current[itemIndex].scrollHeight}px`;
-            }
-        }, 50);
-    };
-
-    const renderSimulatorFormatting = (text) => {
-        if (!text) return null;
-        const parts = text.split(/(\*\*.*?\*\*|\*.*?\*|\[\[.*?\]\]|\~\~.*?\~\~)/g);
-
-        return parts.map((part, index) => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-                return <strong key={index} className="font-bold">{part.slice(2, -2)}</strong>;
-            }
-            if (part.startsWith('*') && part.endsWith('*')) {
-                return <em key={index} className="italic font-editorial">{part.slice(1, -1)}</em>;
-            }
-            if (part.startsWith('[[') && part.endsWith(']]')) {
-                return <span key={index} className="text-[#c6a87c] font-bold pb-[1px] cursor-pointer hover:text-white transition-colors underline decoration-dotted underline-offset-4 decoration-1">{part.slice(2, -2)}</span>;
-            }
-            if (part.startsWith('~~') && part.endsWith('~~')) {
-                return <span key={index}>{part.slice(2, -2)}</span>;
-            }
-            return <span key={index}>{part}</span>;
-        });
-    };
-
-    const fetchVaultItems = async () => {
-        const { data, error } = await supabase
-            .from('kisa_transcripts')
-            .select('*')
-            .eq('is_trashed', false)
-            .order('series_priority', { ascending: true })
-            .order('episode_number', { ascending: true });
-
-        if (data && !error) setVaultItems(data);
-    };
-
-    const fetchTrashedItems = async () => {
-        const { data, error } = await supabase
-            .from('kisa_transcripts')
-            .select('*')
-            .eq('is_trashed', true)
-            .order('series_name', { ascending: true })
-            .order('episode_number', { ascending: true });
-
-        if (data && !error) setTrashedItems(data);
-    };
-
-    useEffect(() => {
-        fetchVaultItems();
-        fetchTrashedItems();
+        fetchLibrary();
     }, []);
 
-    const handleUpdateSeriesPriority = async (targetSeriesName, newPriority) => {
-        const { error } = await supabase.from('kisa_transcripts').update({ series_priority: parseInt(newPriority) || 0 }).eq('series_name', targetSeriesName);
-        if (!error) fetchVaultItems();
-    };
+    const fetchLibrary = async () => {
+        setLoading(true);
+        const { data, error } = await supabase.from('kisa_transcripts').select('*').order('updated_at', { ascending: false });
+        if (!error && data) {
+            const active = data.filter(ep => !ep.is_trashed);
+            setExistingEpisodes(active);
+            setTrashedEpisodes(data.filter(ep => ep.is_trashed));
 
-    const handleToggleSeriesVisibility = async (targetSeriesName, currentHiddenState) => {
-        const { error } = await supabase.from('kisa_transcripts').update({ is_hidden: !currentHiddenState }).eq('series_name', targetSeriesName);
-        if (!error) { fetchVaultItems(); fetchTrashedItems(); }
-    };
+            const uniqueSeriesMap = new Map();
+            active.forEach(ep => {
+                if (ep.series_name && !uniqueSeriesMap.has(ep.series_name)) {
+                    uniqueSeriesMap.set(ep.series_name, ep.series_priority || 0);
+                }
+            });
+            const sortedSeries = Array.from(uniqueSeriesMap.entries())
+                .map(([name, order]) => ({ name, order }))
+                .sort((a, b) => a.order - b.order);
 
-    const handleTrashSeries = async (targetSeriesName) => {
-        if (window.confirm('WARNING: Are you sure you want to move this ENTIRE SERIES and all its episodes to the trash?')) {
-            const { error } = await supabase.from('kisa_transcripts').update({ is_trashed: true }).eq('series_name', targetSeriesName);
-            if (!error) { fetchVaultItems(); fetchTrashedItems(); }
+            if (active.some(ep => !ep.series_name)) {
+                sortedSeries.push({ name: '', order: 999 });
+            }
+
+            setSeriesList(sortedSeries);
         }
+        setLoading(false);
     };
 
-    const handleUpdateEpisode = async (id, newNumber) => {
-        const { error } = await supabase.from('kisa_transcripts').update({ episode_number: parseInt(newNumber) || 1 }).eq('id', id);
-        if (!error) fetchVaultItems();
+    const loadEpisode = (ep) => {
+        setEpisodeId(ep.id);
+        setEpisodeData({
+            series_name: ep.series_name || '',
+            title: ep.title || '',
+            speaker: ep.speaker || '',
+            source_link: ep.source_link || '',
+            is_hidden: ep.is_hidden || false,
+            series_priority: ep.series_priority || 0
+        });
+        setBlocks((ep.content || []).map(b => ({ ...b, id: Math.random() })));
+        setActiveTab('editor');
     };
 
-    const handleTrashItem = async (id) => {
-        if (window.confirm('Are you sure you want to move this to the trash?')) {
-            const { error } = await supabase.from('kisa_transcripts').update({ is_trashed: true }).eq('id', id);
-            if (!error) { fetchVaultItems(); fetchTrashedItems(); }
+    const resetForm = () => {
+        setEpisodeId('');
+        setEpisodeData({ series_name: '', title: '', speaker: '', source_link: '', is_hidden: false, series_priority: 0 });
+        setBlocks([]);
+        setStatus({ type: '', message: '' });
+        setActiveTab('editor');
+    };
+
+    const handleSmartPaste = () => {
+        if (!rawText.trim()) return;
+        const lines = rawText.split(/\n+/);
+        let newBlocks = [];
+        let newMeta = { ...episodeData };
+        let generatedId = episodeId;
+
+        lines.forEach(line => {
+            const text = line.trim();
+            if (!text) return;
+
+            if (text.toLowerCase().startsWith('series:')) { newMeta.series_name = text.substring(7).trim(); return; }
+            if (text.toLowerCase().startsWith('title:')) {
+                newMeta.title = text.substring(6).trim();
+                if (!generatedId) generatedId = newMeta.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                return;
+            }
+            if (text.toLowerCase().startsWith('speaker:')) { newMeta.speaker = text.substring(8).trim(); return; }
+            if (text.toLowerCase().startsWith('source link:')) { newMeta.source_link = text.substring(12).trim(); return; }
+
+            if (text.toLowerCase().startsWith('overview')) {
+                newBlocks.push({ id: Math.random(), type: 'h2', text: text });
+            } else if (text.toLowerCase().startsWith('segment ')) {
+                if (newBlocks.length > 0) newBlocks.push({ id: Math.random(), type: 'divider' });
+                newBlocks.push({ id: Math.random(), type: 'h2', text: text });
+            } else if (text.toLowerCase().startsWith('brief summary:')) {
+                newBlocks.push({ id: Math.random(), type: 'summary', text: text.substring(14).trim() });
+            } else if (text.toLowerCase().startsWith('quote:')) {
+                newBlocks.push({ id: Math.random(), type: 'quote', text: text.substring(6).trim() });
+            } else {
+                newBlocks.push({ id: Math.random(), type: 'p', text: text });
+            }
+        });
+
+        const existingSeries = seriesList.find(s => s.name === newMeta.series_name);
+        if (existingSeries) {
+            newMeta.series_priority = existingSeries.order;
         }
-    };
 
-    const handleRestoreItem = async (id) => {
-        const { error } = await supabase.from('kisa_transcripts').update({ is_trashed: false }).eq('id', id);
-        if (!error) { fetchVaultItems(); fetchTrashedItems(); }
-    };
-
-    const handleIncinerateItem = async (id) => {
-        if (window.confirm('WARNING: This will permanently delete this record from the database. This cannot be undone. Proceed?')) {
-            const { error } = await supabase.from('kisa_transcripts').delete().eq('id', id);
-            if (!error) { fetchTrashedItems(); }
-        }
+        setEpisodeData(newMeta);
+        if (generatedId) setEpisodeId(generatedId);
+        setBlocks(prev => [...prev, ...newBlocks]);
+        setIsSmartPasteOpen(false);
+        setRawText('');
     };
 
     const handleSave = async () => {
-        try {
-            setStatus({ type: 'loading', message: 'Publishing active session payload...' });
-            setSavedId(null);
+        setLoading(true);
+        const cleanBlocks = blocks.map(({ id, ...rest }) => rest);
+        const { error } = await supabase.from('kisa_transcripts').upsert([{
+            id: episodeId,
+            ...episodeData,
+            content: cleanBlocks,
+            is_trashed: false,
+            updated_at: new Date().toISOString()
+        }]);
 
-            if (parsedItems.length === 0) throw new Error("No active parsed content available to save.");
-
-            const payload = parsedItems.map((item, index) => ({
-                id: item.id,
-                series_name: seriesName || item.series_name || item.series || 'Uncategorized',
-                episode_number: parseInt(episodeNumber) + index || item.episode_number || index + 1,
-                title: item.title,
-                speaker: item.speaker || 'Sheikh al-Ghizzi',
-                primary_theme: item.primary_theme || 'General Theology',
-                source_link: item.source_link || null,
-                content: parseStringToBlocks(canvasTexts[index] || ''),
-                is_hidden: isHidden
-            }));
-
-            setStatus({ type: 'loading', message: 'Syncing to Kisa Brain...' });
-
-            const { data, error } = await supabase.from('kisa_transcripts').upsert(payload, { onConflict: 'id' }).select();
-
-            if (error) throw new Error("Supabase Error: " + (error.message || JSON.stringify(error)));
-            if (!data || data.length === 0) throw new Error("Empty write response from database.");
-
-            setSavedId(payload[0].id);
-            setStatus({ type: 'success', message: `Successfully published ${payload.length} episode(s) to the Vault!` });
-
-            fetchVaultItems();
-
-        } catch (error) {
-            setStatus({ type: 'error', message: error.message });
+        if (error) setStatus({ type: 'error', message: error.message });
+        else {
+            setStatus({ type: 'success', message: 'Published successfully!' });
+            fetchLibrary();
+            setTimeout(() => setActiveTab('library'), 1500);
         }
+        setLoading(false);
     };
 
-    const uniqueSeriesObjs = Array.from(new Set(vaultItems.map(item => item.series_name).filter(Boolean))).map(sName => {
-        const seriesGroup = vaultItems.filter(i => i.series_name === sName);
-        return { name: sName, priority: seriesGroup[0]?.series_priority || 0, isHidden: seriesGroup[0]?.is_hidden || false };
-    });
+    // --- Series Management Logic ---
+    const moveSeries = (index, direction) => {
+        const newSeries = [...seriesList];
+        if (direction === -1 && index > 0) {
+            [newSeries[index], newSeries[index - 1]] = [newSeries[index - 1], newSeries[index]];
+        } else if (direction === 1 && index < newSeries.length - 1) {
+            [newSeries[index], newSeries[index + 1]] = [newSeries[index + 1], newSeries[index]];
+        }
+        setSeriesList(newSeries);
+    };
+
+    const handleSaveSeriesOrder = async (e) => {
+        e.stopPropagation();
+        setLoading(true);
+        try {
+            const updates = seriesList.map((series, index) => {
+                if (!series.name) return null;
+                return supabase.from('kisa_transcripts')
+                    .update({ series_priority: index })
+                    .eq('series_name', series.name);
+            }).filter(Boolean);
+
+            await Promise.all(updates);
+            setStatus({ type: 'success', message: 'Live series order updated successfully!' });
+            fetchLibrary();
+        } catch (err) {
+            setStatus({ type: 'error', message: err.message });
+        }
+        setLoading(false);
+    };
+
+    const startRenamingSeries = (seriesName) => {
+        setEditingSeriesName(seriesName);
+        setNewSeriesNameInput(seriesName);
+    };
+
+    const confirmRenameSeries = async () => {
+        if (!newSeriesNameInput.trim() || newSeriesNameInput === editingSeriesName) {
+            setEditingSeriesName(null);
+            return;
+        }
+
+        const confirmMsg = `WARNING: Renaming "${editingSeriesName}" to "${newSeriesNameInput}" will update all episodes inside it.\n\nIf your live website uses the series name in its URL structure, those old URLs will break (404 Error).\n\nDo you want to proceed?`;
+
+        if (!window.confirm(confirmMsg)) {
+            setEditingSeriesName(null);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const { error } = await supabase.from('kisa_transcripts')
+                .update({ series_name: newSeriesNameInput, updated_at: new Date().toISOString() })
+                .eq('series_name', editingSeriesName);
+
+            if (error) throw error;
+
+            setStatus({ type: 'success', message: `Successfully renamed series to "${newSeriesNameInput}"` });
+            setEditingSeriesName(null);
+            fetchLibrary();
+        } catch (err) {
+            setStatus({ type: 'error', message: err.message });
+        }
+        setLoading(false);
+    };
+
+    // --- Trash Management Logic ---
+    const handleSoftDelete = async (e, id) => {
+        e.stopPropagation();
+        setLoading(true);
+        const { error } = await supabase.from('kisa_transcripts').update({ is_trashed: true, updated_at: new Date().toISOString() }).eq('id', id);
+        if (!error) { setStatus({ type: 'success', message: 'Moved to trash.' }); fetchLibrary(); }
+        else setStatus({ type: 'error', message: error.message });
+        setLoading(false);
+    };
+
+    const handleRestore = async (id) => {
+        setLoading(true);
+        const { error } = await supabase.from('kisa_transcripts').update({ is_trashed: false, updated_at: new Date().toISOString() }).eq('id', id);
+        if (!error) { setStatus({ type: 'success', message: 'Restored successfully.' }); fetchLibrary(); }
+        else setStatus({ type: 'error', message: error.message });
+        setLoading(false);
+    };
+
+    const handleHardDelete = async (id) => {
+        if (!window.confirm("Are you sure? This cannot be undone.")) return;
+        setLoading(true);
+        const { error } = await supabase.from('kisa_transcripts').delete().eq('id', id);
+        if (!error) { setStatus({ type: 'success', message: 'Permanently deleted.' }); fetchLibrary(); }
+        else setStatus({ type: 'error', message: error.message });
+        setLoading(false);
+    };
+
+    // Block Management Logic
+    const moveBlock = (index, direction) => {
+        if ((direction === -1 && index === 0) || (direction === 1 && index === blocks.length - 1)) return;
+        const newBlocks = [...blocks];
+        const temp = newBlocks[index];
+        newBlocks[index] = newBlocks[index + direction];
+        newBlocks[index + direction] = temp;
+        setBlocks(newBlocks);
+    };
+
+    const addBlock = (type) => {
+        setBlocks([...blocks, { id: Math.random(), type, text: '' }]);
+    };
 
     return (
-        <div className="flex flex-col gap-6 font-sans">
-            {/* FLOATING TOOLBAR */}
-            {selectionParams && (
-                <div
-                    style={{ top: selectionParams.top, left: selectionParams.left, transform: 'translate(-50%, -100%)' }}
-                    className="fixed z-50 flex items-center gap-1 bg-[#222] border border-zinc-700 shadow-[0_10px_40px_rgba(0,0,0,0.8)] rounded-lg p-1.5"
-                    onMouseDown={(e) => e.stopPropagation()}
-                >
-                    <button onMouseDown={(e) => { e.preventDefault(); applyFormatting('**', '**'); }} className="px-3 py-1.5 hover:bg-zinc-700 rounded text-sm text-zinc-300 font-bold transition-colors" title="Bold">B</button>
-                    <button onMouseDown={(e) => { e.preventDefault(); applyFormatting('*', '*'); }} className="px-3 py-1.5 hover:bg-zinc-700 rounded text-sm text-zinc-300 italic transition-colors font-serif" title="Italic">I</button>
-                    <div className="w-[1px] h-5 bg-zinc-700 mx-1"></div>
-                    <button onMouseDown={(e) => { e.preventDefault(); applyFormatting('[[', ']]'); }} className="px-3 py-1.5 hover:bg-zinc-700 rounded text-xs text-blue-400 font-bold tracking-widest uppercase transition-colors" title="Force Ontology Tooltip">Bridge</button>
-                    <button onMouseDown={(e) => { e.preventDefault(); applyFormatting('~~', '~~'); }} className="px-3 py-1.5 hover:bg-zinc-700 rounded text-xs text-zinc-400 font-bold tracking-widest uppercase transition-colors" title="Hide False Tooltip Match">Mute</button>
+        <div className="flex flex-col gap-6">
+
+            {/* Tab Navigation */}
+            <div className="flex flex-wrap bg-[#121212] p-1 rounded-xl border border-zinc-800 self-start gap-1">
+                <button onClick={() => setActiveTab('library')} className={`px-4 sm:px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeView === 'library' ? 'bg-zinc-800 text-[#c6a87c]' : 'text-zinc-500 hover:text-zinc-300'}`}>Library</button>
+                <button onClick={resetForm} className={`px-4 sm:px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeView === 'editor' ? 'bg-zinc-800 text-[#c6a87c]' : 'text-zinc-500 hover:text-zinc-300'}`}>Editor</button>
+                <button onClick={() => setActiveTab('trash')} className={`px-4 sm:px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${activeView === 'trash' ? 'bg-red-900/20 text-red-500' : 'text-zinc-500 hover:text-red-400'}`}>Trash ({trashedEpisodes.length})</button>
+            </div>
+
+            {status.message && activeView !== 'editor' && (
+                <div className={`p-4 rounded-xl flex items-center text-xs font-bold tracking-widest uppercase shadow-md ${status.type === 'error' ? 'bg-red-900/20 text-red-400 border border-red-900/50' : status.type === 'success' ? 'bg-green-900/20 text-green-400 border border-green-900/50' : 'bg-blue-900/20 text-blue-400 border border-blue-900/50'}`}>
+                    <AlertCircle className="w-4 h-4 mr-2 shrink-0" /> {status.message}
                 </div>
             )}
 
-            {/* TOP ACTIONS BAR (Consolidated Header) */}
-            <div className="flex flex-col gap-3 w-full">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full">
-                    {/* How-To Toggle */}
-                    <button onClick={() => setShowDocs(!showDocs)} className="flex items-center gap-2 text-xs text-zinc-500 hover:text-[#c6a87c] transition-colors py-2 w-max">
-                        <BookOpen className="w-3.5 h-3.5" />
-                        How to use this page
-                        <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${showDocs ? 'rotate-180' : ''}`} />
-                    </button>
+            {/* View Router */}
+            {activeView === 'library' ? (
+                <div className="flex flex-col gap-8">
 
-                    {/* COMPACT TAB TOGGLE BAR */}
-                    <div className="flex bg-[#121212] border border-zinc-800 rounded-lg p-1 shadow-md w-max">
-                        <button onClick={() => setActiveTab('build')} className={`px-5 py-2 rounded-md font-bold text-xs tracking-widest uppercase transition-all ${activeTab === 'build' ? 'bg-zinc-800 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}>✏️ Build Mode</button>
-                        <button onClick={() => setActiveTab('preview')} className={`px-5 py-2 rounded-md font-bold text-xs tracking-widest uppercase transition-all ${activeTab === 'preview' ? 'bg-[#c6a87c]/20 text-[#c6a87c] shadow-sm border border-[#c6a87c]/30' : 'text-zinc-500 hover:text-zinc-300'}`}>👁️ Live Preview</button>
-                    </div>
-                </div>
-
-                {/* HOW TO DOCS PANEL */}
-                <AnimatePresence>
-                    {showDocs && (
-                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} style={{ overflow: 'clip' }}>
-                            <div className="bg-[#14171f] border border-zinc-800/80 rounded-2xl p-6 lg:p-8 mb-2 w-full">
-                                <h3 className="text-lg font-bold text-white mb-1">Welcome to Transcript Studio <span className="text-zinc-500 font-normal text-sm">(The Commentary Engine)</span></h3>
-                                <p className="text-zinc-400 text-sm leading-relaxed mt-2">This is where modern scholarship meets ancient texts. We use this studio to ingest the translated transcripts of Sheikh al-Ghizzi's lectures, converting raw subtitle data into readable, interactive articles.</p>
+                    {/* RECENTS SECTION (Now Collapsible & Wider Grid) */}
+                    <div>
+                        <div
+                            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity mb-4 w-fit"
+                            onClick={() => setIsRecentsOpen(!isRecentsOpen)}
+                        >
+                            <div className={`p-1 rounded bg-zinc-900 border border-zinc-800 transition-transform ${isRecentsOpen ? 'rotate-180' : ''}`}>
+                                <ChevronDown className="w-3 h-3 text-zinc-400" />
                             </div>
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-            </div>
-
-            {/* FULL WIDTH WORKSPACE */}
-            <div className="flex flex-col w-full gap-8">
-
-                {/* BUILD MODE: INGESTION, METADATA & CANVAS */}
-                {activeTab === 'build' && (
-                    <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 lg:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
-                        <div className="flex justify-between items-center mb-8 border-b border-zinc-800 pb-6">
-                            <div>
-                                <h3 className="text-xl font-bold text-white flex items-center gap-2"><PlusCircle className="text-[#c6a87c] w-5 h-5" /> The Luminous Studio</h3>
-                                <p className="text-sm text-zinc-400 mt-1">Paste raw JSON syntax below, or load an episode from the Vault.</p>
-                            </div>
+                            <h3 className="text-white font-bold tracking-widest uppercase text-sm flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-[#c6a87c]" /> Recently Edited
+                            </h3>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-                            <div className="relative">
-                                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2"><FolderOpen className="w-4 h-4" /> Series Name</label>
-                                <input type="text" value={seriesName} onChange={(e) => setSeriesName(e.target.value)} className="w-full bg-black/50 border border-zinc-800 rounded-xl p-3.5 text-white text-base focus:border-[#c6a87c] outline-none transition-all" />
-                            </div>
-                            <div className="relative">
-                                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2 flex items-center gap-2"><Hash className="w-4 h-4" /> Episode Number</label>
-                                <input type="number" value={episodeNumber} onChange={(e) => setEpisodeNumber(e.target.value)} className="w-full bg-black/50 border border-zinc-800 rounded-xl p-3.5 text-white text-base focus:border-[#c6a87c] outline-none transition-all" />
-                            </div>
-                            <div className="relative flex flex-col justify-end">
-                                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">Visibility</label>
-                                <button onClick={() => setIsHidden(!isHidden)} className={`w-full flex items-center justify-between p-3.5 rounded-xl border text-base font-medium transition-colors ${isHidden ? 'bg-zinc-900/50 border-zinc-700 text-zinc-400' : 'bg-[#c6a87c]/10 border-[#c6a87c]/50 text-[#c6a87c]'}`}>
-                                    {isHidden ? 'Hidden (Draft)' : 'Live (Public)'}
-                                    {isHidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                        <AnimatePresence>
+                            {isRecentsOpen && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    className="overflow-hidden"
+                                >
+                                    {/* Changed grid layout here for wider, shorter cards */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 items-stretch pb-2">
+                                        <button onClick={resetForm} className="border-2 border-dashed border-zinc-800 bg-[#121212] rounded-2xl flex flex-col items-center justify-center p-4 sm:p-6 hover:border-[#c6a87c]/50 hover:bg-[#c6a87c]/5 transition-all gap-3 group min-h-[140px] shadow-sm">
+                                            <Plus className="w-6 h-6 text-zinc-700 group-hover:text-[#c6a87c]" />
+                                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-600 group-hover:text-[#c6a87c]">New Episode</span>
+                                        </button>
+
+                                        {existingEpisodes.slice(0, 5).map(ep => (
+                                            <div key={ep.id} onClick={() => loadEpisode(ep)} className="bg-[#121212] border border-zinc-800 p-4 rounded-2xl hover:border-[#c6a87c]/50 transition-all group flex flex-col h-full cursor-pointer relative shadow-sm hover:shadow-md">
+                                                {/* Re-added truncating limits to prevent extreme height, but added native 'title' tooltips! */}
+                                                <span className="text-[10px] text-[#c6a87c] font-bold uppercase tracking-widest mb-1.5 line-clamp-1" title={ep.series_name}>{ep.series_name || 'Uncategorized'}</span>
+                                                <h4 className="text-zinc-300 font-bold text-sm leading-snug line-clamp-3 mb-3 flex-1 group-hover:text-white transition-colors" title={ep.title}>{ep.title}</h4>
+
+                                                <div className="flex justify-between items-center mt-auto pt-3 border-t border-zinc-800/50">
+                                                    <span className="text-[10px] text-zinc-500 uppercase tracking-widest group-hover:text-[#c6a87c] transition-colors flex items-center gap-1">
+                                                        <Edit3 className="w-3.5 h-3.5" /> Edit
+                                                    </span>
+                                                    {ep.is_hidden && <span className="bg-amber-900/20 text-amber-500 px-1.5 py-0.5 rounded text-[8px] uppercase tracking-widest shrink-0">Draft</span>}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* COLLAPSIBLE SERIES MANAGER */}
+                    {seriesList.length > 0 && (
+                        <div className="bg-[#121212] border border-zinc-800 rounded-2xl shadow-xl overflow-hidden">
+                            <div className="p-4 sm:p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 cursor-pointer hover:bg-zinc-900/50 transition-colors" onClick={() => setIsSeriesManagerOpen(!isSeriesManagerOpen)}>
+                                <div className="flex items-center gap-3 w-full sm:w-auto">
+                                    <div className={`p-1.5 rounded-lg bg-zinc-900 border border-zinc-800 transition-transform ${isSeriesManagerOpen ? 'rotate-180' : ''}`}>
+                                        <ChevronDown className="w-4 h-4 text-zinc-400" />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-white font-bold tracking-widest uppercase text-sm flex items-center gap-2">
+                                            <LayoutList className="w-4 h-4 text-[#c6a87c]" /> Live Series Order & Naming
+                                        </h3>
+                                        <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Click to expand to rename series or rearrange their order</p>
+                                    </div>
+                                </div>
+                                <button onClick={(e) => { e.stopPropagation(); handleSaveSeriesOrder(e); }} disabled={loading || !isSeriesManagerOpen} className={`w-full sm:w-auto bg-blue-900/20 text-blue-400 border border-blue-900/50 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-blue-900/40 transition-all flex items-center justify-center gap-2 ${!isSeriesManagerOpen ? 'opacity-0 invisible' : 'opacity-100 visible'}`}>
+                                    <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Publish Order
                                 </button>
                             </div>
-                        </div>
 
-                        {parsedItems.length === 0 ? (
-                            <textarea
-                                value={rawJson}
-                                onChange={(e) => setRawJson(e.target.value)}
-                                placeholder='[ { "id": "ep1", "title": "...", "content": [ ... ] } ]'
-                                className="w-full h-[60vh] bg-black/50 border border-zinc-800 rounded-xl p-6 text-zinc-300 font-mono text-sm focus:border-[#c6a87c] outline-none resize-none transition-all"
-                            />
-                        ) : (
-                            <div className="flex flex-col gap-12 w-full">
-                                {parsedItems.map((episode, itemIndex) => (
-                                    <div key={itemIndex} className="bg-black/30 border border-[#c6a87c]/30 rounded-2xl shadow-lg overflow-hidden flex flex-col h-[70vh]">
-                                        <div className="p-6 sm:p-8 bg-[#1a1a1a] border-b border-[#c6a87c]/20 shrink-0">
-                                            <h4 className="text-[#c6a87c] font-bold text-xl flex items-center justify-between">
-                                                <span>{episode.title}</span>
-                                                <span className="text-xs font-mono text-zinc-500 bg-zinc-900 px-3 py-1 rounded-full">{episode.id}</span>
-                                            </h4>
+                            <AnimatePresence>
+                                {isSeriesManagerOpen && (
+                                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="border-t border-zinc-800">
+                                        <div className="p-4 sm:p-5 flex flex-col gap-2 bg-black/20">
+                                            {seriesList.map((series, index) => {
+                                                if (!series.name) return null;
+                                                const isEditing = editingSeriesName === series.name;
+                                                return (
+                                                    <div key={series.name} className="flex flex-col sm:flex-row justify-between sm:items-center bg-[#121212] border border-zinc-800 p-3 rounded-xl hover:border-zinc-700 transition-colors gap-3">
+
+                                                        {isEditing ? (
+                                                            <div className="flex flex-1 items-center gap-2">
+                                                                <input type="text" value={newSeriesNameInput} onChange={(e) => setNewSeriesNameInput(e.target.value)} className="w-full bg-black border border-blue-900/50 rounded-lg p-2 text-sm text-white outline-none focus:border-blue-500" autoFocus />
+                                                                <button onClick={confirmRenameSeries} disabled={loading} className="p-2 bg-green-900/20 border border-green-900/50 text-green-500 hover:bg-green-600 hover:text-white rounded-lg transition-colors"><Check className="w-4 h-4" /></button>
+                                                                <button onClick={() => setEditingSeriesName(null)} className="p-2 bg-zinc-900 border border-zinc-800 text-zinc-500 hover:text-white rounded-lg transition-colors"><X className="w-4 h-4" /></button>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex flex-1 items-center gap-3 overflow-hidden group/title cursor-text" onClick={() => startRenamingSeries(series.name)}>
+                                                                <span className="text-zinc-300 font-bold truncate text-sm flex-1">{series.name}</span>
+                                                                <Edit2 className="w-3.5 h-3.5 text-zinc-600 opacity-0 group-hover/title:opacity-100 transition-opacity" />
+                                                            </div>
+                                                        )}
+
+                                                        {!isEditing && (
+                                                            <div className="flex gap-1 shrink-0 self-end sm:self-auto">
+                                                                <button onClick={() => moveSeries(index, -1)} disabled={index === 0} className="p-1.5 bg-zinc-900 rounded border border-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 transition-colors"><ChevronUp className="w-4 h-4" /></button>
+                                                                <button onClick={() => moveSeries(index, 1)} disabled={index === seriesList.length - 2} className="p-1.5 bg-zinc-900 rounded border border-zinc-800 text-zinc-500 hover:text-white disabled:opacity-30 transition-colors"><ChevronDown className="w-4 h-4" /></button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )
+                                            })}
                                         </div>
-                                        <div className="flex-grow p-6 sm:p-10 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
-                                            <textarea
-                                                ref={(el) => textareaRefs.current[itemIndex] = el}
-                                                value={canvasTexts[itemIndex] || ''}
-                                                onFocus={() => pushHistory(parsedItems)}
-                                                onChange={(e) => {
-                                                    setSelectionParams(null);
-                                                    handleCanvasChange(itemIndex, e.target.value, e.target);
-                                                }}
-                                                onMouseUp={(e) => {
-                                                    const start = e.target.selectionStart;
-                                                    const end = e.target.selectionEnd;
-                                                    if (start !== end) {
-                                                        e.stopPropagation();
-                                                        setSelectionParams({ itemIndex, start, end, top: e.clientY - 45, left: e.clientX });
-                                                    }
-                                                }}
-                                                className="w-full bg-transparent border-0 outline-none resize-none whitespace-pre-wrap overflow-hidden font-editorial antialiased text-zinc-300"
-                                                style={{ fontSize: '18px', lineHeight: 1.85 }}
-                                            />
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* LIVE PREVIEW TAB */}
-                {activeTab === 'preview' && (
-                    <div className={`h-[75vh] overflow-y-auto rounded-2xl shadow-[0_30px_80px_rgba(0,0,0,0.9)] transition-colors duration-300 border border-zinc-800/80 flex flex-col w-full ${previewTheme === 'dark' ? 'bg-[#000000] text-zinc-300' : previewTheme === 'sepia' ? 'bg-[#FDFBF7] text-zinc-900' : 'bg-white text-black'}`} style={{ scrollbarWidth: 'thin', scrollbarColor: previewTheme === 'dark' ? '#3f3f46 transparent' : '#d4d4d8 transparent' }}>
-                        <div className={`sticky top-0 z-10 p-4 border-b backdrop-blur-md flex justify-end shrink-0 ${previewTheme === 'dark' ? 'border-zinc-800/20' : 'border-black/5'}`}>
-                            <div className={`flex items-center rounded-lg p-1 border ${previewTheme === 'dark' ? 'bg-black border-zinc-800' : 'bg-white border-zinc-200 shadow-sm'}`}>
-                                {['light', 'sepia', 'dark'].map(t => (
-                                    <button key={t} onClick={() => setPreviewTheme(t)} className={`px-3 py-1.5 text-xs font-bold uppercase tracking-widest rounded-md transition-all ${previewTheme === t ? (previewTheme === 'dark' ? 'bg-zinc-800 text-white' : 'bg-zinc-200 text-black') : 'text-zinc-500 hover:text-zinc-400'}`}>{t}</button>
-                                ))}
-                            </div>
-                        </div>
-                        <div className={`p-8 lg:p-20 antialiased max-w-4xl mx-auto w-full ${previewTheme === 'sepia' || previewTheme === 'light' ? 'font-editorial' : 'font-sans'}`} style={{ fontSize: '18px', lineHeight: 1.85 }}>
-                            {parsedItems.map((episode, itemIndex) => (
-                                <div key={`preview-${itemIndex}`}>
-                                    {(episode.content || []).map((block, idx) => {
-                                        const textValue = block.text !== undefined ? block.text : (block.content || '');
-                                        if (block.type === 'h2') return <h2 key={idx} className={`font-bold mt-14 mb-6 tracking-tight ${previewTheme === 'dark' ? 'text-white' : 'text-zinc-900'}`} style={{ fontSize: '23.4px', lineHeight: 1.3 }}>{renderSimulatorFormatting(textValue)}</h2>;
-                                        if (block.type === 'summary') return (
-                                            <div key={idx} className={`border-l-4 border-[#c6a87c] p-6 sm:p-8 my-10 rounded-r-xl shadow-sm ${previewTheme === 'dark' ? 'bg-[#1c1c1e]' : 'bg-zinc-50'}`}>
-                                                <span className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-[#c6a87c] mb-3">Segment Summary</span>
-                                                <div className={`font-medium font-editorial ${previewTheme === 'dark' ? 'text-zinc-300' : 'text-zinc-700'}`} style={{ fontSize: '16px', lineHeight: 1.7 }}>{renderSimulatorFormatting(textValue)}</div>
-                                            </div>
-                                        );
-                                        if (block.type === 'quote') return <blockquote key={idx} className={`pl-6 sm:pl-8 py-2 my-10 border-l-[3px] border-[#c6a87c] font-medium italic font-editorial ${previewTheme === 'dark' ? 'text-zinc-100' : 'text-zinc-900'}`} style={{ fontSize: '20.7px', lineHeight: 1.6 }}>"{renderSimulatorFormatting(textValue)}"</blockquote>;
-                                        if (block.type === 'divider') return <div key={idx} className="flex justify-center py-10"><span className={`w-12 h-1 rounded-full ${previewTheme === 'dark' ? 'bg-zinc-700' : 'bg-zinc-300'}`}></span></div>;
-                                        return <div key={idx} className={`mb-6 text-left ${previewTheme === 'dark' ? 'text-zinc-300' : 'text-zinc-800'}`}>{renderSimulatorFormatting(textValue)}</div>;
-                                    })}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* UNIVERSAL ACTION BAR */}
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-4 bg-[#121212] border border-zinc-800 p-6 sm:p-8 rounded-2xl shadow-xl w-full">
-                    <div className="flex-1 w-full">
-                        {status.message && (
-                            <div className={`p-4 rounded-lg flex items-center justify-between text-sm font-medium ${status.type === 'error' ? 'bg-red-900/20 text-red-400 border border-red-900/50' : status.type === 'success' ? 'bg-green-900/20 text-green-400 border border-green-900/50' : 'bg-blue-900/20 text-blue-400 border border-blue-900/50'}`}>
-                                <div className="flex items-center gap-3"><AlertCircle className="w-4 h-4" />{status.message}</div>
-                                {status.type === 'success' && savedId && (
-                                    <a href={`/?tab=transcripts&id=${savedId}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-green-300 hover:text-white transition-colors bg-green-900/40 px-3 py-1.5 rounded-md text-xs uppercase tracking-widest">
-                                        View Live <ExternalLink className="w-3.5 h-3.5" />
-                                    </a>
+                                    </motion.div>
                                 )}
+                            </AnimatePresence>
+                        </div>
+                    )}
+
+                    {/* EPISODES GROUPED BY SERIES */}
+                    <div className="flex flex-col gap-10">
+                        {seriesList.map((series) => {
+                            const seriesEpisodes = existingEpisodes.filter(ep => (ep.series_name || '') === series.name);
+                            if (seriesEpisodes.length === 0) return null;
+
+                            return (
+                                <div key={series.name || 'uncategorized'}>
+                                    <h3 className="text-[#c6a87c] font-bold tracking-widest uppercase text-xs mb-4 border-b border-zinc-800/60 pb-3 flex items-center gap-2">
+                                        <FolderGit2 className="w-4 h-4" /> {series.name || 'Uncategorized Episodes'}
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+                                        {seriesEpisodes.map(ep => (
+                                            <div key={ep.id} className="bg-[#121212] border border-zinc-800 p-5 rounded-2xl hover:border-[#c6a87c]/50 transition-all group flex flex-col h-full relative shadow-md">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest pr-2 font-mono">{ep.id}</span>
+                                                    {ep.is_hidden && (
+                                                        <span className="bg-amber-900/20 text-amber-500 border border-amber-900/50 px-2 py-0.5 rounded text-[8px] uppercase tracking-widest shrink-0">Draft</span>
+                                                    )}
+                                                </div>
+                                                <h3 className="text-white font-bold mb-5 flex-1 leading-snug">{ep.title}</h3>
+                                                <div className="flex items-center gap-2 mt-auto">
+                                                    <button onClick={() => loadEpisode(ep)} className="flex-1 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-bold tracking-widest uppercase text-zinc-400 hover:text-white hover:bg-zinc-800 transition-all flex items-center justify-center gap-2">
+                                                        <Edit3 className="w-3.5 h-3.5" /> Edit
+                                                    </button>
+                                                    <button onClick={(e) => handleSoftDelete(e, ep.id)} className="p-2 border border-zinc-800 bg-zinc-900 rounded-lg text-zinc-500 hover:bg-red-900/20 hover:text-red-500 hover:border-red-900/50 transition-all" title="Move to Trash">
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            ) : activeView === 'trash' ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
+                    {trashedEpisodes.length === 0 ? (
+                        <div className="col-span-full py-20 text-center text-sm font-bold uppercase tracking-widest text-zinc-600">Trash is empty</div>
+                    ) : (
+                        trashedEpisodes.map(ep => (
+                            <div key={ep.id} className="bg-red-950/10 border border-red-900/30 p-5 rounded-2xl flex flex-col h-full relative">
+                                <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest truncate">{ep.series_name}</span>
+                                <h3 className="text-zinc-400 font-bold mt-1 mb-5 flex-1 line-through opacity-70 leading-snug">{ep.title}</h3>
+                                <div className="flex items-center gap-2 mt-auto">
+                                    <button onClick={() => handleRestore(ep.id)} className="flex-1 py-2 bg-zinc-900 border border-zinc-800 rounded-lg text-xs font-bold tracking-widest text-zinc-300 hover:text-white hover:bg-zinc-800 transition-all flex items-center justify-center gap-2">
+                                        <RefreshCw className="w-3.5 h-3.5" /> Restore
+                                    </button>
+                                    <button onClick={() => handleHardDelete(ep.id)} className="flex-1 py-2 bg-red-900/20 border border-red-900/50 rounded-lg text-xs font-bold tracking-widest text-red-500 hover:bg-red-600 hover:text-white transition-all flex items-center justify-center gap-2">
+                                        <Trash2 className="w-3.5 h-3.5" /> Delete
+                                    </button>
+                                </div>
+                            </div>
+                        ))
+                    )}
+                </div>
+            ) : (
+                <div className="flex flex-col gap-6">
+                    {/* Editor Header */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-[#121212] p-4 sm:p-5 rounded-2xl border border-zinc-800 shadow-xl">
+                        <div className="flex items-center gap-4 w-full sm:w-auto">
+                            <button onClick={() => setIsPreviewMode(!isPreviewMode)} className={`w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all ${isPreviewMode ? 'bg-[#c6a87c] text-black' : 'bg-zinc-900 text-zinc-400 hover:text-white hover:bg-zinc-800'}`}>
+                                {isPreviewMode ? <Edit3 className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                {isPreviewMode ? 'Back to Edit' : 'Live Preview'}
+                            </button>
+                        </div>
+                        <div className="flex flex-wrap gap-3 w-full sm:w-auto items-center">
+                            <select
+                                value={episodeData.is_hidden ? "true" : "false"}
+                                onChange={(e) => setEpisodeData({ ...episodeData, is_hidden: e.target.value === "true" })}
+                                className={`text-xs font-bold uppercase tracking-widest border rounded-lg px-3 py-2 outline-none cursor-pointer transition-colors ${!episodeData.is_hidden ? 'bg-green-900/20 text-green-500 border-green-900/50' : 'bg-amber-900/20 text-amber-500 border-amber-900/50'}`}
+                            >
+                                <option value="false">Live (Public)</option>
+                                <option value="true">Hidden (Draft)</option>
+                            </select>
+
+                            <button onClick={() => setIsSmartPasteOpen(true)} className="flex-1 sm:flex-none bg-blue-900/20 text-blue-400 border border-blue-900/50 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all hover:bg-blue-900/40 flex items-center justify-center gap-2">
+                                <Wand2 className="w-4 h-4" /> Smart Paste
+                            </button>
+                            <button onClick={handleSave} disabled={loading} className="flex-1 sm:flex-none bg-[#c6a87c] hover:bg-[#b0956b] text-black px-6 py-2 rounded-lg text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-colors">
+                                <Save className="w-4 h-4" /> {loading ? 'Publishing...' : 'Publish'}
+                            </button>
+                        </div>
+                    </div>
+
+                    {status.message && (
+                        <div className={`p-4 rounded-xl flex items-center text-xs font-bold tracking-widest uppercase shadow-md ${status.type === 'error' ? 'bg-red-900/20 text-red-400 border border-red-900/50' : status.type === 'success' ? 'bg-green-900/20 text-green-400 border border-green-900/50' : 'bg-blue-900/20 text-blue-400 border border-blue-900/50'}`}>
+                            <AlertCircle className="w-4 h-4 mr-2 shrink-0" /> {status.message}
+                        </div>
+                    )}
+
+                    {/* Metadata Section */}
+                    {!isPreviewMode && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-black/20 p-5 sm:p-6 rounded-2xl border border-zinc-900">
+                            <div className="md:col-span-2">
+                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1.5 block">Episode URL Slug (ID)</label>
+                                <input type="text" value={episodeId} onChange={e => setEpisodeId(e.target.value)} className="w-full bg-[#121212] border border-zinc-800 rounded-xl p-3 text-sm text-[#c6a87c] outline-none font-mono" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1.5 block">Series</label>
+                                <input type="text" value={episodeData.series_name} onChange={e => setEpisodeData({ ...episodeData, series_name: e.target.value })} className="w-full bg-[#121212] border border-zinc-800 rounded-xl p-3 text-sm text-white outline-none" />
+                            </div>
+                            <div>
+                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1.5 block">Speaker</label>
+                                <input type="text" value={episodeData.speaker} onChange={e => setEpisodeData({ ...episodeData, speaker: e.target.value })} className="w-full bg-[#121212] border border-zinc-800 rounded-xl p-3 text-sm text-white outline-none" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1.5 block">Episode Title</label>
+                                <input type="text" value={episodeData.title} onChange={e => setEpisodeData({ ...episodeData, title: e.target.value })} className="w-full bg-[#121212] border border-zinc-800 rounded-xl p-3 text-sm text-white outline-none font-bold" />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="text-[10px] text-zinc-500 uppercase tracking-widest mb-1.5 block">YouTube Source Link</label>
+                                <div className="relative">
+                                    <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
+                                    <input type="text" value={episodeData.source_link} onChange={e => setEpisodeData({ ...episodeData, source_link: e.target.value })} placeholder="https://youtu.be/..." className="w-full bg-[#121212] border border-zinc-800 rounded-xl py-3 pl-10 pr-3 text-sm text-zinc-400 outline-none focus:border-[#c6a87c]" />
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Blocks Section */}
+                    <div className={`rounded-2xl p-4 sm:p-6 min-h-[400px] ${isPreviewMode ? 'bg-black/20' : 'bg-[#121212] border border-zinc-800'}`}>
+                        {!isPreviewMode && (
+                            <div className="flex items-center justify-between mb-6 border-b border-zinc-800 pb-4">
+                                <h3 className="text-white font-bold tracking-widest uppercase text-sm">Transcript Blocks</h3>
+                                <span className="text-[10px] text-zinc-500 font-mono">{blocks.length} Blocks</span>
+                            </div>
+                        )}
+
+                        <div className="space-y-4">
+                            <AnimatePresence>
+                                {blocks.map((block, index) => (
+                                    <motion.div
+                                        key={block.id}
+                                        layout
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className={`group relative transition-all ${isPreviewMode ? 'bg-transparent px-0' :
+                                                `flex gap-3 rounded-xl border p-3 sm:p-4 ${block.type === 'h2' ? 'bg-zinc-900/50 border-zinc-700' :
+                                                    block.type === 'summary' ? 'bg-[#c6a87c]/5 border-[#c6a87c]/20' :
+                                                        block.type === 'quote' ? 'bg-amber-900/10 border-amber-500/20' :
+                                                            block.type === 'divider' ? 'bg-transparent border-dashed border-zinc-700 py-6' :
+                                                                'bg-black/30 border-zinc-800'
+                                                }`
+                                            }`}
+                                    >
+                                        {!isPreviewMode ? (
+                                            <>
+                                                {/* Drag Handles & Index */}
+                                                <div className="flex flex-col items-center gap-2 text-zinc-600 w-6 shrink-0 mt-1">
+                                                    <span className="text-[9px] font-mono font-bold">{index + 1}</span>
+                                                    <div className="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button onClick={() => moveBlock(index, -1)} disabled={index === 0} className="hover:text-white disabled:opacity-30"><ChevronUp className="w-4 h-4" /></button>
+                                                        <button onClick={() => moveBlock(index, 1)} disabled={index === blocks.length - 1} className="hover:text-white disabled:opacity-30"><ChevronDown className="w-4 h-4" /></button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Auto-Resizing Content Input */}
+                                                <div className="flex-1 min-w-0">
+                                                    {block.type === 'divider' ? (
+                                                        <div className="h-full flex items-center justify-center">
+                                                            <div className="w-full h-px border-t border-dashed border-zinc-700"></div>
+                                                            <span className="absolute bg-[#121212] px-3 text-[10px] uppercase tracking-widest text-zinc-500 font-bold">Section Divider</span>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <span className={`text-[9px] font-bold uppercase tracking-widest mb-1.5 block ${block.type === 'h2' ? 'text-white' :
+                                                                    block.type === 'summary' ? 'text-[#c6a87c]' :
+                                                                        block.type === 'quote' ? 'text-amber-500' :
+                                                                            'text-zinc-500'
+                                                                }`}>
+                                                                {block.type === 'h2' ? 'Header (H2)' : block.type === 'p' ? 'Paragraph' : block.type}
+                                                            </span>
+                                                            <AutoResizingTextarea
+                                                                value={block.text}
+                                                                onChange={(e) => setBlocks(blocks.map(b => b.id === block.id ? { ...b, text: e.target.value } : b))}
+                                                                className={`bg-transparent border-none outline-none ${block.type === 'h2' ? 'text-xl font-bold text-white' :
+                                                                        block.type === 'summary' ? 'text-sm text-zinc-300 italic' :
+                                                                            block.type === 'quote' ? 'text-base text-zinc-200 font-serif border-l-2 border-amber-500 pl-3' :
+                                                                                'text-sm text-zinc-400 font-serif leading-relaxed'
+                                                                    }`}
+                                                                placeholder={`Enter ${block.type} text...`}
+                                                            />
+                                                        </>
+                                                    )}
+                                                </div>
+
+                                                {/* Delete Action */}
+                                                <button onClick={() => setBlocks(blocks.filter(b => b.id !== block.id))} className="opacity-0 group-hover:opacity-100 p-2 text-red-500/50 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-all self-start shrink-0">
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </>
+                                        ) : (
+                                            /* THE LIVE PREVIEW RENDERER */
+                                            <div className="max-w-3xl mx-auto w-full">
+                                                {block.type === 'h2' && <h2 className="text-2xl font-bold text-white mb-6 mt-10">{block.text}</h2>}
+                                                {block.type === 'summary' && (
+                                                    <div className="bg-[#1c1c1e] border-l-2 border-[#c6a87c] p-6 rounded-r-xl mb-8">
+                                                        <span className="text-[10px] font-bold text-[#c6a87c] uppercase tracking-[0.2em] block mb-3">Segment Summary</span>
+                                                        <MarkdownPreview text={block.text} type="summary" />
+                                                    </div>
+                                                )}
+                                                {block.type === 'quote' && (
+                                                    <div className="border-l-2 border-[#c6a87c] pl-6 my-8 italic text-zinc-300">
+                                                        <MarkdownPreview text={block.text} type="quote" />
+                                                    </div>
+                                                )}
+                                                {block.type === 'p' && (
+                                                    <div className="mb-6 text-zinc-400 text-base">
+                                                        <MarkdownPreview text={block.text} type="p" />
+                                                    </div>
+                                                )}
+                                                {block.type === 'divider' && <hr className="border-zinc-800 my-12" />}
+                                            </div>
+                                        )}
+                                    </motion.div>
+                                ))}
+                            </AnimatePresence>
+                        </div>
+
+                        {/* Add Block Manual Controls */}
+                        {!isPreviewMode && (
+                            <div className="mt-8 flex flex-wrap gap-2 pt-6 border-t border-zinc-800">
+                                <span className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold w-full mb-2">Manually Add Block</span>
+                                <button onClick={() => addBlock('h2')} className="px-3 py-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded text-[10px] font-bold uppercase tracking-widest text-zinc-300 transition-colors">Header</button>
+                                <button onClick={() => addBlock('p')} className="px-3 py-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded text-[10px] font-bold uppercase tracking-widest text-zinc-300 transition-colors">Paragraph</button>
+                                <button onClick={() => addBlock('summary')} className="px-3 py-2 bg-zinc-900 border border-[#c6a87c]/30 hover:border-[#c6a87c] rounded text-[10px] font-bold uppercase tracking-widest text-[#c6a87c] transition-colors">Summary Box</button>
+                                <button onClick={() => addBlock('quote')} className="px-3 py-2 bg-zinc-900 border border-amber-500/30 hover:border-amber-500 rounded text-[10px] font-bold uppercase tracking-widest text-amber-500 transition-colors">Quote</button>
+                                <button onClick={() => addBlock('divider')} className="px-3 py-2 bg-zinc-900 border border-zinc-800 hover:border-zinc-600 rounded text-[10px] font-bold uppercase tracking-widest text-zinc-500 transition-colors">Divider</button>
                             </div>
                         )}
                     </div>
-                    <div className="flex items-center gap-5 shrink-0">
-                        {parsedItems.length > 0 && (
-                            <>
-                                <button onClick={handleUndo} disabled={history.length === 0} className="px-6 py-4 bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white hover:bg-zinc-800 hover:border-zinc-500 rounded-xl text-sm font-bold uppercase tracking-widest transition-all disabled:opacity-30 disabled:cursor-not-allowed shadow-md">Undo</button>
-                                <button onClick={() => { setParsedItems([]); setRawJson(''); setHistory([]); if (onEditEpisode) onEditEpisode(null); }} className="px-6 py-4 bg-zinc-900 text-zinc-400 hover:text-white hover:bg-red-900/40 hover:text-red-400 rounded-xl text-sm font-bold uppercase tracking-widest transition-colors shadow-md">Clear</button>
-                            </>
-                        )}
-                        <button onClick={handleSave} disabled={parsedItems.length === 0 || status.type === 'loading'} className="flex shrink-0 items-center gap-3 bg-[#c6a87c] hover:bg-[#b0956b] text-black px-8 py-4 rounded-xl font-bold uppercase tracking-widest transition-all shadow-lg hover:shadow-[0_0_20px_rgba(198,168,124,0.4)] disabled:opacity-50 disabled:cursor-not-allowed">
-                            <Save className="w-5 h-5" />{status.type === 'loading' ? 'Syncing...' : 'Publish to Vault'}
-                        </button>
-                    </div>
                 </div>
-            </div>
+            )}
 
-            {/* GLOBAL SERIES RANKING UI */}
-            <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
-                <div className="mb-6 pb-4 border-b border-zinc-800 border-dashed">
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2"><Layers className="text-[#c6a87c] w-5 h-5" />Global Series Ranking</h3>
-                </div>
-                <div className="flex flex-col gap-3 w-full">
-                    {uniqueSeriesObjs.map(series => (
-                        <div key={series.name} className={`flex flex-col md:flex-row md:items-center justify-between p-4 border rounded-lg transition-all gap-4 w-full ${series.isHidden ? 'bg-[#0a0a0a] border-zinc-900 opacity-75' : 'bg-black/50 border-zinc-800 hover:border-[#c6a87c]/30'}`}>
-                            <div className="flex-1 font-semibold text-white whitespace-normal pr-4 flex items-center gap-2">
-                                <span>{series.name}</span>
-                                {series.isHidden && <span className="text-red-500 font-bold uppercase tracking-widest text-[9px] bg-red-900/20 px-1.5 py-0.5 rounded shrink-0">Hidden</span>}
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                                <input type="number" defaultValue={series.priority} onBlur={(e) => handleUpdateSeriesPriority(series.name, e.target.value)} className="w-16 bg-zinc-900 border border-zinc-700 rounded-md p-2 text-white text-sm text-center outline-none" />
-                                <button onClick={() => handleToggleSeriesVisibility(series.name, series.isHidden)} className="p-2 bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-white rounded-md transition-colors">{series.isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
-                                <button onClick={() => handleTrashSeries(series.name)} className="p-2 bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
+            {/* SMART PASTE MODAL */}
+            <AnimatePresence>
+                {isSmartPasteOpen && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSmartPasteOpen(false)} className="absolute inset-0 bg-black/80 backdrop-blur-sm" />
+                        <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[#121212] border border-zinc-800 rounded-2xl w-full max-w-3xl flex flex-col max-h-[85vh] shadow-2xl relative z-10 overflow-hidden">
 
-            {/* VAULT LIBRARY MANAGER UI */}
-            <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl">
-                <div className="mb-6 pb-4 border-b border-zinc-800 border-dashed"><h3 className="text-xl font-bold text-white flex items-center gap-2"><Library className="text-[#c6a87c] w-5 h-5" />Vault Library Manager</h3></div>
-                <div className="flex flex-col gap-3 max-h-[600px] overflow-y-auto pr-2 w-full" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
-                    {vaultItems.map((item) => (
-                        <div key={item.id} className={`flex flex-col md:flex-row md:items-center justify-between p-3 border rounded-lg transition-all gap-4 w-full ${item.is_hidden ? 'bg-[#0a0a0a] border-zinc-900 opacity-75' : 'bg-black/50 border-zinc-800 hover:border-[#c6a87c]/50'}`}>
-                            <div className="flex flex-col gap-1 flex-1 min-w-0 pr-4">
-                                <span className="text-[10px] font-bold uppercase tracking-widest text-[#c6a87c]">{item.series_name}</span>
-                                <h4 className="font-medium text-white">{item.title}</h4>
-                                <span className="text-xs text-zinc-500">{item.id} {item.is_hidden && <span className="ml-2 text-red-500 font-bold uppercase tracking-widest text-[9px] bg-red-900/20 px-1.5 py-0.5 rounded">Hidden Draft</span>}</span>
-                            </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                                <input type="number" defaultValue={item.episode_number || 1} onBlur={(e) => handleUpdateEpisode(item.id, e.target.value)} className="w-16 bg-zinc-900 border border-zinc-700 rounded-md p-2 text-white text-sm text-center outline-none" />
-                                <button onClick={() => onEditEpisode && onEditEpisode(item)} className="p-2 sm:px-4 sm:py-2 bg-blue-900/20 text-blue-400 hover:bg-blue-500 hover:text-white rounded-md transition-colors flex items-center gap-1 font-bold text-xs uppercase tracking-widest shrink-0">✏️ Edit</button>
-                                <button onClick={() => handleTrashItem(item.id)} className="p-2 bg-red-900/20 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition-colors shrink-0"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* TRASH BIN UI */}
-            <div className="bg-[#121212] border border-zinc-800 rounded-2xl p-6 sm:p-8 shadow-2xl mb-12">
-                <div className="mb-6 pb-4 border-b border-zinc-800 border-dashed"><h3 className="text-xl font-bold text-red-500 flex items-center gap-2"><Trash2 className="text-red-500 w-5 h-5" />Trash Bin</h3></div>
-                {trashedItems.length === 0 ? (
-                    <div className="text-center py-8 text-zinc-600 font-bold uppercase tracking-widest text-sm">Trash is empty</div>
-                ) : (
-                    <div className="flex flex-col gap-3 max-h-[400px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#3f3f46 transparent' }}>
-                        {trashedItems.map((item) => (
-                            <div key={item.id} className="flex items-center justify-between p-4 border border-red-900/30 bg-red-900/10 rounded-xl">
-                                <div className="flex flex-col gap-1 min-w-0 pr-4">
-                                    <span className="text-[10px] font-bold uppercase tracking-widest text-red-400 truncate">{item.series_name}</span>
-                                    <h4 className="text-sm font-bold text-zinc-400 line-through truncate">{item.title}</h4>
+                            <div className="flex justify-between items-center p-5 border-b border-zinc-800 bg-[#1c1c1e]">
+                                <div>
+                                    <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                                        <Wand2 className="w-5 h-5 text-blue-400" /> Smart Paste Ingestor
+                                    </h3>
+                                    <p className="text-[10px] text-zinc-500 uppercase tracking-widest mt-1">Auto-converts raw text into JSON blocks</p>
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0">
-                                    <button onClick={() => handleRestoreItem(item.id)} className="flex items-center gap-2 px-3 py-2 bg-zinc-800 text-zinc-300 hover:text-white rounded-md transition-colors text-xs font-bold uppercase tracking-widest"><RefreshCw className="w-3.5 h-3.5" /> Restore</button>
-                                    <button onClick={() => handleIncinerateItem(item.id)} className="flex items-center gap-2 px-3 py-2 bg-red-900/50 text-red-400 hover:text-white rounded-md transition-colors text-xs font-bold uppercase tracking-widest">Incinerate</button>
-                                </div>
+                                <button onClick={() => setIsSmartPasteOpen(false)} className="p-2 text-zinc-500 hover:text-white bg-black rounded-lg border border-zinc-800">
+                                    <X className="w-4 h-4" />
+                                </button>
                             </div>
-                        ))}
+
+                            <div className="p-5 overflow-y-auto bg-black flex-1 flex flex-col gap-4">
+                                <div className="bg-blue-900/10 border border-blue-900/30 p-4 rounded-xl text-xs text-blue-200/70 leading-relaxed shrink-0">
+                                    <strong className="text-blue-400 block mb-2 text-sm">How to use:</strong>
+                                    Paste your collated English text here. Ensure specific sections start with the exact markers:
+                                    <div className="flex flex-wrap gap-2 mt-3 mb-3">
+                                        <code className="bg-black/50 border border-blue-900/30 px-2 py-1 rounded text-blue-300">Series:</code>
+                                        <code className="bg-black/50 border border-blue-900/30 px-2 py-1 rounded text-blue-300">Title:</code>
+                                        <code className="bg-black/50 border border-blue-900/30 px-2 py-1 rounded text-blue-300">Speaker:</code>
+                                        <code className="bg-black/50 border border-blue-900/30 px-2 py-1 rounded text-blue-300">Source Link:</code>
+                                    </div>
+                                    <div className="flex flex-wrap gap-2 mb-3">
+                                        <code className="bg-black/50 border border-blue-900/30 px-2 py-1 rounded text-blue-300">Overview:</code>
+                                        <code className="bg-black/50 border border-blue-900/30 px-2 py-1 rounded text-blue-300">Segment [X]:</code>
+                                        <code className="bg-black/50 border border-blue-900/30 px-2 py-1 rounded text-blue-300">Brief Summary:</code>
+                                        <code className="bg-black/50 border border-blue-900/30 px-2 py-1 rounded text-blue-300">Quote:</code>
+                                    </div>
+                                    <em className="block text-blue-400/50 mt-1">Everything else will become a standard paragraph.</em>
+                                </div>
+
+                                <textarea
+                                    value={rawText}
+                                    onChange={(e) => setRawText(e.target.value)}
+                                    placeholder="Paste your raw translation text here..."
+                                    className="w-full flex-1 min-h-[250px] bg-[#121212] border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 font-sans outline-none focus:border-blue-500/50 resize-none"
+                                />
+                            </div>
+
+                            <div className="p-5 border-t border-zinc-800 bg-[#1c1c1e] flex justify-end gap-3 shrink-0">
+                                <button onClick={() => setIsSmartPasteOpen(false)} className="px-5 py-2.5 text-xs font-bold uppercase tracking-widest text-zinc-400 hover:text-white transition-colors">Cancel</button>
+                                <button onClick={handleSmartPaste} disabled={!rawText.trim()} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-6 py-2.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-colors shadow-lg flex items-center gap-2">
+                                    <Wand2 className="w-4 h-4" /> Parse & Build JSON
+                                </button>
+                            </div>
+                        </motion.div>
                     </div>
                 )}
-            </div>
+            </AnimatePresence>
         </div>
     );
 };
