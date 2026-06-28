@@ -412,19 +412,22 @@ app.post('/api/explore', async (req, res) => {
 
         let fetchedHadiths = [];
 
-        for (let i = 0; i < mapIndices.length; i++) {
-            const mapIdx = mapIndices[i];
-            try {
-                const dbRow = await new Promise((resolve, reject) => {
-                    db.get(`SELECT raw_data FROM hadiths WHERE id = ${mapIdx}`, [], (err, row) => {
-                        if (err) reject(err);
-                        else resolve(row);
-                    });
+        if (mapIndices.length > 0) {
+            // Batch-fetch all matched rows in a single query (was an N+1: one
+            // db.get per Pinecone match). Final order is set by the score sort below.
+            const placeholders = mapIndices.map(() => '?').join(',');
+            const dbRows = await new Promise((resolve, reject) => {
+                db.all(`SELECT id, raw_data FROM hadiths WHERE id IN (${placeholders})`, mapIndices, (err, rows) => {
+                    if (err) reject(err);
+                    else resolve(rows || []);
                 });
+            });
 
-                if (dbRow && dbRow.raw_data) {
+            for (const dbRow of dbRows) {
+                if (!dbRow || !dbRow.raw_data) continue;
+                try {
                     const hData = JSON.parse(dbRow.raw_data);
-                    const match = matchMap.get(mapIdx);
+                    const match = matchMap.get(dbRow.id);
 
                     if (match && match.values && match.values.length > 0) {
                         const foundEnglish = hData.en || "English translation not available";
@@ -450,9 +453,9 @@ app.post('/api/explore', async (req, res) => {
                             vector: match.values
                         });
                     }
+                } catch (err) {
+                    console.error(`Error parsing row ${dbRow.id}:`, err);
                 }
-            } catch (err) {
-                console.error(`Error fetching ID ${mapIdx}:`, err);
             }
         }
 

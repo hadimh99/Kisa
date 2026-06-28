@@ -46,7 +46,7 @@ const HadithManager = ({ supabase, selectedHadithForEdit, clearSelectedHadith })
         if (selectedHadithForEdit) {
             const loadSpecificHadith = async () => {
                 setLoading(true);
-                const { data, error } = await supabase.from('kisa_hadiths').select('*').eq('id', selectedHadithForEdit).single();
+                const { data, error } = await supabase.from('kisa_hadiths').select('*').eq('id', selectedHadithForEdit).maybeSingle();
                 if (data && !error) {
                     setReviewQueueMode(true);
                     setActiveTab('queue');
