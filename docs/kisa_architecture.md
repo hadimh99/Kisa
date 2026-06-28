@@ -37,6 +37,15 @@ The local SQLite database contains the raw hadiths alongside three active tables
 7. `ontology_concepts` (Supabase Postgres): Cloud-hosted master list of theological concepts for the Brain Ontology CMS. Mirrors the SQLite ontology schema but enables real-time collaborative editing via the Command Center. (Columns: `id`, `transliteration`, `primary_arabic`, `root_letters`, `primary_english`, `domain`, `definition`, `embedding`). Protected by RLS.
 8. `ontology_synonyms` (Supabase Postgres): Cloud-hosted synonym/spelling variants linked to concepts. (Columns: `id`, `concept_id`, `variant_text`, `language`, `weight`). Protected by RLS.
 9. `ontology_relations` (Supabase Postgres): Cloud-hosted directional knowledge-graph edges between concepts. (Columns: `id`, `source_concept_id`, `target_concept_id`, `relation_type`). Foreign key constraint: `ontology_relations_source_concept_id_fkey`. Protected by RLS.
+10. `kisa_transcripts` (Supabase Postgres): The live content table for scholarly commentary episodes (now backs the public reader, superseding the static `transcripts.json` bundle). Key columns: `id` *(text/slug PK)*, `series_name`, `title`, `speaker`, `source_link`, `content` *(JSONB array of blocks)*, `series_priority` *(series-level ordering)*, `episode_number` *(**single source of truth** for episode ordering **and** deep-link routing — must be unique within a series)*, `primary_theme`, `tags` *(text[])*, `meta_description`, `is_hidden` *(draft toggle)*, `is_trashed` *(soft delete)*, `created_at`, `updated_at`. **Notes:** `episode_priority` is a deprecated/vestigial column (superseded by `episode_number`); `is_published` exists in the table but is not currently read by any code; `kisa_series_config` (referenced in earlier drafts/roadmap) was never created.
+11. `admins` (Supabase Postgres): Security registry of administrator user IDs. (Columns: `user_id` *(uuid, FK → `auth.users`)*, `added_at`). Backs the `public.is_admin()` SECURITY DEFINER helper used by every admin-only RLS policy. RLS is enabled with **no** API-facing policies, so the table is manageable only via the SQL editor. Onboard a co-admin by inserting their `user_id`.
+
+### Row Level Security (RLS) Enforcement Model
+RLS is the authoritative access-control layer — the client-side `ADMIN_ID` comparison and the CMS login form are UI affordances only. All policies live in `docs/supabase_rls_policies.sql` (idempotent and existence-guarded; safe to re-run):
+* **Public content** (`kisa_hadiths`, `kisa_transcripts`, `ontology_concepts`, plus `kisa_series_config` if/when created): anyone may `SELECT`; only admins (`is_admin()`) may `INSERT/UPDATE/DELETE`.
+* **CMS-internal** (`ontology_synonyms`, `ontology_relations`, `cms_goals`, `cms_activity_logs`, `cms_messages`, `kisa_transcript_backups`): admins only, all operations.
+* **Per-user** (`vault_items`): each authenticated user may only read/write rows where `user_id = auth.uid()`.
+Verified empirically against production: anonymous reads of public tables succeed, anonymous reads of admin tables return empty, and anonymous writes are rejected with `42501 — new row violates row-level security policy`.
 
 ## 4. Current Features & Capabilities (Implemented)
 
@@ -50,10 +59,10 @@ The local SQLite database contains the raw hadiths alongside three active tables
    - **Floating Contextual Toolbar:** Implemented a Notion-style contextual menu that triggers on text selection (`onMouseUp`), allowing the admin to inject Bold, Italic, Bridge Overrides (`[[ ]]`), and Mute tags (`~~ ~~`) directly into the text.
 4. **Master Curriculum Control (God-Mode):** Engineered a two-tier sorting and macro-management system. 
    - **Macro (Global Series Ranking):** UI to edit `series_priority` allowing global reordering of series. Includes bulk controls to instantly Toggle Visibility (`is_hidden`) and Trash (`is_trashed`) an entire series and all its descendants via single-click batched updates.
-   - **Micro (Vault Library Manager):** Granular episode-level UI to edit `episode_number`, re-sorting episodes within a series natively via adaptive Flex layouts without truncating dense theological titles.
+   - **Micro (Vault Library Manager):** Granular episode-level UI to edit `episode_number`, re-sorting episodes within a series natively via adaptive Flex layouts without truncating dense theological titles. The public site orders and deep-link-routes strictly by `episode_number`, so the CMS treats it as the **single source of truth**: it auto-assigns a unique `max+1` number on new uploads (in `handleSave`) and rewrites it on manual reorder / auto-sort / publish. (Previously the CMS only wrote the now-deprecated `episode_priority` and never set `episode_number`, so every uploaded episode defaulted to `1` and collided within its series — only one episode was reachable. Fixed.)
 5. **Soft Delete Architecture (Trash Bin):** Implemented a full `is_trashed` lifecycle constraint. Trashed items are instantly hidden from the public UI queries and moved to an isolated "Trash Bin" interface in the Command Center, where they can be Restored to the active Vault or permanently Incinerated (hard `DELETE`).
 6. **Vercel SPA Deployment Optimization:** Deployed a root `vercel.json` utilizing wildcard `/(.*)` rewrites to `index.html`, aggressively eliminating 404 router desyncs upon direct URL visits.
-7. **Security Audit Passed:** `.gitignore` hardened against all `.env` files. `src/lib/supabase.js` strictly utilizes `import.meta.env` with zero hardcoded credentials.
+7. **Security Hardening (Auth + RLS):** `.gitignore` excludes all `.env` files. The frontend now uses a **single shared Supabase client** sourced from `import.meta.env` (`src/lib/supabase.js`); the legacy `src/supabaseClient.js` simply re-exports it, eliminating the previously hardcoded URL/anon key and the duplicate auth-client instance. Authoritative database access control is enforced by **Row Level Security** (see §3, RLS Enforcement Model) — public read, admin-only writes, per-user Vault — rather than relying on client-side gating alone.
 8. **The Hadith Library Manager (Foundation DB Sync):** Engineered a high-speed data table within the Command Center (`HadithManager.jsx`) to directly modify Cloud instances of foundational texts natively.
    - **Bi-Directional Schema Bridge:** The inline editor is rigidly mapped to pump manually separated structures right into `manual_chain` and `manual_body`, natively superseding the frontend's regex array-splitters generated inside `HadithCard.jsx`.
    - **Inbox Zero Auditing:** Introduces an automated vanish-on-save routing architecture via dynamically appended `.is('manual_body', null)` modifiers. This rips completed rows directly from the active admin queue during save, cementing a flawless editing workflow.
@@ -163,7 +172,7 @@ The local SQLite database contains the raw hadiths alongside three active tables
 * **Universal Clipboard Formatting:** Features a mathematically precise copy-to-clipboard engine that defeats WhatsApp's aggressive Bidi text-rendering bugs, injecting Unicode Left-to-Right Marks (`\u200E`) to guarantee perfect right-aligned Arabic and left-aligned English across third-party apps.
 
 **Platform Infrastructure:**
-* **Keep-Alive Strategy (Zero Cold-Start):** To eliminate the "First Load Penalty" for the Brain Ontology, a 10-minute HTTP ping monitor (via cron-job.org) targets the live backend, preventing the Render free-tier server from entering a cold-sleep state.
+* **Cold Start (Known Limitation):** The Node backend runs on Render's free tier and spins down after ~15 minutes of inactivity, incurring a ~1-minute wake-up on the next request (compounded by the Hugging Face inference endpoint's own model-load delay). A keep-alive ping intended to prevent this (previously via cron-job.org) is **non-functional and has been removed** — see §5 Roadmap for the planned replacement. Note: this cold start is unrelated to per-query speed; the warm concept-search path was separately optimized (the `/api/explore` SQLite fetch is now a single batched `WHERE id IN (...)` query rather than ~150 sequential `db.get` calls).
 * **Dynamic API Routing (Frontend Security Rule):** Frontend components (`TranscriptLibrary.jsx`, `ContextualBridge.jsx`, `App.jsx`, etc.) **must never use hardcoded URLs, IP addresses, or port numbers** (e.g., `http://hostname:8000`) for API calls. All fetch calls strictly resolve their base URL via `import.meta.env.VITE_API_URL || ''`. Falling back to an empty string produces a relative path (e.g., `/api/ontology`), which automatically inherits the current page's protocol and origin (`https://`). This eliminates Mixed Content blocks (HTTPS page → HTTP fetch) and ensures seamless operation behind any reverse proxy without code changes.
 * **Strict CORS Policy (Backend Security Rule):** The Node.js backend (`server.js`) **strictly forbids wildcard (`origin: '*'`) CORS configurations**. The `cors` middleware uses an explicit whitelist function that validates the `Origin` header against an approved array: production domains (`https://www.al-kisa.org`, `https://al-kisa.org`) and local development servers (`http://localhost:5173`, `http://localhost:3000`). Requests with no `Origin` header (server-to-server, `curl`, mobile apps) are permitted. All unrecognized origins are rejected and logged to the console with a `[CORS] Blocked request from origin:` warning.
 * **Native Tab Memory:** Active tab persisted to `localStorage` so the app reopens exactly where the user left off.
@@ -239,6 +248,7 @@ The local SQLite database contains the raw hadiths alongside three active tables
 * **Multi-Volume Database Expansion:** Seamlessly integrate *Basa'ir al-Darajat* (approx. 1,800-2,000 narrations). Static JSON (`basair_complete.json`) already staged in `public/`.
 * **The Audiobook Engine (Neural TTS):** Integrating Microsoft's `edge-tts` to generate free, ultra-realistic audio files for the 50+ hour Transcript Library.
 * **Theological Highlighting & Word-by-Word Roots:** Adding permanent visual luminescence to foundational Twelver verses and implementing a root-word analysis tooltip for Quranic Arabic.
+* **Keep-Alive / Zero Cold-Start (Planned — replaces removed cron):** Implement a reliable uptime ping (e.g., a GitHub Actions scheduled workflow or a dedicated external uptime monitor) hitting the Render backend every ~10 minutes to prevent the free-tier 15-minute spin-down and its ~1-minute cold start. The earlier cron-job.org approach was non-functional and has been removed from §4. Optionally pre-warm the Hugging Face embedding endpoint to avoid its separate model-load delay; a paid Render tier (no spin-down) is the money-not-code alternative.
 
 ## 6. File System & Component Dictionary
 
@@ -297,7 +307,9 @@ alkafi-engine/
 │   │   ├── quran.json                      (Quranic text database — src copy for import)
 │   │   ├── quranBenefits.js                (Fadhaa'il database + spiritual prescriptions)
 │   │   ├── revision_data.json              (NotebookLM-generated flashcards and MCQ quizzes)
-│   │   ├── supabaseClient.js               (Supabase client initialization)
+│   │   ├── supabaseClient.js               (Legacy import path — re-exports the single env-based client from lib/supabase.js; no hardcoded credentials)
+│   │   ├── lib/
+│   │   │   └── supabase.js                 (Canonical Supabase client — credentials via import.meta.env)
 │   │   ├── transcripts.json                (Translated scholarly commentary series)
 │   │   └── verse_map.json                  (Quran verse → hadith Tafsir connections)
 │   └── vite.config.js                      (Vite configuration with React plugin)
@@ -307,7 +319,8 @@ alkafi-engine/
 │   ├── kisa_architecture.md                (THIS FILE — Master Architecture Document)
 │   ├── FormatTranscripts.md                (AI SOP: quote extraction & citation formatting for transcript JSON)
 │   ├── YoutubeTranscription.md             (AI SOP: Arabic lecture transcription & segmented translation workflow)
-│   └── SOP_Ontology_Update.md              (3-phase SOP: NotebookLM extraction → AI SQL generation → DB injection)
+│   ├── SOP_Ontology_Update.md              (3-phase SOP: NotebookLM extraction → AI SQL generation → DB injection)
+│   └── supabase_rls_policies.sql           (Idempotent RLS policy script: admins table + is_admin(), public-read/admin-write, per-user vault)
 ├── chroma_db/                          (ChromaDB Vector Store — experimental)
 │   └── chroma.sqlite3
 ├── alkafi.db                           (Local SQLite database)
