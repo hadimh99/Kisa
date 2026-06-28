@@ -78,10 +78,7 @@ function cosineSimilarity(vecA, vecB) {
 }
 
 // ==========================================
-// KISA BRAIN: ONTOLOGY LOADER (NEW)
-// ==========================================
-// ==========================================
-// KISA BRAIN: ONTOLOGY LOADER (UPDATED)
+// KISA BRAIN: ONTOLOGY LOADER
 // ==========================================
 let ontologyDictionary = [];
 
@@ -109,6 +106,15 @@ db.all(loadOntologyQuery, [], (err, rows) => {
             vector: JSON.parse(r.vector_embedding),
             weight: parseFloat(r.weight)
         })).filter(item => item.variant.length > 0);
+
+        // Precompile the word-boundary matcher for each variant once, here at
+        // load time. The concept scanner runs over the whole dictionary on every
+        // search; building ~800 RegExp objects per request (the previous
+        // behaviour) was pure waste. The regex is stateless (no /g flag), so a
+        // single shared instance is safe to reuse across requests.
+        ontologyDictionary.forEach(item => {
+            item.regex = new RegExp(`\\b${item.variant}\\b`, 'i');
+        });
 
         // Sort by length descending so longer phrases match first
         ontologyDictionary.sort((a, b) => b.variant.length - a.variant.length);
@@ -302,8 +308,7 @@ app.post('/api/explore', async (req, res) => {
         if (ontologyDictionary.length > 0 && activeSearchMode === 'concept') {
             const lowerQueryForMatch = embedQuery.toLowerCase();
             for (const item of ontologyDictionary) {
-                const regex = new RegExp(`\\b${item.variant}\\b`, 'i');
-                if (regex.test(lowerQueryForMatch)) {
+                if (item.regex.test(lowerQueryForMatch)) {
                     matchedConcept = item;
                     console.log(`[KISA BRAIN] 🎯 Detected theological anchor: "${item.name}" (matched via "${item.variant}")`);
                     break; // We found the anchor, no need to inject confusing text!

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Moon, Sun, Sparkles, X, ChevronRight, ChevronLeft, Home as HomeIcon, Copy, ChevronDown, ChevronUp, List, Layout, Info, BookOpen, History, HelpCircle, Database, Filter, Share2, Check, Settings2, Menu, Clock, Trash2, LibraryBig, Youtube, Library as LibraryIcon, ArrowDown, ArrowRight, User, Bookmark, Coins, HeartPulse, ShieldAlert, MoreHorizontal, PenLine, FolderPlus, FolderMinus, Book, CalendarDays } from 'lucide-react';
+import { Search, Sparkles, X, ChevronRight, ChevronLeft, Home as HomeIcon, Copy, ChevronDown, ChevronUp, List, Info, BookOpen, History, Database, Filter, Share2, Check, Settings2, Menu, Clock, Trash2, LibraryBig, Youtube, ArrowDown, User, Bookmark, Coins, HeartPulse, ShieldAlert, MoreHorizontal, PenLine, FolderPlus, FolderMinus, Book } from 'lucide-react';
 import quranData from './quran.json';
 import verseMap from './verse_map.json';
 import transcriptData from './transcripts.json';
@@ -20,98 +20,23 @@ import KisaCommandCenter from './components/KisaCommandCenter';
 import TranscriptLibrary from './components/TranscriptLibrary';
 import CourseLibrary from './components/CourseLibrary';
 import { Analytics } from '@vercel/analytics/react';
+import { APP_UPDATES, SOURCES, ADMIN_ID } from './constants';
+import { timeAgo } from './utils';
+import { KisaLogo, AnimatedMenuIcon } from './components/Icons';
+import { DeepLinkCatcher, ScrollToTop } from './components/RouteHelpers';
+import UpdatesModal from './components/UpdatesModal';
+import InfoModal from './components/InfoModal';
+import AuthModal from './components/AuthModal';
+import SignOutModal from './components/SignOutModal';
+import MobileNav from './components/MobileNav';
+import SearchOverlay from './components/SearchOverlay';
+import { SearchContext } from './contexts/SearchContext';
 
 
-const APP_UPDATES = [
-  {
-    version: "v5.2.0",
-    date: "April 26, 2026",
-    changes: [
-      "Theological Glossary: We've added a comprehensive A-Z dictionary of Twelver Shia terminology. You can browse all core concepts, filter them by category, share with your friends, copy to your notes, and save important terms directly to your Study Vault. You can easily access it anytime by opening the Search menu.",
-      "Smart Day/Night Themes: Al-Kisa now automatically adapts to your environment! It will gently switch to a bright theme during the day and a dark theme at night to protect your eyes. If you prefer a specific look, just choose your favorite theme from the menu—your device will remember your choice for every future visit."
-    ]
-  },
-  {
-    version: "v5.1.0",
-    date: "April 20, 2026",
-    changes: [
-      "Scholarly Commentary: You can now explore beautifully translated lectures by Sheikh al-Ghizzi directly inside the Scholarly Library. Read through rich, segmented teachings on the Ahl al-Bayt with full sourcing and context at your fingertips.",
-      "Deeper Connections: Every lecture is now woven into Al-Kisa's living knowledge base. As you read, foundational terms are automatically highlighted with elegant tooltips — connecting modern scholarly insights to the narrations, Quranic verses, and Duas they reference.",
-      "Full Transparency: All translated commentary is clearly marked with provenance tags so you always know the source. Look for the 'AI-Translated Transcript' and 'Original Arabic Audio Available' indicators on every lecture.",
-      "Library Polish: The entire Scholarly Library reading experience has been refined for smoother navigation and a more immersive reading flow on both desktop and mobile."
-    ]
-  },
-  {
-    version: "v5.0.1",
-    date: "April 13, 2026",
-    changes: [
-      "Onboarding Experience: Introduced 'The Living Library' section to the Home screen, visually demonstrating Al-Kisa's semantic search and Reverse Tafsir capabilities without technical jargon.",
-      "Responsive Polish: Upgraded the Core Collections grid with dynamic column-spanning, guaranteeing a perfectly symmetrical Apple-standard bento layout across all mobile and tablet breakpoints.",
-      "Platform Security: Upgraded the administrative editor with strict UID-gated access, ensuring the integrity of the live master database."
-    ]
-  },
-
-  {
-    version: "v5.0.0",
-    date: "April 11, 2026",
-    changes: [
-      "Platform Evolution: Al-Kisa has officially transitioned into a full-scale learning platform. Expect new, highly structured educational and scholarly content to be released every single week.",
-      "Expanded Liturgy (Duas & Ziyarats): Launched a dedicated core texts section for navigating Duas and Ziyarats, with a massive library of new content arriving soon.",
-      "Architectural Overhaul: Introduced a premium, iOS-tier native physics engine. UI interactions now feature critical spring-squish mechanics, GPU-accelerated crossfading, and micro-haptic feedback.",
-      "Infinite Hadith Discovery: The Daily Hadith card now features a lightning-fast 'Shuffle' engine with seamless layout morphing and zero-stutter cinematic blur transitions.",
-      "UI Polish: Completely reimagined the Home Screen with an Apple-standard Bento Grid layout and an optimized, zero-stutter 'Ghost Writer' entrance choreography."
-    ]
-  },
-  {
-    version: "v4.0.0",
-    date: "March 8, 2026",
-    changes: [
-      "Introduced the Digital Archive (Transcript Library): A premium reading environment for translated scholarly series, starting with 'The File of Fatima'.",
-      "UI Polish: Added custom text parser for bold highlights, unified mobile drawer, and high-performance native scrolling for transcripts."
-    ]
-  },
-  {
-    version: "v3.5.3",
-    date: "March 5, 2026",
-    changes: [
-      "Documentation: Completely overhauled the 'Help & Guide' section to detail the comprehensive suite of tools now available in Al-Kisa, including Vector Hopping, Dynamic Map Views, and Reverse Quran Tafsir."
-    ]
-  },
-  {
-    version: "v3.5.2",
-    date: "March 5, 2026",
-    changes: [
-      "Feature Polish: Added a 'Copy Text' button to all 'Anchored Source' views (both List View accordion and Map View modal) allowing you to copy the full reference, Arabic, and translation instantly.",
-      "Map UX Overhaul: Nodes are uniformly sized and mathematically bounded to never overlap the center box or go off-screen."
-    ]
-  }
-];
+// NOTE: CLUSTER_COLORS and TwoLineMenu below are pre-existing dead code
+// (declared, never referenced). Left in place intentionally — flagged, not
+// removed, since they predate this refactor.
 const CLUSTER_COLORS = ['#10b981', '#8b5cf6', '#f59e0b', '#f43f5e', '#3b82f6'];
-const SOURCES = ["All Twelver Sources", "al-Kafi", "Bihar al-Anwar", "Basa'ir al-Darajat"];
-
-const timeAgo = (ts) => {
-  const diff = Math.floor((Date.now() - ts) / 60000);
-  if (diff < 1) return 'Just now';
-  if (diff < 60) return `${diff}m ago`;
-  if (diff < 1440) return `${Math.floor(diff / 60)}h ago`;
-  return `${Math.floor(diff / 1440)}d ago`;
-};
-
-const KisaLogo = ({ className }) => (
-  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-    <path d="M18 4V18.5C18 19.3284 17.3284 20 16.5 20H6.5C5.67157 20 5 19.3284 5 18.5V14" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M13.5 8.5L9.5 11L12.5 13.5L8.5 16" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>
-);
-
-// THE UPGRADED NATIVE ICON PHYSICS
-// Automatically morphs to X on mount, and morphs back to Hamburger on exit.
-const AnimatedMenuIcon = ({ isOpen, className }) => (
-  <motion.svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <motion.line x1="4" y1="9" x2="20" y2="9" initial={false} animate={isOpen ? { y1: 12, y2: 12, rotate: 45 } : { y1: 9, y2: 9, rotate: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} style={{ transformOrigin: "center" }} />
-    <motion.line x1="4" y1="15" x2="20" y2="15" initial={false} animate={isOpen ? { y1: 12, y2: 12, rotate: -45 } : { y1: 15, y2: 15, rotate: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} style={{ transformOrigin: "center" }} />
-  </motion.svg>
-);
 
 const TwoLineMenu = ({ className }) => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -119,42 +44,6 @@ const TwoLineMenu = ({ className }) => (
     <line x1="4" y1="15" x2="20" y2="15" />
   </svg>
 );
-
-const ADMIN_ID = '54ac00e5-b3d3-4ce8-bd8b-a8e2d502e9bb';
-
-
-
-const DeepLinkCatcher = () => {
-  const location = useLocation();
-  const navigate = useNavigate();
-  
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const tab = params.get('tab');
-    if (tab) {
-       if (tab === 'quran') navigate('/quran', {replace: true});
-       else if (tab === 'duas') navigate('/duas', {replace: true});
-       else if (tab === 'transcripts') {
-          const id = params.get('id');
-          navigate(`/kisa-academy/library${id ? `/${id}` : ''}`, {replace: true});
-       }
-       else if (tab === 'library') navigate('/kisa-academy', {replace: true});
-       else if (tab === 'hadith') navigate('/hadith', {replace: true});
-       else if (tab === 'ziyarats') navigate('/ziyarats', {replace: true});
-       else navigate('/', {replace: true});
-    }
-  }, [location, navigate]);
-  return null;
-};
-
-
-const ScrollToTop = () => {
-  const location = useLocation();
-  useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location.pathname]);
-  return null;
-};
 
 function AppContent() {
 
@@ -1000,6 +889,24 @@ const [quranPopup, setQuranPopup] = useState(null);
     return () => window.removeEventListener('scroll', handleScroll);
   }, [showMobileNav, showSearchOverlay, showUserHub]);
 
+  // Exposes the search domain to SearchOverlay (and future consumers) via
+  // context instead of prop-drilling. State still lives here in AppContent.
+  const searchContextValue = {
+    showSearchOverlay, setShowSearchOverlay,
+    overlayMode, setOverlayMode,
+    handleSearchSubmit,
+    globalSearchRef,
+    query, setQuery,
+    searchMode, setSearchMode,
+    setViewMode,
+    showDropdown, setShowDropdown,
+    sourceFilter, setSourceFilter,
+    user,
+    setActiveTab,
+    executeSearch,
+    setHadithTarget, setDuaTarget, setQuranTarget, setQuranVerseTarget, setTranscriptTarget,
+  };
+
   return (
     <div className={`min-h-screen w-full transition-colors duration-700 flex flex-col relative ${lockMainScreen ? 'overflow-hidden h-screen' : ''} ${appBgClass}`} style={{ WebkitOverflowScrolling: 'touch' }}>
       <style>{`
@@ -1077,56 +984,27 @@ const [quranPopup, setQuranPopup] = useState(null);
 
 
       {/* --- PREMIUM AUTHENTICATION MODAL --- */}
-      <AnimatePresence>
-        {showAuthModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#FDFBF7]/40 dark:bg-[#020805]/60 backdrop-blur-md">
-            <motion.div initial={{ scale: 0.95, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.95, y: 20 }} className="relative w-full max-w-md p-8 bg-[#FDFBF7] dark:bg-[#0A120E] border border-[#5C4A3D]/10 dark:border-[#c6a87c]/20 rounded-[2rem] shadow-2xl">
-              <button onClick={() => setShowAuthModal(false)} className="absolute top-5 right-5 p-2 text-[#5C4A3D]/60 dark:text-[#FAFAFA]/60 hover:text-[#2D241C] dark:hover:text-[#c6a87c] transition-colors rounded-full hover:bg-[#5C4A3D]/5 dark:hover:bg-[#c6a87c]/10"><X className="w-5 h-5" /></button>
-              <div className="text-center mb-8">
-                <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-[#c6a87c]/10 flex items-center justify-center border border-[#c6a87c]/20"><Bookmark className="w-5 h-5 text-[#c6a87c]" /></div>
-                <h2 className="text-2xl font-serif text-[#2D241C] dark:text-[#FAFAFA] mb-2">Study Vault</h2>
-                <p className="text-sm text-[#5C4A3D]/80 dark:text-[#FAFAFA]/60">Secure your research globally. No magic links required.</p>
-              </div>
-              <form onSubmit={handleEmailAuth} className="space-y-4">
-                <div><input type="email" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="name@example.com" required className="w-full bg-transparent appearance-none outline-none rounded-xl py-3 px-4 text-base font-sans text-[#2D241C] dark:text-[#FAFAFA] placeholder:text-[#5C4A3D]/40 dark:placeholder:text-[#c6a87c]/40 border border-[#5C4A3D]/20 dark:border-[#c6a87c]/30 focus:border-[#c6a87c] focus:ring-1 focus:ring-[#c6a87c] transition-all" /></div>
-                <div><input type="password" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} placeholder="Password (min 6 chars)" required className="w-full bg-transparent appearance-none outline-none rounded-xl py-3 px-4 text-base font-sans text-[#2D241C] dark:text-[#FAFAFA] placeholder:text-[#5C4A3D]/40 dark:placeholder:text-[#c6a87c]/40 border border-[#5C4A3D]/20 dark:border-[#c6a87c]/30 focus:border-[#c6a87c] focus:ring-1 focus:ring-[#c6a87c] transition-all" /></div>
-                <button type="submit" disabled={authLoading} className="w-full flex items-center justify-center py-3.5 rounded-xl font-medium text-[#FDFBF7] dark:text-[#0A120E] bg-[#2D241C] dark:bg-[#c6a87c] hover:bg-[#1A1510] dark:hover:bg-[#d4ba96] transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  {authLoading ? 'Authenticating...' : (isSignUp ? 'Create Account' : 'Sign In')}
-                </button>
-              </form>
-              <div className="mt-5 text-center">
-                <button onClick={() => { setIsSignUp(!isSignUp); setAuthMessage({ text: '', type: '' }); }} className="text-sm font-medium text-[#5C4A3D]/80 dark:text-[#c6a87c]/80 hover:text-[#2D241C] dark:hover:text-[#FAFAFA] transition-colors cursor-pointer">
-                  {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Create one"}
-                </button>
-              </div>
-              {authMessage.text && (
-                <div className={`mt-5 p-3.5 rounded-xl text-sm text-center font-medium ${authMessage.type === 'error' ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20' : 'bg-[#c6a87c]/10 text-[#5C4A3D] dark:text-[#c6a87c] border border-[#c6a87c]/20'}`}>
-                  {authMessage.text}
-                </div>
-              )}
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <AuthModal
+        open={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSubmit={handleEmailAuth}
+        email={authEmail}
+        setEmail={setAuthEmail}
+        password={authPassword}
+        setPassword={setAuthPassword}
+        loading={authLoading}
+        isSignUp={isSignUp}
+        setIsSignUp={setIsSignUp}
+        message={authMessage}
+        setMessage={setAuthMessage}
+      />
 
       {/* --- SIGN OUT CONFIRMATION MODAL --- */}
-      <AnimatePresence>
-        {showSignOutConfirm && (
-          <div className="fixed inset-0 z-[6000] flex items-center justify-center p-4 bg-[#FDFBF7]/40 dark:bg-[#020805]/60 backdrop-blur-md pointer-events-auto">
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-sm p-6 sm:p-8 bg-[#FDFBF7] dark:bg-[#0A120E] border border-[#5C4A3D]/10 dark:border-[#c6a87c]/20 rounded-[2rem] shadow-2xl text-center">
-              <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20">
-                <User className="w-5 h-5 text-red-500" />
-              </div>
-              <h2 className="text-xl sm:text-2xl font-serif text-[#2D241C] dark:text-[#FAFAFA] mb-2">Sign Out?</h2>
-              <p className="text-sm text-[#5C4A3D]/80 dark:text-[#FAFAFA]/60 mb-6">Are you sure you want to sign out of your account?</p>
-              <div className="flex gap-3">
-                <button onClick={() => setShowSignOutConfirm(false)} className="flex-1 py-3 rounded-xl font-medium text-[#5C4A3D] dark:text-[#FAFAFA] bg-[#F8F5EE] dark:bg-[#1A1510] hover:bg-[#EAE4D3] dark:hover:bg-[#251E17] transition-colors border border-[#5C4A3D]/10 dark:border-[#c6a87c]/20 cursor-pointer">Cancel</button>
-                <button onClick={() => { handleSignOut(); setShowSignOutConfirm(false); }} className="flex-1 py-3 rounded-xl font-medium text-white bg-red-500 hover:bg-red-600 transition-colors shadow-sm cursor-pointer">Sign Out</button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <SignOutModal
+        open={showSignOutConfirm}
+        onCancel={() => setShowSignOutConfirm(false)}
+        onConfirm={() => { handleSignOut(); setShowSignOutConfirm(false); }}
+      />
 
       {activeTab === 'search' && (
         <>
@@ -1171,6 +1049,7 @@ const [quranPopup, setQuranPopup] = useState(null);
           {/* Right Column: Icons & User Hub */}
           <div className="flex items-center gap-7 sm:gap-8 justify-end flex-1 relative">
             <button
+              aria-label="Open search"
               onClick={() => { setShowSearchOverlay(true); setShowUserHub(false); setShowMobileNav(false); setTimeout(() => globalSearchRef.current?.focus(), 100); }}
               className={`transition-opacity duration-300 cursor-pointer text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
             >
@@ -1178,6 +1057,7 @@ const [quranPopup, setQuranPopup] = useState(null);
             </button>
 
             <button
+              aria-label="Open account menu"
               onClick={() => { setShowUserHub(true); setShowSearchOverlay(false); setShowMobileNav(false); }}
               className={`transition-opacity duration-300 cursor-pointer text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
             >
@@ -1185,6 +1065,7 @@ const [quranPopup, setQuranPopup] = useState(null);
             </button>
 
             <button
+              aria-label="Toggle navigation menu"
               onClick={() => {
                 if (showMobileNav || showSearchOverlay || showUserHub) {
                   setShowMobileNav(false); setShowSearchOverlay(false); setShowUserHub(false);
@@ -1247,226 +1128,24 @@ const [quranPopup, setQuranPopup] = useState(null);
       {/* ======================================================================= */}
       {/* CANVAS A: THE SEARCH OVERLAY (APPLE CURTAIN PHYSICS) */}
       {/* ======================================================================= */}
-      <AnimatePresence>
-        {showSearchOverlay && (
-          <motion.div
-            key="search-overlay"
-            exit={{ opacity: 1, transition: { duration: 0.5 } }} // Forces wrapper to stay alive on exit
-            className="fixed sm:inset-0 left-0 right-0 bottom-0 top-12 sm:top-0 z-[490] pointer-events-none overflow-hidden sm:overflow-auto flex flex-col"
-          >
-            {/* Desktop Only Close Button (Mobile naturally uses the global header master X) */}
-            <div className="hidden sm:flex justify-end items-center h-14 px-6 lg:px-8 shrink-0 z-20 relative bg-inherit pointer-events-auto border-b border-transparent">
-              <button onClick={() => setShowSearchOverlay(false)} className="w-7 h-7 flex items-center justify-center text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] cursor-pointer">
-                <AnimatedMenuIcon isOpen={true} className="w-7 h-7" />
-              </button>
-            </div>
-
-            <motion.div
-              initial={{ y: "-100%" }} animate={{ y: 0 }} exit={{ y: "-100%" }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className={`w-full h-full overflow-y-auto flex flex-col relative pointer-events-auto ${themeBg}`}
-            >
-              <div className="w-full max-w-3xl mx-auto px-6 pt-4 pb-6 sm:pt-2">
-
-                {/* Dual-Mode Toggle */}
-                <div className="flex justify-center mb-6">
-                  <div className="flex p-1 rounded-xl border bg-[#F8F5EE]/60 dark:bg-[#050505] border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 shadow-sm w-full max-w-sm">
-                    <button
-                      onClick={() => setOverlayMode('global')}
-                      className={`flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${overlayMode === 'global' ? 'bg-[#FDFBF7] dark:bg-zinc-800 text-[#2D241C] dark:text-white shadow-sm' : 'text-[#5C4A3D]/60 dark:text-zinc-500 hover:text-[#5C4A3D] dark:hover:text-zinc-300'}`}
-                    >
-                      🌐 Platform Search
-                    </button>
-                    <button
-                      onClick={() => setOverlayMode('advanced')}
-                      className={`flex-1 py-2 text-[10px] sm:text-xs font-bold uppercase tracking-widest rounded-lg transition-all flex items-center justify-center gap-2 cursor-pointer ${overlayMode === 'advanced' ? 'bg-[#FDFBF7] dark:bg-[#c6a87c]/10 text-[#2D241C] dark:text-[#c6a87c] shadow-sm border border-transparent dark:border-[#c6a87c]/20' : 'text-[#5C4A3D]/60 dark:text-zinc-500 hover:text-[#5C4A3D] dark:hover:text-zinc-300'}`}
-                    >
-                      🧠 Knowledge Graph
-                    </button>
-                  </div>
-                </div>
-
-                <form onSubmit={handleSearchSubmit} className="relative flex items-center">
-                  <Search className="absolute left-0 w-6 h-6 sm:w-8 sm:h-8 text-[#5C4A3D]/80 dark:text-[#c6a87c]/80" strokeWidth={3} />
-                  <input
-                    ref={globalSearchRef}
-                    type="text"
-                    value={query}
-                    onChange={(e) => setQuery(e.target.value)}
-                    placeholder={overlayMode === 'global' ? "Search Quran, Duas, Series, or References..." : "Deep search the Hadith corpus..."}
-                    className="w-full bg-transparent outline-none pl-12 sm:pl-14 pr-28 sm:pr-32 text-3xl sm:text-5xl font-sans font-bold tracking-tight text-[#2D241C] dark:text-[#FAFAFA] placeholder:text-[#5C4A3D]/80 dark:placeholder:text-[#c6a87c]/80 caret-[#c6a87c]"
-                  />
-                  <div className="absolute right-0 top-0 bottom-0 flex items-center pr-2 gap-1 sm:gap-2">
-                    {query && (
-                      <button
-                        type="button"
-                        onClick={() => setQuery('')}
-                        className="p-2 sm:p-3 text-[#5C4A3D]/40 dark:text-[#c6a87c]/40 hover:text-[#2D241C] dark:hover:text-[#FAFAFA] transition-colors flex items-center justify-center cursor-pointer"
-                      >
-                        <X className="w-5 h-5 sm:w-6 sm:h-6" />
-                      </button>
-                    )}
-                    <button
-                      type="submit"
-                      className={`p-2 sm:p-3 rounded-xl transition-all flex items-center justify-center ${query.trim() ? 'bg-[#c6a87c] text-[#1a1205] shadow-md hover:bg-[#d4b990] hover:scale-105 cursor-pointer' : 'bg-[#5C4A3D]/10 dark:bg-zinc-800/50 text-[#5C4A3D]/30 dark:text-zinc-600 cursor-not-allowed'}`}
-                      disabled={!query.trim()}
-                    >
-                      <ArrowRight className="w-5 h-5 sm:w-6 sm:h-6" />
-                    </button>
-                  </div>
-                </form>
-
-                {/* Spotlight Filters — Advanced Mode Only */}
-                <AnimatePresence>
-                  {overlayMode === 'advanced' && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-4 px-2">
-                        <div className="flex items-center rounded-lg p-1 border bg-[#F8F5EE]/60 dark:bg-[#020805]/60 border-[#5C4A3D]/15 dark:border-[#c6a87c]/10 shadow-inner w-full sm:w-auto">
-                          <button type="button" onClick={() => { setSearchMode('concept'); setViewMode(window.innerWidth < 800 ? 'list' : 'map'); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-none justify-center cursor-pointer ${!isKeyword ? 'bg-[#FDFBF7] dark:bg-[#c6a87c]/15 text-[#2D241C] dark:text-[#c6a87c] shadow-sm border border-[#5C4A3D]/15 dark:border-[#c6a87c]/30' : 'text-[#5C4A3D]/80 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c] border border-transparent'}`}><Sparkles className="w-3.5 h-3.5 opacity-70" /> Concept</button>
-                          <button type="button" onClick={() => { setSearchMode('keyword'); setViewMode('list'); }} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-all duration-300 flex-1 sm:flex-none justify-center cursor-pointer ${isKeyword ? 'bg-[#FDFBF7] dark:bg-[#c6a87c]/15 text-[#2D241C] dark:text-[#c6a87c] shadow-sm border border-[#5C4A3D]/15 dark:border-[#c6a87c]/30' : 'text-[#5C4A3D]/80 hover:text-[#2D241C] dark:text-[#c6a87c]/50 dark:hover:text-[#c6a87c] border border-transparent'}`}><Database className="w-3.5 h-3.5 opacity-70" /> Keyword</button>
-                        </div>
-                        <div className="relative flex items-center w-full sm:w-auto">
-                          <div className="flex items-center gap-2 text-[#5C4A3D]/80 dark:text-[#c6a87c]/70 mr-3 hidden sm:flex"><BookOpen className="w-4 h-4 opacity-70" /><span className="text-xs uppercase tracking-wider font-semibold">Source:</span></div>
-                          <button type="button" onClick={() => setShowDropdown(!showDropdown)} className="flex items-center justify-between w-full sm:w-[220px] px-3 py-1.5 sm:py-2 rounded-lg transition-colors text-xs sm:text-sm font-medium border border-transparent cursor-pointer bg-[#F8F5EE]/60 dark:bg-[#020805]/60 text-[#2D241C] dark:text-[#c6a87c]/80 hover:bg-[#FDFBF7] dark:hover:bg-[#c6a87c]/10 dark:hover:text-[#c6a87c] dark:hover:border-[#c6a87c]/20"><span className="truncate">{sourceFilter}</span><ChevronDown className="w-4 h-4 opacity-50 shrink-0 ml-2" /></button>
-                          <AnimatePresence>
-                            {showDropdown && (
-                              <motion.div initial={{ opacity: 0, y: -5 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -5 }} className="absolute top-full mt-2 right-0 w-full sm:w-[220px] rounded-xl border shadow-xl overflow-hidden z-50 backdrop-blur-2xl bg-[#FDFBF7]/95 dark:bg-[#040F0B]/95 border-[#5C4A3D]/15 dark:border-[#c6a87c]/20">
-                                {(user ? ["All Twelver Sources", "My Vault", "al-Kafi", "Bihar al-Anwar", "Basa'ir al-Darajat"] : SOURCES).map((source) => (
-                                  <div key={source} onClick={() => { setSourceFilter(source); setShowDropdown(false); }} className={`px-4 py-3 text-sm cursor-pointer transition-colors flex items-center gap-2 ${sourceFilter === source ? 'bg-[#EAE4D3]/60 dark:bg-[#c6a87c]/15 text-[#2D241C] dark:text-[#FAFAFA] font-bold' : 'text-[#5C4A3D] dark:text-[#c6a87c]/80 hover:bg-[#F8F5EE] dark:hover:bg-[#c6a87c]/10 dark:hover:text-[#c6a87c]'}`}>
-                                    {source === "My Vault" && <Bookmark className="w-3.5 h-3.5" />}
-                                    {source}
-                                  </div>
-                                ))}
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              <div className="w-full max-w-3xl mx-auto px-6 py-8 flex-grow">
-                <h3 className="text-sm sm:text-base font-sans text-[#5C4A3D]/70 dark:text-[#c6a87c]/70 mb-4">Quick Links</h3>
-                <ul className="flex flex-col gap-1">
-                  {[
-                    { label: "Search Hadiths for the concept of Bada", action: () => { setQuery('Bada'); setSearchMode('concept'); setActiveTab('search'); executeSearch('Bada', 'concept', sourceFilter, null, null, null, null); setShowSearchOverlay(false); } },
-
-                    {
-                      label: "Al-Kafi Volume 1 The Book of Intelligence and Ignorance", action: () => {
-                        if (setHadithTarget) setHadithTarget({ book: "al-Kafi", volume: "1", category: "intell", chapter: "intell" });
-                        setActiveTab('hadith');
-                        setShowSearchOverlay(false);
-                      }
-                    },
-
-                    {
-                      label: "Dua Kumayl", action: () => {
-                        if (setDuaTarget) setDuaTarget('Dua Kumayl');
-                        setActiveTab('duas');
-                        setShowSearchOverlay(false);
-                      }
-                    },
-
-                    { label: "Quran verse 5:55", action: () => { setQuranTarget(5); setQuranVerseTarget(55); setActiveTab('quran'); setShowSearchOverlay(false); } },
-                    { label: "Know Your Imam", action: () => { setTranscriptTarget('know-your-imam-ep1'); setActiveTab('library'); setShowSearchOverlay(false); } }
-                  ].map((link, idx) => (
-                    <li key={idx}>
-                      <button onClick={link.action} className="flex items-start gap-4 text-left w-full py-2.5 sm:py-3 transition-colors cursor-pointer group">
-                        <span className="font-sans text-lg sm:text-xl text-[#2D241C]/70 dark:text-[#FAFAFA]/70 mt-[2px] sm:mt-[1px] group-hover:text-[#c6a87c] group-hover:translate-x-1 transition-all">→</span>
-                        <span className="font-sans font-semibold text-base sm:text-[17px] tracking-tight text-[#2D241C] dark:text-[#FAFAFA] group-hover:text-[#c6a87c] leading-snug">{link.label}</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-
-                {/* ADD THIS NEW GLOSSARY BLOCK HERE */}
-                <div className="mt-8 border-t border-[#5C4A3D]/10 dark:border-[#c6a87c]/10 pt-6">
-                  <h3 className="text-[10px] font-bold uppercase tracking-widest text-[#5C4A3D]/70 dark:text-[#c6a87c]/70 mb-4">Dictionary</h3>
-                  <button
-                    onClick={() => {
-                      setActiveTab('glossary');
-                      setShowSearchOverlay(false);
-                    }}
-                    className="w-full bg-[#F8F5EE]/60 dark:bg-[#c6a87c]/5 hover:bg-[#FDFBF7] dark:hover:bg-[#c6a87c]/10 border border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 p-5 rounded-2xl flex items-center justify-between group transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="bg-[#c6a87c]/20 p-3 rounded-xl text-[#c6a87c]">
-                        <LibraryIcon className="w-6 h-6" />
-                      </div>
-                      <div className="text-left">
-                        <h4 className="text-[#2D241C] dark:text-[#FAFAFA] font-bold text-base tracking-tight group-hover:text-[#c6a87c] transition-colors">Browse the Theological Glossary</h4>
-                        <p className="text-[#5C4A3D]/70 dark:text-slate-400 text-xs mt-1 font-serif">Not sure what to search? Explore A-Z concepts.</p>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-[#5C4A3D]/50 dark:text-[#c6a87c]/60 group-hover:text-[#c6a87c] transition-colors" />
-                  </button>
-                </div>
-                {/* END OF GLOSSARY BLOCK */}
-
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <SearchContext.Provider value={searchContextValue}>
+        <SearchOverlay themeBg={themeBg} />
+      </SearchContext.Provider>
 
       {/* ======================================================================= */}
       {/* CANVAS C: THE MAIN MENU (MOBILE CURTAIN / DESKTOP DROPDOWN) */}
       {/* ======================================================================= */}
-      <AnimatePresence>
-        {showMobileNav && (
-          <motion.div
-            key="mobile-nav"
-            exit={{ opacity: 1, transition: { duration: 0.5 } }} // Forces wrapper to stay alive on exit
-            className="fixed left-0 right-0 bottom-0 top-12 sm:top-12 sm:bottom-auto sm:left-auto sm:right-0 sm:w-[320px] z-[490] pointer-events-none overflow-hidden sm:overflow-visible flex flex-col"
-          >
-            <motion.div
-              initial={{ y: "-100%", opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: "-100%", opacity: 0 }} transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className={`w-full h-full sm:h-auto overflow-y-auto px-6 py-8 flex flex-col gap-8 relative pointer-events-auto ${themeBg} sm:border sm:${themeBorder} sm:shadow-2xl sm:rounded-2xl`}
-            >
-              {/* Primary Navigation */}
-              <div className="flex flex-col gap-6 md:hidden">
-                {[
-                  { label: "Quran", tab: "quran" },
-                  { label: "Duas", tab: "duas" },
-                  { label: "Ziyarats", tab: "ziyarats" },
-                  { label: "Hadith Library", tab: "hadith" },
-                  { label: "Academy", tab: "library" }
-                ].map((nav, idx) => (
-                  <button key={idx} onClick={() => { setActiveTab(nav.tab); setShowMobileNav(false); }} className="text-left text-3xl font-serif font-semibold tracking-tight text-[#2D241C] dark:text-[#FAFAFA] active:text-[#c6a87c] transition-colors">
-                    {nav.label}
-                  </button>
-                ))}
-              </div>
-
-
-              {/* Divider */}
-              <div className="h-px w-full border-b border-[#5C4A3D]/10 dark:border-[#c6a87c]/20 my-2 md:hidden" />
-
-              {/* Utility Navigation */}
-              <div className="flex flex-col gap-6">
-                <div className="flex items-center justify-between">
-                  <span className="text-[#5C4A3D] dark:text-[#c6a87c] font-medium text-lg flex items-center gap-4">
-                    {theme === 'dark' ? <Moon className="w-6 h-6 shrink-0" /> : <Sun className="w-6 h-6 shrink-0" />} Theme
-                  </span>
-                  <div className="flex items-center gap-4">
-                    <button onClick={() => { setTheme('light'); setShowMobileNav(false); }} className={`w-8 h-8 rounded-full bg-[#F5F5F7] border shadow-sm transition-all cursor-pointer ${theme === 'light' ? 'border-[#1D1D1F] scale-110' : 'border-slate-300'}`} title="Light Mode" />
-                    <button onClick={() => { setTheme('sepia'); setShowMobileNav(false); }} className={`w-8 h-8 rounded-full bg-[#FDFBF7] border shadow-sm transition-all cursor-pointer ${theme === 'sepia' ? 'border-[#c6a87c] scale-110' : 'border-[#EAE4D3]'}`} title="Sepia Mode" />
-                    <button onClick={() => { setTheme('dark'); setShowMobileNav(false); }} className={`w-8 h-8 rounded-full bg-black border shadow-sm transition-all cursor-pointer ${theme === 'dark' ? 'border-[#F5F5F7] scale-110' : 'border-zinc-800'}`} title="Dark Mode" />
-                  </div>
-                </div>
-
-                <button onClick={() => { setShowUpdates(true); setShowMobileNav(false); }} className="flex items-center gap-4 text-left text-[#5C4A3D] dark:text-[#c6a87c] text-lg font-medium active:text-[#2D241C] dark:active:text-[#FAFAFA] transition-colors">
-                  <Sparkles className="w-6 h-6 shrink-0" /> Updates Log
-                </button>
-                <button onClick={() => { setShowInfo(true); setShowMobileNav(false); }} className="flex items-center gap-4 text-left text-[#5C4A3D] dark:text-[#c6a87c] text-lg font-medium active:text-[#2D241C] dark:active:text-[#FAFAFA] transition-colors">
-                  <HelpCircle className="w-6 h-6 shrink-0" /> Help & Guide
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <MobileNav
+        open={showMobileNav}
+        onClose={() => setShowMobileNav(false)}
+        theme={theme}
+        setTheme={setTheme}
+        setActiveTab={setActiveTab}
+        themeBg={themeBg}
+        themeBorder={themeBorder}
+        onShowUpdates={() => { setShowUpdates(true); setShowMobileNav(false); }}
+        onShowInfo={() => { setShowInfo(true); setShowMobileNav(false); }}
+      />
 
       <main ref={containerRef} className={`relative w-full flex-grow flex flex-col ${lockMainScreen ? 'items-center justify-center h-screen overflow-hidden' : 'min-h-screen'}`}>
         <Routes>
@@ -1960,132 +1639,9 @@ const [quranPopup, setQuranPopup] = useState(null);
         </AnimatePresence>
 
         {/* --- PREMIUM UPDATES LOG MODAL --- */}
-        <AnimatePresence>
-          {showUpdates && (
-            <div className="fixed inset-0 z-[2000] flex items-center justify-center pointer-events-auto p-4 sm:p-0">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowUpdates(false)} className="absolute inset-0 bg-[#2D241C]/40 dark:bg-black/60 backdrop-blur-sm cursor-pointer" />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#FDFBF7] dark:bg-[#151518] border border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 w-full sm:w-[90vw] max-w-[600px] max-h-[80vh] flex flex-col shadow-2xl rounded-[2rem] z-[2001] overflow-hidden">
+        <UpdatesModal open={showUpdates} onClose={() => setShowUpdates(false)} />
 
-                <div className="flex justify-between items-center bg-[#FDFBF7]/95 dark:bg-[#1c1c20]/95 backdrop-blur-xl pt-6 pb-5 px-6 sm:px-8 z-10 border-b border-[#5C4A3D]/10 dark:border-[#c6a87c]/10 shrink-0">
-                  <h2 className="text-xl sm:text-2xl font-serif tracking-tight text-[#2D241C] dark:text-[#FAFAFA] flex items-center gap-3">
-                    <Sparkles className="w-5 h-5 text-[#c6a87c]" />
-                    Updates Log
-                  </h2>
-                  <button onClick={() => setShowUpdates(false)} className="p-2 hover:bg-[#5C4A3D]/5 dark:hover:bg-[#c6a87c]/10 rounded-full transition-colors cursor-pointer shrink-0">
-                    <X className="w-5 h-5 text-[#5C4A3D] dark:text-[#c6a87c]" />
-                  </button>
-                </div>
-
-                <div className="p-6 sm:p-8 overflow-y-auto flex-grow smart-scrollbar flex flex-col gap-8">
-
-                  {/* --- PERMANENT PLATFORM SCHEDULE NOTICE --- */}
-                  <div className="p-5 rounded-2xl bg-[#c6a87c]/10 border border-[#c6a87c]/20 flex flex-col sm:flex-row gap-4 items-start sm:items-center shadow-sm">
-                    <div className="w-10 h-10 rounded-full bg-[#c6a87c]/20 flex items-center justify-center shrink-0">
-                      <CalendarDays className="w-5 h-5 text-[#c6a87c]" />
-                    </div>
-                    <div>
-                      <h3 className="font-bold text-[#2D241C] dark:text-[#FAFAFA] text-base mb-1 tracking-tight">The Sunday Drop</h3>
-                      <p className="text-sm text-[#5C4A3D]/90 dark:text-slate-300 leading-relaxed font-serif">
-                        Al-Kisa is a living library. We unlock new dimensions of the platform <strong className="text-[#c6a87c] font-bold">every Sunday</strong>—from fresh masterclass episodes and newly mapped Hadith volumes, to sacred liturgies and interactive study tools.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="w-full h-px bg-gradient-to-r from-transparent via-[#5C4A3D]/10 dark:via-[#c6a87c]/20 to-transparent" />
-
-                  {APP_UPDATES.map((update, idx) => (
-                    <div key={idx} className="relative pl-6 sm:pl-8 border-l-[1.5px] border-[#5C4A3D]/15 dark:border-[#c6a87c]/20">
-
-                      {/* The Premium Timeline Dot */}
-                      <div className="absolute -left-[4.5px] top-2 w-2 h-2 rounded-full bg-[#c6a87c] ring-4 ring-[#FDFBF7] dark:ring-[#151518]" />
-
-                      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between mb-3 gap-1 sm:gap-4">
-                        <h3 className="font-sans font-bold text-lg sm:text-xl text-[#2D241C] dark:text-[#FAFAFA] tracking-tight">{update.version}</h3>
-                        <span className="text-[10px] sm:text-xs font-bold uppercase tracking-widest text-[#5C4A3D]/50 dark:text-[#c6a87c]/60">{update.date}</span>
-                      </div>
-
-                      <ul className="flex flex-col gap-3">
-                        {update.changes.map((change, cIdx) => (
-                          <li key={cIdx} className="text-sm sm:text-base text-[#5C4A3D]/90 dark:text-slate-300 flex items-start gap-3 leading-relaxed font-serif">
-                            <span className="text-[#c6a87c] mt-2 font-bold text-[10px]">✦</span>
-                            <span>{change}</span>
-                          </li>
-                        ))}
-                      </ul>
-
-                    </div>
-                  ))}
-                </div>
-
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        <AnimatePresence>
-          {showInfo && (
-            <div className="fixed inset-0 z-[2000] flex items-center justify-center pointer-events-auto p-4 sm:p-0">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowInfo(false)} className="absolute inset-0 bg-[#2D241C]/60 dark:bg-[#020604]/80 backdrop-blur-md cursor-pointer" />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#EAE4D3] dark:bg-[#030A06] border border-[#5C4A3D]/20 dark:border-[#c6a87c]/20 w-full sm:w-[90vw] max-w-[600px] max-h-[85vh] flex flex-col shadow-2xl rounded-2xl z-[2001]">
-                <div className="flex justify-between items-center bg-[#FDFBF7]/60 dark:bg-[#c6a87c]/5 backdrop-blur-xl pt-5 pb-4 px-5 z-10 border-b border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 rounded-t-2xl shrink-0"><h2 className="text-lg sm:text-xl font-mono font-bold tracking-tight text-[#2D241C] dark:text-[#FAFAFA] flex items-center gap-2"><KisaLogo className="w-5 h-5 text-[#5C4A3D] dark:text-[#c6a87c]" />How to Use Al-Kisa</h2><button onClick={() => setShowInfo(false)} className="p-2 hover:bg-[#FDFBF7] dark:hover:bg-[#c6a87c]/10 rounded-full transition-colors cursor-pointer shrink-0"><X className="w-5 h-5 text-[#5C4A3D] dark:text-[#c6a87c]" /></button></div>
-
-                <div className="p-5 sm:p-6 overflow-y-auto flex-grow smart-scrollbar flex flex-col gap-6 text-[#5C4A3D] dark:text-[#c6a87c]">
-                  <div>
-                    <h3 className="font-bold text-base sm:text-lg mb-2 text-[#2D241C] dark:text-[#FAFAFA]">Welcome to Al-Kisa</h3>
-                    <p className="leading-relaxed text-xs sm:text-sm">Al-Kisa is a semantic search engine designed specifically to explore authentic Twelver Shia literature, prioritizing core texts like <i>al-Kafi</i>, <i>Bihar al-Anwar</i>, and <i>Basa'ir al-Darajat</i>. It maps verified texts mathematically so you can explore concepts without AI hallucinations.</p>
-                  </div>
-                  <hr className="border-[#5C4A3D]/10 dark:border-[#c6a87c]/10" />
-
-                  <div>
-                    <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 mb-3 text-[#2D241C] dark:text-[#FAFAFA]"><LibraryIcon className="w-4 h-4 text-[#5C4A3D]/70 dark:text-[#c6a87c]" /> Features</h3>
-                    <div className="mb-4">
-                      <h4 className="font-semibold text-sm sm:text-base flex items-center gap-1.5 mb-1"><Search className="w-3.5 h-3.5 text-[#5C4A3D]/70 dark:text-[#c6a87c]" /> Dual Search Engine</h4>
-                      <ul className="flex flex-col gap-2 text-xs sm:text-sm pl-5 list-disc mb-2">
-                        <li><b>Concept Mode:</b> Uses AI vector math to find underlying themes, even if exact words aren't used. Returns interactive thematic clusters.</li>
-                        <li><b>Keyword Mode:</b> Strictly searches the exact English or Arabic text you type, functioning like a traditional database index.</li>
-                      </ul>
-                    </div>
-
-                    <div>
-                      <h4 className="font-semibold text-sm sm:text-base flex items-center gap-1.5 mb-1"><LibraryBig className="w-3.5 h-3.5 text-[#c6a87c]" /> Digital Archive (Transcript Library)</h4>
-                      <p className="leading-relaxed text-xs sm:text-sm mb-2">Read meticulously structured and translated transcripts of foundational scholarly series (e.g., The File of Fatima). Features a premium editorial UI with automatic section summaries, bold emphasis, and a persistent reading state.</p>
-                    </div>
-                  </div>
-                  <hr className="border-[#5C4A3D]/10 dark:border-[#c6a87c]/10" />
-
-                  <div>
-                    <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 mb-3 text-[#2D241C] dark:text-[#FAFAFA]"><Sparkles className="w-4 h-4 text-[#5C4A3D]/70 dark:text-[#c6a87c]" /> Advanced Features</h3>
-                    <ul className="flex flex-col gap-4 text-xs sm:text-sm leading-relaxed">
-                      <li>
-                        <b className="text-[#2D241C] dark:text-[#FAFAFA] flex items-center gap-1.5 mb-0.5"><Layout className="w-3.5 h-3.5 text-[#5C4A3D]/70 dark:text-[#c6a87c]" /> Dynamic Concept Map</b>
-                        Concept searches generate a beautiful, non-overlapping orbital map of themes. The "Top Matches" node is highlighted, and you can switch to a traditional List View at any time.
-                      </li>
-                      <li>
-                        <b className="text-[#2D241C] dark:text-[#FAFAFA] flex items-center gap-1.5 mb-0.5"><Sparkles className="w-3.5 h-3.5 text-[#5C4A3D]/70 dark:text-[#c6a87c]" /> Vector Hopping ("Find Similar")</b>
-                        Click "Find Similar" on any hadith to use its mathematical signature to instantly discover related narrations. The original source is cleanly pinned to the top as an "Anchor" so you never lose your place.
-                      </li>
-                      <li>
-                        <b className="text-[#2D241C] dark:text-[#FAFAFA] flex items-center gap-1.5 mb-0.5"><BookOpen className="w-3.5 h-3.5 text-amber-500" /> Reverse Quran Tafsir</b>
-                        Read all 114 Surahs. If Al-Kisa detects narrations referencing a specific Ayah, a "Related Hadiths" button appears. Click it to open a seamless popup of contextual narrations.
-                      </li>
-                    </ul>
-                  </div>
-                  <hr className="border-[#5C4A3D]/10 dark:border-[#c6a87c]/10" />
-
-                  <div>
-                    <h3 className="font-bold text-base sm:text-lg flex items-center gap-2 mb-3 text-[#2D241C] dark:text-[#FAFAFA]"><Clock className="w-4 h-4 text-[#5C4A3D]/70 dark:text-[#c6a87c]" /> Workflow & Study Tools</h3>
-                    <ul className="flex flex-col gap-3 text-xs sm:text-sm leading-relaxed list-disc pl-4">
-                      <li><b className="text-[#2D241C] dark:text-[#FAFAFA]">Study History & Quick Resume:</b> Click the empty search bar to instantly resume your 5 most recent searches/recitations, or click the Clock icon to open your full History drawer.</li>
-                      <li><b className="text-[#2D241C] dark:text-[#FAFAFA]">Source Filtering:</b> Use the Source dropdown to isolate searches strictly to specific books like <i>al-Kafi</i>.</li>
-                      <li><b className="text-[#2D241C] dark:text-[#FAFAFA]">Smart Copy:</b> Click "Copy Text" on any Hadith or Anchored Source to instantly copy the full reference, Arabic text, Chain of Narrators, English translation, and a Kisa link to your clipboard.</li>
-                    </ul>
-                  </div>
-
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+        <InfoModal open={showInfo} onClose={() => setShowInfo(false)} />
         {/* --- LEGAL PAGES --- */}
         {activeTab === 'disclaimer' && (
           <div className="flex flex-col items-center justify-center min-h-[70vh] pt-24 pb-16 px-6 max-w-3xl mx-auto text-left sm:text-center">
