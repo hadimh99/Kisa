@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation, Navigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Sparkles, X, ChevronRight, Home as HomeIcon, Copy, List, Info, BookOpen, History, Database, Share2, Check, Settings2, Menu, Clock, Trash2, LibraryBig, Youtube, ArrowDown, User, Bookmark, Coins, HeartPulse, ShieldAlert, MoreHorizontal, PenLine, FolderPlus, FolderMinus, Book } from 'lucide-react';
+import { Search, Sparkles, X, ChevronRight, Home as HomeIcon, List, Info, BookOpen, History, Database, Share2, Settings2, Menu, Clock, Trash2, LibraryBig, Youtube, ArrowDown, User, Bookmark, Coins, HeartPulse, ShieldAlert, MoreHorizontal, PenLine, FolderPlus, FolderMinus, Book } from 'lucide-react';
 import quranData from './quran.json';
 import verseMap from './verse_map.json';
 import transcriptData from './transcripts.json';
@@ -32,6 +32,7 @@ import MobileNav from './components/MobileNav';
 import SearchOverlay from './components/SearchOverlay';
 import SearchResults from './components/SearchResults';
 import ClusterModal from './components/ClusterModal';
+import AnchorModal from './components/AnchorModal';
 import { SearchContext } from './contexts/SearchContext';
 
 
@@ -904,7 +905,7 @@ const [quranPopup, setQuranPopup] = useState(null);
     hoveredCluster, setHoveredCluster,
     anchorHadith, showAnchor, setShowAnchor,
     anchorCopied, setAnchorCopied,
-    setShowAnchorModal,
+    showAnchorModal, setShowAnchorModal,
     handleCopyHadith,
     // cluster detail modal
     lengthFilter, setLengthFilter,
@@ -1311,38 +1312,7 @@ const [quranPopup, setQuranPopup] = useState(null);
         <ClusterModal modalScrollRef={modalScrollRef} handleModalScroll={handleModalScroll} vaultItems={vaultItems} />
 
         {/* --- MAP VIEW: THE ANCHOR POPUP MODAL --- */}
-        <AnimatePresence>
-          {showAnchorModal && anchorHadith && (
-            <div className="fixed inset-0 z-[5000] flex items-center justify-center pointer-events-auto p-4 sm:p-0">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAnchorModal(false)} className="absolute inset-0 bg-[#2D241C]/60 dark:bg-[#020604]/80 backdrop-blur-md cursor-pointer" />
-              <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative bg-[#EAE4D3] dark:bg-[#030A06] border border-[#5C4A3D]/20 dark:border-[#c6a87c]/20 w-full sm:w-[90vw] max-w-[600px] max-h-[85vh] flex flex-col shadow-2xl rounded-2xl z-[5001] overflow-hidden">
-                <div className="flex justify-between items-center bg-[#FDFBF7]/60 dark:bg-[#c6a87c]/5 backdrop-blur-xl pt-5 pb-4 px-6 z-10 border-b border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 shrink-0">
-                  <div>
-                    <h3 className="font-mono text-sm tracking-widest uppercase text-[#2D241C] dark:text-[#FAFAFA] font-bold mb-0.5 flex items-center gap-2"><Sparkles className="w-4 h-4 text-[#c6a87c]" /> Anchored Source</h3>
-                    <p className="text-[10px] sm:text-xs text-[#5C4A3D]/60 dark:text-[#c6a87c]/60 font-mono m-0 leading-relaxed pr-4">
-                      {anchorHadith.full_reference || `Book: ${anchorHadith.book}, Vol: ${anchorHadith.volume}, ${anchorHadith.sub_book}, Chapter: ${anchorHadith.chapter}`}
-                    </p>
-                  </div>
-                  <button onClick={() => setShowAnchorModal(false)} className="p-2 hover:bg-[#FDFBF7] dark:hover:bg-[#c6a87c]/10 rounded-full transition-colors cursor-pointer shrink-0 self-start"><X className="w-5 h-5 text-[#5C4A3D] dark:text-[#c6a87c]" /></button>
-                </div>
-                <div className="p-6 sm:p-8 overflow-y-auto flex-grow smart-scrollbar">
-                  {anchorHadith.arabic_text && <div className="mb-6"><p className="font-arabic text-3xl sm:text-4xl text-right leading-[2.2] text-[#2D241C] dark:text-slate-100" dir="rtl" lang="ar" style={{ fontFamily: activeFontFamily, fontVariantLigatures: 'normal', fontFeatureSettings: '"ccmp" 1, "mark" 1, "mkmk" 1' }}>{anchorHadith.arabic_text}</p></div>}
-                  <div className={anchorHadith.arabic_text ? "border-t border-[#5C4A3D]/10 dark:border-[#c6a87c]/20 pt-6" : ""}><p className="text-base sm:text-lg text-[#5C4A3D] dark:text-[#c6a87c] leading-relaxed font-serif">{anchorHadith.english_text}</p></div>
-                  <div className="mt-6 flex justify-end pt-4 border-t border-[#5C4A3D]/10 dark:border-[#c6a87c]/20">
-                    <button onClick={(e) => {
-                      e.stopPropagation();
-                      handleCopyHadith(anchorHadith);
-                      setAnchorCopied(true);
-                      setTimeout(() => setAnchorCopied(false), 2000);
-                    }} className={`flex items-center gap-2 text-xs font-mono transition-colors px-4 py-2 rounded-md cursor-pointer ${anchorCopied ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10' : 'text-[#5C4A3D] hover:text-[#2D241C] hover:bg-[#FDFBF7] dark:bg-[#c6a87c]/10 dark:hover:bg-[#c6a87c]/20 dark:text-[#c6a87c] dark:hover:text-[#FAFAFA]'}`}>
-                      {anchorCopied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}<span>{anchorCopied ? 'Copied!' : 'Copy Text'}</span>
-                    </button>
-                  </div>
-                </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+        <AnchorModal activeFontFamily={activeFontFamily} />
 
         {/* --- REVERSE QURAN TAFSIR POPUP --- */}
         <AnimatePresence>
