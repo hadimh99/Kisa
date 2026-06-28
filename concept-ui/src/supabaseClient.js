@@ -1,6 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
-
-const supabaseUrl = 'https://uyikzrdialvariconams.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV5aWt6cmRpYWx2YXJpY29uYW1zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0NDQzOTYsImV4cCI6MjA4OTAyMDM5Nn0.Q0ZlAPw_b_V9OQyY-NJ0OxicN9wgUYjaU8vssHZtANw'
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+// Single shared Supabase client. Credentials come from env (VITE_SUPABASE_URL /
+// VITE_SUPABASE_ANON_KEY) — never hardcode them here. This re-exports the one
+// client instance from ./lib/supabase so the whole app shares a single auth
+// session instead of running two separate clients.
+export { supabase } from './lib/supabase';
