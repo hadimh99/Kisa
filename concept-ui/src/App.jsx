@@ -188,20 +188,36 @@ function AppContent() {
         }
 
         if (edits && edits.length > 0) {
-          const overrideMap = new Map();
+          // Cloud override ids do NOT align with the static array (genuine ID
+          // desync), so overrides are linked by English text. Match exactly
+          // first (current behaviour — every override matches exactly today),
+          // then fall back to a normalized key so minor text cleaning
+          // (quotes / whitespace / case) can't silently drop an override.
+          const normalizeKey = (s) => (s || '')
+            .replace(/[‘’]/g, "'")
+            .replace(/[“”]/g, '"')
+            .replace(/\s+/g, ' ')
+            .trim()
+            .toLowerCase();
+
+          const exactMap = new Map();
+          const normMap = new Map();
           edits.forEach(row => {
-            if (row.englishText) overrideMap.set(row.englishText, row);
+            if (row.englishText) {
+              exactMap.set(row.englishText, row);
+              normMap.set(normalizeKey(row.englishText), row);
+            }
           });
 
           staticData = staticData.map(hadith => {
             const localText = hadith.englishText || hadith.en || hadith.english_text || "";
-            const edit = overrideMap.get(localText);
+            const edit = exactMap.get(localText) || normMap.get(normalizeKey(localText));
             if (edit) {
               return {
                 ...hadith,
                 manual_body: edit.manual_body,
                 manual_chain: edit.manual_chain,
-                id: edit.id // CRITICAL: Inherit the new Supabase UUID so the inline editor can save future updates!
+                id: edit.id // Inherit the cloud row id so the inline editor saves back to the correct kisa_hadiths row
               };
             }
             return hadith;
