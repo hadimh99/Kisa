@@ -26,7 +26,7 @@ const CMSDashboard = ({ supabase, onEditHadith }) => {
         const [hadithsRes, conceptsRes, transcriptsRes] = await Promise.all([
             supabase.from('kisa_hadiths').select('*', { count: 'exact', head: true }).not('manual_body', 'is', null).is('is_trashed', false),
             supabase.from('ontology_concepts').select('*', { count: 'exact', head: true }),
-            supabase.from('kisa_series_config').select('*', { count: 'exact', head: true }).is('is_hidden', false)
+            supabase.from('kisa_transcripts').select('*', { count: 'exact', head: true }).is('is_trashed', false)
         ]);
 
         setMetrics({
