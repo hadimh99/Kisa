@@ -94,4 +94,9 @@ test('search results render the returned clusters', async ({ page }) => {
   await expect(page).toHaveURL(/\/search/);
   await expect(page.getByText('Relating to patience')).toBeVisible();
   await expect(page.getByText('Relating to gratitude')).toBeVisible();
+
+  // Clicking a result cluster opens the cluster-detail modal with its narrations.
+  await page.getByText('Relating to patience').click();
+  await expect(page.getByText('Length:')).toBeVisible();
+  await expect(page.getByText('Test narration one.')).toBeVisible();
 });
