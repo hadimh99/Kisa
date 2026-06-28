@@ -66,3 +66,32 @@ test('search overlay: glossary shortcut navigates to the glossary', async ({ pag
   await page.getByRole('button', { name: 'Browse the Theological Glossary' }).click();
   await expect(page).toHaveURL(/\/glossary/);
 });
+
+// --- Search results view (backend mocked so the extracted SearchResults can be
+// verified without the live HF/Pinecone API) ---
+
+test('search results render the returned clusters', async ({ page }) => {
+  await page.route('**/api/explore', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        total_results: 2,
+        clusters: [
+          { theme_label: 'Relating to patience', items: [{ id: 't1', english_text: 'Test narration one.', arabic_text: '', book: 'al-Kafi', volume: '1', sub_book: 'x', chapter: 'y', hadith_number: '1', similarity_score: 1, vector: [] }] },
+          { theme_label: 'Relating to gratitude', items: [{ id: 't2', english_text: 'Test narration two.', arabic_text: '', book: 'al-Kafi', volume: '1', sub_book: 'x', chapter: 'y', hadith_number: '2', similarity_score: 1, vector: [] }] },
+        ],
+      }),
+    })
+  );
+
+  await page.getByRole('button', { name: 'Open search' }).click();
+  await page.getByRole('button', { name: 'Knowledge Graph' }).click();
+  const input = page.getByPlaceholder('Deep search the Hadith corpus...');
+  await input.fill('patience');
+  await input.press('Enter');
+
+  await expect(page).toHaveURL(/\/search/);
+  await expect(page.getByText('Relating to patience')).toBeVisible();
+  await expect(page.getByText('Relating to gratitude')).toBeVisible();
+});
