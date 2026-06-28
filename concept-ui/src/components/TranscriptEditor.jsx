@@ -68,7 +68,7 @@ const TranscriptEditor = ({ supabase }) => {
     const [isPreviewMode, setIsPreviewMode] = useState(false);
     const [episodeId, setEpisodeId] = useState('');
     const [episodeData, setEpisodeData] = useState({
-        series_name: '', title: '', speaker: '', source_link: '', is_hidden: false, series_priority: 0, episode_priority: 0
+        series_name: '', title: '', speaker: '', source_link: '', is_hidden: false, series_priority: 0, episode_number: 1
     });
     const [blocks, setBlocks] = useState([]);
 
@@ -108,7 +108,7 @@ const TranscriptEditor = ({ supabase }) => {
         setEpisodeData({
             series_name: ep.series_name || '', title: ep.title || '', speaker: ep.speaker || '',
             source_link: ep.source_link || '', is_hidden: ep.is_hidden || false,
-            series_priority: ep.series_priority || 0, episode_priority: ep.episode_priority || 0
+            series_priority: ep.series_priority || 0, episode_number: ep.episode_number || 1
         });
         setBlocks((ep.content || []).map(b => ({ ...b, id: Math.random() })));
         setActiveTab('editor');
@@ -116,7 +116,7 @@ const TranscriptEditor = ({ supabase }) => {
 
     const resetForm = () => {
         setEpisodeId('');
-        setEpisodeData({ series_name: '', title: '', speaker: '', source_link: '', is_hidden: false, series_priority: 0, episode_priority: 0 });
+        setEpisodeData({ series_name: '', title: '', speaker: '', source_link: '', is_hidden: false, series_priority: 0, episode_number: 1 });
         setBlocks([]);
         setStatus({ type: '', message: '' });
         setActiveTab('editor');
@@ -156,7 +156,7 @@ const TranscriptEditor = ({ supabase }) => {
         if (existingSeries) newMeta.series_priority = existingSeries.order;
 
         const epsInNewSeries = existingEpisodes.filter(ep => (ep.series_name || '') === newMeta.series_name);
-        newMeta.episode_priority = epsInNewSeries.length > 0 ? Math.max(...epsInNewSeries.map(e => e.episode_priority || 0)) + 1 : 0;
+        newMeta.episode_number = epsInNewSeries.length > 0 ? Math.max(...epsInNewSeries.map(e => e.episode_number || 0)) + 1 : 1;
 
         setEpisodeData(newMeta);
         if (generatedId) setEpisodeId(generatedId);
@@ -168,8 +168,19 @@ const TranscriptEditor = ({ supabase }) => {
     const handleSave = async () => {
         setLoading(true);
         const cleanBlocks = blocks.map(({ id, ...rest }) => rest);
+
+        // The public site orders/routes by episode_number, so it MUST be unique
+        // within a series. New episodes (or any with a missing number) get
+        // max(existing in series) + 1; existing episodes keep their number.
+        let episodeNumber = episodeData.episode_number;
+        const isExisting = existingEpisodes.some(ep => ep.id === episodeId);
+        if (!isExisting || !episodeNumber) {
+            const sameSeries = existingEpisodes.filter(ep => (ep.series_name || '') === episodeData.series_name && ep.id !== episodeId);
+            episodeNumber = sameSeries.length > 0 ? Math.max(...sameSeries.map(e => e.episode_number || 0)) + 1 : 1;
+        }
+
         const { error } = await supabase.from('kisa_transcripts').upsert([{
-            id: episodeId, ...episodeData, content: cleanBlocks, is_trashed: false, updated_at: new Date().toISOString()
+            id: episodeId, ...episodeData, episode_number: episodeNumber, content: cleanBlocks, is_trashed: false, updated_at: new Date().toISOString()
         }]);
 
         if (error) setStatus({ type: 'error', message: error.message });
@@ -340,7 +351,7 @@ const TranscriptEditor = ({ supabase }) => {
 
     // --- INDIVIDUAL EPISODE REORDERING ---
     const moveEpisodeLocal = (epId, seriesName, direction) => {
-        const seriesEps = existingEpisodes.filter(ep => (ep.series_name || '') === seriesName).sort((a, b) => (a.episode_priority || 0) - (b.episode_priority || 0));
+        const seriesEps = existingEpisodes.filter(ep => (ep.series_name || '') === seriesName).sort((a, b) => (a.episode_number || 0) - (b.episode_number || 0));
         const currentIndex = seriesEps.findIndex(ep => ep.id === epId);
         if ((direction === -1 && currentIndex === 0) || (direction === 1 && currentIndex === seriesEps.length - 1)) return;
 
@@ -348,11 +359,11 @@ const TranscriptEditor = ({ supabase }) => {
         const newSeriesEps = [...seriesEps];
         [newSeriesEps[currentIndex], newSeriesEps[targetIndex]] = [newSeriesEps[targetIndex], newSeriesEps[currentIndex]];
 
-        newSeriesEps.forEach((ep, idx) => { ep.episode_priority = idx; });
+        newSeriesEps.forEach((ep, idx) => { ep.episode_number = idx + 1; });
 
         setExistingEpisodes(prev => prev.map(ep => {
             const updatedEp = newSeriesEps.find(nep => nep.id === ep.id);
-            return updatedEp ? { ...ep, episode_priority: updatedEp.episode_priority } : ep;
+            return updatedEp ? { ...ep, episode_number: updatedEp.episode_number } : ep;
         }));
     };
 
@@ -372,11 +383,11 @@ const TranscriptEditor = ({ supabase }) => {
         const sorted = [...seriesEps].sort((a, b) => extractNum(a.title) - extractNum(b.title));
 
         // Re-assign priorities based on sorted order
-        sorted.forEach((ep, idx) => { ep.episode_priority = idx; });
+        sorted.forEach((ep, idx) => { ep.episode_number = idx + 1; });
 
         setExistingEpisodes(prev => prev.map(ep => {
             const updated = sorted.find(s => s.id === ep.id);
-            return updated ? { ...ep, episode_priority: updated.episode_priority } : ep;
+            return updated ? { ...ep, episode_number: updated.episode_number } : ep;
         }));
 
         setStatus({ type: 'success', message: 'Auto-sorted locally! Click "Publish Order" to lock it in.' });
@@ -387,12 +398,12 @@ const TranscriptEditor = ({ supabase }) => {
         setLoading(true);
         const seriesEps = existingEpisodes.filter(ep => (ep.series_name || '') === seriesName);
         try {
-            const updates = seriesEps.map(ep => supabase.from('kisa_transcripts').update({ episode_priority: ep.episode_priority }).eq('id', ep.id));
+            const updates = seriesEps.map(ep => supabase.from('kisa_transcripts').update({ episode_number: ep.episode_number }).eq('id', ep.id));
             const results = await Promise.all(updates);
 
             // Check for silent Supabase column errors!
             const firstError = results.find(res => res && res.error);
-            if (firstError) throw new Error(firstError.error.message || "Database rejected save. Make sure the 'episode_priority' column is strictly spelled correctly in Supabase.");
+            if (firstError) throw new Error(firstError.error.message || "Database rejected save. Make sure the 'episode_number' column is strictly spelled correctly in Supabase.");
 
             setStatus({ type: 'success', message: 'Episode order published successfully!' });
             fetchLibrary(); // Force a clean sync with the DB
@@ -497,7 +508,7 @@ const TranscriptEditor = ({ supabase }) => {
                         {seriesList.map((series) => {
                             const seriesEpisodes = existingEpisodes
                                 .filter(ep => (ep.series_name || '') === series.name)
-                                .sort((a, b) => (a.episode_priority || 0) - (b.episode_priority || 0));
+                                .sort((a, b) => (a.episode_number || 0) - (b.episode_number || 0));
 
                             if (seriesEpisodes.length === 0) return null;
                             const isExpanded = expandedLibrarySeries[series.name] ?? true;
