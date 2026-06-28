@@ -82,7 +82,7 @@ export default function SearchOverlay({ themeBg }) {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder={overlayMode === 'global' ? "Search Quran, Duas, Series, or References..." : "Deep search the Hadith corpus..."}
+                  placeholder={overlayMode === 'global' ? "Search the platform…" : "Deep search hadith…"}
                   className="w-full bg-transparent outline-none pl-12 sm:pl-14 pr-28 sm:pr-32 text-3xl sm:text-5xl font-sans font-bold tracking-tight text-[#2D241C] dark:text-[#FAFAFA] placeholder:text-[#5C4A3D]/80 dark:placeholder:text-[#c6a87c]/80 caret-[#c6a87c]"
                 />
                 <div className="absolute right-0 top-0 bottom-0 flex items-center pr-2 gap-1 sm:gap-2">

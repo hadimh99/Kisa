@@ -50,9 +50,9 @@ test('nav menu opens the Help & Guide modal', async ({ page }) => {
 
 test('search overlay: toggling mode swaps the input placeholder', async ({ page }) => {
   await page.getByRole('button', { name: 'Open search' }).click();
-  await expect(page.getByPlaceholder('Search Quran, Duas, Series, or References...')).toBeVisible();
+  await expect(page.getByPlaceholder('Search the platform…')).toBeVisible();
   await page.getByRole('button', { name: 'Knowledge Graph' }).click();
-  await expect(page.getByPlaceholder('Deep search the Hadith corpus...')).toBeVisible();
+  await expect(page.getByPlaceholder('Deep search hadith…')).toBeVisible();
 });
 
 test('search overlay: a quick link navigates to the Quran reader', async ({ page }) => {
@@ -87,7 +87,7 @@ test('search results render the returned clusters', async ({ page }) => {
 
   await page.getByRole('button', { name: 'Open search' }).click();
   await page.getByRole('button', { name: 'Knowledge Graph' }).click();
-  const input = page.getByPlaceholder('Deep search the Hadith corpus...');
+  const input = page.getByPlaceholder('Deep search hadith…');
   await input.fill('patience');
   await input.press('Enter');
 
