@@ -13,14 +13,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('app boots with header controls', async ({ page }) => {
-  await expect(page.getByRole('button', { name: 'Open account menu' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Sign in' }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: 'Toggle navigation menu' })).toBeVisible();
 });
 
-test('account menu opens the auth modal', async ({ page }) => {
-  await page.getByRole('button', { name: 'Open account menu' }).click();
-  await expect(page.getByText('Your Vault is locked.')).toBeVisible();
-
+test('header Sign in opens the auth modal', async ({ page }) => {
   await page.getByRole('button', { name: 'Sign in' }).first().click();
   await expect(page.getByRole('heading', { name: 'Study Vault' })).toBeVisible();
   await expect(page.locator('input[placeholder="name@example.com"]')).toBeVisible();

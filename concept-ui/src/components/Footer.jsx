@@ -8,7 +8,7 @@ const Footer = ({ theme = 'light', setActiveTab, KisaLogo, setShowSearchOverlay 
     const isSepia = theme === 'sepia';
 
     const colors = {
-        bg: isDark ? 'bg-[#050505]' : isSepia ? 'bg-[#F4EFE4]' : 'bg-[#ECECEE]',
+        bg: isDark ? 'bg-[#0c0d10]' : isSepia ? 'bg-[#F4EFE4]' : 'bg-[#efe7d6]',
         textPrimary: isDark ? 'text-white' : isSepia ? 'text-[#2D241C]' : 'text-[#1D1D1F]',
         textSecondary: isDark ? 'text-zinc-500' : isSepia ? 'text-[#5C4A3D]/60' : 'text-[#5C4A3D]/50',
         textTertiary: isDark ? 'text-zinc-600' : isSepia ? 'text-[#5C4A3D]/40' : 'text-[#5C4A3D]/35',
@@ -58,8 +58,8 @@ const Footer = ({ theme = 'light', setActiveTab, KisaLogo, setShowSearchOverlay 
                                     <KisaLogo className="w-5 h-5 text-[#c6a87c]" />
                                 </div>
                             )}
-                            <span className={`font-serif text-xl font-bold tracking-tight ${colors.textPrimary}`}>
-                                Al-Kisa
+                            <span style={{ fontFamily: '"Fraunces", Georgia, serif' }} className={`text-xl font-medium tracking-tight ${colors.textPrimary}`}>
+                                Al-<span className="italic text-[#9c7327] dark:text-[#cda767]">Kisa</span>
                             </span>
                         </div>
 

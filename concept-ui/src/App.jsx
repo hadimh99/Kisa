@@ -467,9 +467,9 @@ const [quranPopup, setQuranPopup] = useState(null);
 
     // --- 3-TIER GLOBAL COLOR ENGINE (Eye-Strain Optimized) ---
     const getBgColor = () => {
-      if (theme === 'dark') return '#000000';
+      if (theme === 'dark') return '#0f1012';
       if (theme === 'sepia') return '#FDFBF7';
-      return '#F5F5F7';
+      return '#f5efe4';
     };
 
     const getTextColor = () => {
@@ -835,12 +835,12 @@ const [quranPopup, setQuranPopup] = useState(null);
   const btnRef = useRef(null);
 
   const getAppBgClass = () => {
-    if (['quran', 'duas', 'ziyarats'].includes(activeTab)) return theme === 'dark' ? 'bg-black text-[#F5F5F7]' : (theme === 'sepia' ? 'bg-[#f4ecd8] text-[#2D241C]' : 'bg-[#F5F5F7] text-[#1D1D1F]');
-    if (activeTab === 'library') return theme === 'dark' ? 'bg-black text-[#F5F5F7]' : (theme === 'sepia' ? 'bg-[#f4f4f5] text-[#2D241C]' : 'bg-[#F5F5F7] text-[#1D1D1F]');
+    if (['quran', 'duas', 'ziyarats'].includes(activeTab)) return theme === 'dark' ? 'bg-[#0f1012] text-[#efe9dd]' : (theme === 'sepia' ? 'bg-[#f4ecd8] text-[#2D241C]' : 'bg-[#f5efe4] text-[#231d15]');
+    if (activeTab === 'library') return theme === 'dark' ? 'bg-[#0f1012] text-[#efe9dd]' : (theme === 'sepia' ? 'bg-[#f4f4f5] text-[#2D241C]' : 'bg-[#f5efe4] text-[#231d15]');
 
-    if (theme === 'dark') return 'bg-black text-[#F5F5F7]';
+    if (theme === 'dark') return 'bg-[#0f1012] text-[#efe9dd]';
     if (theme === 'sepia') return 'bg-[#FDFBF7] text-[#2D241C]';
-    return 'bg-[#F5F5F7] text-[#1D1D1F]';
+    return 'bg-[#f5efe4] text-[#231d15]';
   };
   const appBgClass = getAppBgClass();
   const isMapView = activeTab === 'search' && data && viewMode === 'map' && !loading;
@@ -848,7 +848,7 @@ const [quranPopup, setQuranPopup] = useState(null);
   const lockMainScreen = isMapView;
   const hideFooter = lockMainScreen || activeTab === 'search';
 
-  const themeBg = theme === 'dark' ? 'bg-black' : theme === 'sepia' ? 'bg-[#FDFBF7]' : 'bg-[#F5F5F7]';
+  const themeBg = theme === 'dark' ? 'bg-[#0f1012]' : theme === 'sepia' ? 'bg-[#FDFBF7]' : 'bg-[#f5efe4]';
   const themeBorder = theme === 'dark' ? 'border-[#c6a87c]/20' : 'border-[#5C4A3D]/10';
 
   const headerRef = useRef(null);
@@ -1028,19 +1028,20 @@ const [quranPopup, setQuranPopup] = useState(null);
       <header
         ref={headerRef}
         className={`fixed top-0 left-0 right-0 z-[500] h-12 sm:h-14 transition-all duration-400 will-change-transform border-b flex items-center justify-center ${(showMobileNav || showSearchOverlay || showUserHub)
-          ? `${theme === 'dark' ? 'bg-black' : theme === 'sepia' ? 'bg-[#FDFBF7]' : 'bg-[#F5F5F7]'} border-transparent`
-          : `${theme === 'dark' ? 'bg-black/90 backdrop-blur-xl' : theme === 'sepia' ? 'bg-[#FDFBF7]/90 backdrop-blur-xl' : 'bg-[#F5F5F7]/90 backdrop-blur-xl'} border-[#5C4A3D]/10 dark:border-[#c6a87c]/10`
+          ? `${theme === 'dark' ? 'bg-[#0f1012]' : theme === 'sepia' ? 'bg-[#FDFBF7]' : 'bg-[#f5efe4]'} border-transparent`
+          : `${theme === 'dark' ? 'bg-[#0f1012]/90 backdrop-blur-xl' : theme === 'sepia' ? 'bg-[#FDFBF7]/90 backdrop-blur-xl' : 'bg-[#f5efe4]/90 backdrop-blur-xl'} border-[#5C4A3D]/10 dark:border-[#c6a87c]/10`
           }`}
       >
         <div className="w-full max-w-[1050px] px-4 sm:px-6 flex items-center justify-between relative h-full">
 
-          {/* Left Column: Logo (Artificially pushed inward to balance visual weight) */}
-          <div className="flex items-center flex-1 justify-start md:pl-16 lg:pl-24 transition-all">
+          {/* Left Column: Logo + wordmark */}
+          <div className="flex items-center flex-1 justify-start transition-all">
             <div
               onClick={() => { handleHomeClick(); setShowMobileNav(false); setShowSearchOverlay(false); setShowUserHub(false); }}
               className={`flex items-center gap-2 cursor-pointer group shrink-0 transition-opacity duration-300 ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 sm:opacity-100 pointer-events-none sm:pointer-events-auto' : 'opacity-100'}`}
             >
-              <KisaLogo className="w-5 h-5 text-[#2D241C] dark:text-[#c6a87c] group-hover:text-[#c6a87c] group-hover:scale-105 transition-all duration-300" />
+              <KisaLogo className="w-5 h-5 text-[#231d15] dark:text-[#cda767] group-hover:text-[#9c7327] dark:group-hover:text-[#cda767] group-hover:scale-105 transition-all duration-300" />
+              <span style={{ fontFamily: '"Fraunces", Georgia, serif' }} className="text-[15px] sm:text-base font-medium tracking-tight text-[#231d15] dark:text-[#efe9dd]">Al-<span className="italic text-[#9c7327] dark:text-[#cda767]">Kisa</span></span>
             </div>
           </div>
 
@@ -1059,18 +1060,29 @@ const [quranPopup, setQuranPopup] = useState(null);
             <button
               aria-label="Open search"
               onClick={() => { setShowSearchOverlay(true); setShowUserHub(false); setShowMobileNav(false); setTimeout(() => globalSearchRef.current?.focus(), 100); }}
-              className={`transition-opacity duration-300 cursor-pointer text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
+              className={`transition-all duration-300 cursor-pointer flex items-center gap-2 text-[#5C4A3D] dark:text-[#c6a87c]/80 sm:border sm:border-[#5C4A3D]/15 sm:dark:border-[#c6a87c]/20 sm:bg-[#fbf8f1]/70 sm:dark:bg-[#17181c]/70 sm:rounded-lg sm:px-3 sm:py-1.5 sm:hover:border-[#9c7327]/50 sm:dark:hover:border-[#cda767]/50 ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
             >
-              <Search className="w-5 h-5 sm:w-[18px] sm:h-[18px] stroke-[2]" />
+              <Search className="w-5 h-5 sm:w-[15px] sm:h-[15px] stroke-[2] shrink-0" />
+              <span className="hidden sm:inline text-[13px] font-sans text-[#8a7f6e] dark:text-[#9b9486]">Search Al-Kisa</span>
             </button>
 
-            <button
-              aria-label="Open account menu"
-              onClick={() => { setShowUserHub(true); setShowSearchOverlay(false); setShowMobileNav(false); }}
-              className={`transition-opacity duration-300 cursor-pointer text-[#2D241C] dark:text-[#FAFAFA] hover:text-[#c6a87c] ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
-            >
-              <User className="w-5 h-5 sm:w-[18px] sm:h-[18px] stroke-[2]" />
-            </button>
+            {!user ? (
+              <button
+                aria-label="Sign in"
+                onClick={() => { setShowAuthModal(true); setShowSearchOverlay(false); setShowMobileNav(false); }}
+                className={`transition-opacity duration-300 cursor-pointer text-[12.5px] font-semibold px-4 py-1.5 rounded-lg bg-[#c9a14e] text-[#201a10] hover:brightness-[1.06] whitespace-nowrap ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
+              >
+                Sign in
+              </button>
+            ) : (
+              <button
+                aria-label="Open account menu"
+                onClick={() => { setShowUserHub(true); setShowSearchOverlay(false); setShowMobileNav(false); }}
+                className={`transition-opacity duration-300 cursor-pointer text-[#231d15] dark:text-[#efe9dd] hover:text-[#9c7327] dark:hover:text-[#cda767] ${(showMobileNav || showSearchOverlay || showUserHub) ? 'opacity-0 pointer-events-none sm:opacity-100 sm:pointer-events-auto' : 'opacity-100'}`}
+              >
+                <User className="w-5 h-5 sm:w-[18px] sm:h-[18px] stroke-[2]" />
+              </button>
+            )}
 
             <button
               aria-label="Toggle navigation menu"
