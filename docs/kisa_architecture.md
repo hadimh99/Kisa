@@ -1,5 +1,52 @@
 # Project Al-Kisa: Master Architecture & Context
 
+---
+## 0. CURRENT STATE — last updated 2026-06-29 (read this first)
+
+This section captures the most recent working session so a fresh session has full context. Where it conflicts with older sections below, **this wins**.
+
+### Positioning
+Al-Kisa is a **Twelver Shia learning platform** with **two equal pillars** — (1) structured learning / **The Academy** (courses, scholarly transcript library, revision) and (2) **concept (semantic) search of hadith**. Do not treat either as secondary. Differentiator surfaced on the homepage: **Zahraʾism / "the Zahraʾi approach"** — teaching the religion in the words of the Ahl al-Bayt themselves (their own definitions), framed *additively* (go to the source), not against scholars. All content is **reviewed by Shia experts** (surfaced as a trust signal).
+
+### Design system (NEW — "Manuscript / Sacred")
+A premium redesign replacing the old gold-on-gray look. **Currently applied to: homepage, global header, footer, and global canvas background.** Content pages (Quran, Hadith, Academy, Duas, Glossary, search results) still use the **legacy palette** (gold `#c6a87c`, gray `#F5F5F7`/black) internally — a full palette pass is pending.
+- **Fonts:** `Fraunces` (display serif) + `Inter` (sans), loaded via the `@import` in `src/index.css`. Arabic still uses Scheherazade/Amiri.
+- **Light ("Manuscript") tokens:** bg `#f5efe4`, surface `#fbf8f1`, ink `#231d15`, muted `#6d6151`, gold `#9c7327`, gold-fill (buttons) `#c9a14e` on `#201a10`.
+- **Dark ("Sacred") tokens:** bg `#0f1012`, surface `#17181c`, ink `#efe9dd`, gold `#cda767`.
+- Homepage scopes these as CSS vars under `.hx-home` / `:where(.dark) .hx-home` (inline `<style>` in `Home.jsx`). Theme switches via the `.dark` class on `<html>` (light/dark/sepia state in `App.jsx`; sepia falls back to light-ish).
+- Global canvas warmth set in `App.jsx` `getAppBgClass()` + the body-bg `useEffect` (light `#f5efe4`, dark `#0f1012`).
+
+### Homepage (`src/components/Home.jsx`) — fully redesigned
+Sections top→bottom: asymmetric **hero** (headline + 2 CTAs + trust strip) with the **Featured Masterclass "The Third Testimony"** card (routes to transcript slug `the-third-testimony-ep1` — **VERIFY this slug exists**), **Daily Hadith** band (copy/shuffle/focus-modal logic preserved), **liturgical recitation** chip, the **Zahraʾi "Why Al-Kisa" manifesto** (dark band), **"Where to begin"** = two raised pillars (The Academy / Concept Search) + three compact rows (Quran, Duʿaʾ & Ziyarat, Glossary), **closing CTA**. Reveal-on-scroll via framer `whileInView`. Content width: `.hx-wrap` max-width **1600px** with fluid padding `clamp(20px,4vw,80px)` (near-full-width desktop; readable via per-element ch/em caps); header inner container matched to 1600px.
+
+### The Panjetan motif (`src/components/KisaMotif.jsx`)
+Recolourable (`currentColor`) SVG of the Panjetan (5 names + Allah). **⚠️ PLACEHOLDER — traced via potrace from a watermarked product photo (`public/kisamotif.jpg`, untracked). Must be replaced with a licensed/commissioned vector before any real launch.** Assets: `public/kisa-motif.svg`, `public/kisa-motif.png`.
+
+### App.jsx decomposition (refactor)
+`App.jsx` went from ~2,146 → ~1,450 lines. Search domain extracted behind **`src/contexts/SearchContext.jsx`** (`useSearchContext()`); state still lives in `AppContent`, exposed via a `searchContextValue` object built before `return`. Extracted components: `SearchOverlay`, `SearchResults`, `ClusterModal`, `AnchorModal`, `QuranPopup`, `AuthModal`, `SignOutModal`, `MobileNav`, `UpdatesModal`, `InfoModal`, `Icons` (KisaLogo, AnimatedMenuIcon), `RouteHelpers` (DeepLinkCatcher, ScrollToTop); plus `src/constants.js`, `src/utils.js`. **Gotcha:** when a popup reads a `showX` flag from context, ensure BOTH `showX` and `setShowX` are in `searchContextValue` (a missing `showX` ships silently — build & smoke can't catch popups they don't open).
+
+### Header & footer (redesigned)
+Header (in `App.jsx`): "Al-**Kisa**" Fraunces wordmark, warm bar, **sleek search FIELD** (icon-only on mobile; opens the existing search overlay), visible gold **"Sign in"** button when logged out (account icon → user hub when logged in). Footer (`Footer.jsx`): warm paper bg + Fraunces wordmark; columns Explore / Resources + legal bar.
+
+### Testing & gates (NEW)
+- **Playwright smoke suite:** `concept-ui/tests/smoke.spec.js` (8 tests) — run `npm run test:e2e` (config boots vite, mobile viewport). Covers: header controls, header Sign-in→auth modal, nav→Updates/Help modals, search overlay (mode toggle placeholder, quick-link nav, glossary nav), and a mocked search rendering clusters + opening the cluster modal.
+- **`npm run build`** (vite) is the structural gate. ESLint is noisy (~500 preexisting prop-types/entity errors) — not a useful gate.
+- These two (build + smoke) are the ONLY automated safety net — there are no unit tests. Verify visually via Playwright screenshots against the dev server.
+- Tooling installed locally this session: `@playwright/test` + chromium; `potrace` (brew) + `Pillow` (venv) for motif tracing.
+
+### Backend
+`concept-api/server.js` (Express, port 8000): concept search = ontology anchor scan → HF embedding (`all-MiniLM-L6-v2`) → Pinecone query → K-Means → Gemini cluster labels; keyword search = SQLite scan. Ontology regexes are **precompiled once at load** (`item.regex`). Verified working (concept query → 150 results ~12s). Needs env in `concept-api/.env`: `HF_TOKEN`, `PINECONE_API_KEY/HOST/INDEX_NAME`, `GEMINI_API_KEY`.
+
+### ⚠️ Dev gotchas
+- **`VITE_API_URL` stale-IP trap:** local `concept-ui/.env` had a hard-coded LAN IP (`192.168.0.162`) that went stale (machine was `.202`) → every search spins forever. **Use `http://localhost:8000` for desktop dev.** Vite only reads `.env` at server start — **restart `npm run dev` after editing `.env`.** (`.env` is gitignored; production leaves `VITE_API_URL` unset → relative `/api` via reverse proxy.)
+- **Dev servers:** `concept-ui` = vite on **5173**; `concept-api` = `node server.js` on **8000** (run from `concept-api/` so it loads its `.env`). Both pinned to those ports. `.claude/launch.json` lists them.
+
+### Git workflow & open TODOs
+- **Workflow:** commit straight to **`main`**; the user runs `git push` (deploys UI to Vercel; `concept-api` deploys on Render separately). As of this writing **`main` is 1 commit ahead of `origin/main`** — needs a push.
+- **Open TODOs:** (1) **Phase 2b** — simplify the search OVERLAY (`SearchOverlay.jsx`): drop the Platform Search/Knowledge Graph toggle, make concept the default, add smart routing; behavioural, so update smoke tests #5–8. (2) Replace the placeholder Panjetan motif with a **licensed vector**. (3) Verify the **`the-third-testimony-ep1`** transcript slug exists. (4) **Full palette pass** on content pages (still legacy gold/gray). (5) Have **Shia experts verify** the Zahraʾism manifesto wording + the Arabic glyph on the masterclass cover. (6) Backlog from the UX audit: WCAG contrast on faint text, more icon-button aria-labels, Academy → curriculum/"continue learning", Ziyarat is a stub.
+
+---
+
 ## 1. Core Mission
 Al-Kisa is a highly sophisticated semantic search engine and theological workspace built specifically for authentic Twelver Shia literature. It bridges the gap between ancient texts and modern data science, leveraging AI vector embeddings and NLP to map the underlying meaning of foundational texts (like *al-Kafi*, *Bihar al-Anwar*, and *Basa'ir al-Darajat*). 
 * **Theological Framework:** Built strictly on Twelver Shia theology. Core Shia texts are prioritized over Sunni books unless explicitly instructed otherwise.
