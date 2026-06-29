@@ -116,19 +116,19 @@ export default function Home({
                 --ink:#231d15; --muted:#6d6151; --faint:#8a7f6e; --gold:#9c7327; --goldfill:#c9a14e; --btnink:#201a10;
                 --hair:rgba(35,29,21,.10); --hair2:rgba(35,29,21,.18); --surface:#fbf8f1; --bg:#f5efe4; --tint:rgba(156,115,39,.07);
                 font-family:var(--hx-sans); background:radial-gradient(120% 50% at 84% -6%, rgba(156,115,39,.06), transparent 55%), var(--bg);
-                color:var(--ink); min-height:100vh; width:100%; padding:88px 22px 60px; -webkit-font-smoothing:antialiased;
+                color:var(--ink); min-height:100vh; width:100%; padding:88px clamp(20px,4vw,80px) 60px; -webkit-font-smoothing:antialiased;
               }
               :where(.dark) .hx-home{
                 --ink:#efe9dd; --muted:#9b9486; --faint:#7f786b; --gold:#cda767; --goldfill:#cda767; --btnink:#16120a;
                 --hair:rgba(236,230,218,.10); --hair2:rgba(236,230,218,.20); --surface:#17181c; --bg:#0f1012; --tint:rgba(205,167,103,.08);
                 background:radial-gradient(110% 50% at 80% -6%, rgba(205,167,103,.10), transparent 52%), radial-gradient(90% 40% at 8% 120%, rgba(30,58,51,.22), transparent 60%), var(--bg);
               }
-              .hx-wrap{ max-width:880px; margin:0 auto; }
+              .hx-wrap{ max-width:1600px; margin:0 auto; }
               .hx-eyebrow{ display:flex; align-items:center; gap:11px; margin-bottom:18px; }
               .hx-eyebrow .ln{ width:30px; height:1px; background:var(--gold); opacity:.8; }
               .hx-eyebrow span{ font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); font-weight:600; }
 
-              .hx-hero{ display:grid; grid-template-columns:1.32fr .88fr; gap:40px; align-items:center; padding:14px 0 30px; }
+              .hx-hero{ display:grid; grid-template-columns:1fr minmax(330px,430px); gap:clamp(40px,6vw,90px); align-items:center; padding:20px 0 34px; }
               .hx-h1{ font-family:var(--hx-serif); font-weight:500; font-size:clamp(34px,5vw,50px); line-height:1.05; letter-spacing:-.025em; color:var(--ink); max-width:13ch; margin:0; }
               .hx-h1 em{ font-style:normal; font-weight:600; color:var(--gold); }
               .hx-lede{ font-size:15px; line-height:1.6; color:var(--muted); max-width:33em; margin:18px 0 26px; }
@@ -169,7 +169,7 @@ export default function Home({
               .hx-attr{ margin-top:12px; font-size:12.5px; color:var(--muted); } .hx-attr b{ color:var(--ink); font-weight:600; }
               .hx-readfull{ margin-top:12px; background:none; border:none; padding:0; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
 
-              .hx-manifesto{ position:relative; margin:30px -22px; padding:54px 22px; background:radial-gradient(120% 90% at 80% -10%, rgba(205,167,103,.13), transparent 60%), #14130f; color:#efe9dd; overflow:hidden; border-top:1px solid var(--hair); border-bottom:1px solid var(--hair); }
+              .hx-manifesto{ position:relative; margin:34px 0; padding:clamp(40px,5vw,64px) clamp(28px,4vw,60px); border-radius:22px; background:radial-gradient(120% 90% at 80% -10%, rgba(205,167,103,.13), transparent 60%), #14130f; color:#efe9dd; overflow:hidden; border:1px solid var(--hair); }
               .hx-mani-motif{ position:absolute; right:24px; top:50%; transform:translateY(-50%); width:230px; height:230px; color:#cda767; opacity:.09; }
               .hx-mani-in{ max-width:880px; margin:0 auto; position:relative; }
               .hx-mani-in .hx-eyebrow span{ color:#cda767; } .hx-mani-in .hx-eyebrow .ln{ background:#cda767; }

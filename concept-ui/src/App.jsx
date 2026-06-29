@@ -1032,7 +1032,7 @@ const [quranPopup, setQuranPopup] = useState(null);
           : `${theme === 'dark' ? 'bg-[#0f1012]/90 backdrop-blur-xl' : theme === 'sepia' ? 'bg-[#FDFBF7]/90 backdrop-blur-xl' : 'bg-[#f5efe4]/90 backdrop-blur-xl'} border-[#5C4A3D]/10 dark:border-[#c6a87c]/10`
           }`}
       >
-        <div className="w-full max-w-[1050px] px-4 sm:px-6 flex items-center justify-between relative h-full">
+        <div className="w-full max-w-[1600px] px-[clamp(20px,4vw,80px)] flex items-center justify-between relative h-full">
 
           {/* Left Column: Logo + wordmark */}
           <div className="flex items-center flex-1 justify-start transition-all">
