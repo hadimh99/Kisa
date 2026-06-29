@@ -1,15 +1,10 @@
 // src/components/Home.jsx
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, useScroll, useTransform, useReducedMotion, AnimatePresence } from 'framer-motion';
-import {
-    BookOpen, Sparkles, ChevronRight, Play, Moon,
-    Library as LibraryIcon, Book, X, RefreshCw, Copy, Check
-} from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
+import { Sparkles, ChevronRight, Library as LibraryIcon, X, RefreshCw, Copy, Check } from 'lucide-react';
 import dailyHadithsData from '../daily_hadiths.json';
-
-// Import our isolated £100K Singular Canvas
-import TheKisaExperience from './TheKisaExperience';
+import KisaMotif from './KisaMotif';
 
 // --- THE LITURGICAL ENGINE ---
 const getLiturgicalContext = () => {
@@ -19,104 +14,26 @@ const getLiturgicalContext = () => {
     const isEve = hour >= 18;
 
     if (day === 4 && isEve) {
-        return { message: "Eve of Friday • Laylat al-Jum'ah", recommendation: "Recommended: Surah Yasin", targetSurah: 36, icon: "🌙" };
+        return { message: "Eve of Friday • Laylat al-Jum'ah", recommendation: "Recommended: Surah Yasin", targetSurah: 36 };
     } else if (day === 5 && !isEve) {
-        return { message: "Friday • Yawm al-Jum'ah", recommendation: "Recommended: Surah Al-Jumu'ah", targetSurah: 62, icon: "☀️" };
+        return { message: "Friday • Yawm al-Jum'ah", recommendation: "Recommended: Surah Al-Jumu'ah", targetSurah: 62 };
     } else if (isEve) {
-        return { message: "Evening Reflection", recommendation: "Recommended: Surah Al-Waqi'ah", targetSurah: 56, icon: "🌙" };
+        return { message: "Evening Reflection", recommendation: "Recommended: Surah Al-Waqi'ah", targetSurah: 56 };
     } else {
-        return { message: "Daily Recitation", recommendation: "Recommended: Surah Yasin", targetSurah: 36, icon: "☀️" };
+        return { message: "Daily Recitation", recommendation: "Recommended: Surah Yasin", targetSurah: 36 };
     }
 };
 
-// --- THE ZERO-STUTTER GHOST WRITER ---
-const TrueGhostTypewriter = ({ text, delayMs = 1200, speedMs = 15, shouldReduceMotion, isInstant = false, onComplete }) => {
-    const containerRef = useRef(null);
-    const hasAnimated = useRef(false);
-
-    useEffect(() => {
-        hasAnimated.current = false;
-    }, [text]);
-
-    useEffect(() => {
-        if (!containerRef.current || shouldReduceMotion || hasAnimated.current || !text) {
-            if (shouldReduceMotion && onComplete && !hasAnimated.current) {
-                hasAnimated.current = true;
-                onComplete();
-            }
-            return;
-        }
-
-        const chars = containerRef.current.querySelectorAll('span.ghost-char');
-        if (isInstant) {
-            chars.forEach(char => char.style.opacity = '1');
-            hasAnimated.current = true;
-            if (onComplete) onComplete();
-            return;
-        }
-
-        let i = 0;
-        let timer;
-        const revealNextChar = () => {
-            if (i < chars.length) {
-                chars[i].style.opacity = '1';
-                i++;
-                timer = setTimeout(revealNextChar, speedMs);
-            } else {
-                hasAnimated.current = true;
-                if (onComplete) onComplete();
-            }
-        };
-        const startTimer = setTimeout(revealNextChar, delayMs);
-        return () => {
-            clearTimeout(startTimer);
-            clearTimeout(timer);
-        };
-    }, [text, delayMs, speedMs, shouldReduceMotion, isInstant]);
-
-    if (shouldReduceMotion || !text) return <>{text}</>;
-    const chunks = text.split(/(\s+)/);
-    return (
-        <span ref={containerRef}>
-            {chunks.map((chunk, i) => {
-                if (/\s+/.test(chunk)) return <span key={i}>{chunk}</span>;
-                return chunk.split('').map((char, j) => (
-                    <span key={`${i}-${j}`} className="ghost-char" style={{ opacity: (hasAnimated.current || isInstant) ? 1 : 0, willChange: 'opacity' }}>
-                        {char}
-                    </span>
-                ));
-            })}
-        </span>
-    );
-};
-
-// --- THE UNIFIED PHYSICS ENGINE ---
-const TouchableCard = ({ children, onClick, className, style, shouldReduceMotion, layout = false }) => {
-    const [isPressed, setIsPressed] = useState(false);
-    const handleTap = () => {
-        if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(10);
-        setTimeout(() => { if (onClick) onClick(); }, 150);
-    };
-
+// Subtle press feedback, respects reduced motion
+const TouchableCard = ({ children, onClick, className, style, shouldReduceMotion }) => {
     if (shouldReduceMotion) return <div className={className} style={style} onClick={onClick}>{children}</div>;
-
     return (
-        <motion.div
-            layout={layout}
-            style={style}
-            className={`relative overflow-hidden cursor-pointer ${className}`}
-            whileTap={{ scale: 0.96, transition: { type: "spring", stiffness: 400, damping: 25 } }}
-            onTapStart={() => setIsPressed(true)}
-            onTapCancel={() => setIsPressed(false)}
-            onTap={() => { setIsPressed(false); handleTap(); }}
-        >
-            <div className="absolute inset-0 bg-black z-50 pointer-events-none transition-opacity duration-150 ease-out rounded-[inherit]" style={{ opacity: isPressed ? 0.08 : 0 }} />
+        <motion.div whileTap={{ scale: 0.985 }} transition={{ type: "spring", stiffness: 400, damping: 25 }} className={className} style={style} onClick={onClick}>
             {children}
         </motion.div>
     );
 };
 
-// --- MAIN HOME EXPORT ---
 export default function Home({
     setActiveTab,
     setQuranTarget,
@@ -127,15 +44,11 @@ export default function Home({
     const [dailyHadith, setDailyHadith] = useState(null);
     const [showFocusModal, setShowFocusModal] = useState(false);
     const [isCopied, setIsCopied] = useState(false);
-    const [isTypingDone, setIsTypingDone] = useState(false);
-    const [isInitialLoad, setIsInitialLoad] = useState(true);
     const [isShuffling, setIsShuffling] = useState(false);
     const [iconRotation, setIconRotation] = useState(0);
     const [showAnnouncement, setShowAnnouncement] = useState(false);
 
-    // CRITICAL FIX: Capture the scrolling div to pass to the Engine
     const mainScrollRef = useRef(null);
-
     const liturgicalContext = getLiturgicalContext();
     const shouldReduceMotion = useReducedMotion();
 
@@ -179,33 +92,128 @@ export default function Home({
         if (e) e.stopPropagation();
         if (isShuffling) return;
         setIsShuffling(true);
-        setIsInitialLoad(false);
         setIconRotation(prev => prev + 360);
-        setIsTypingDone(false); // <--- ADD THIS LINE
         const randomIndex = Math.floor(Math.random() * dailyHadithsData.length);
         setDailyHadith(dailyHadithsData[randomIndex]);
         setTimeout(() => setIsShuffling(false), 300);
     };
 
-    // --- RESTORED ANIMATION VARIANTS ---
-    const titleContainer = {
-        hidden: { opacity: 0 },
-        show: { opacity: 1, transition: { staggerChildren: 0.1, delayChildren: 0.3 } }
-    };
+    const reveal = shouldReduceMotion
+        ? {}
+        : { initial: { opacity: 0, y: 18 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-80px" }, transition: { duration: 0.6, ease: [0.22, 1, 0.36, 1] } };
 
-    const titleWord = {
-        hidden: { opacity: 0, y: shouldReduceMotion ? 0 : 20 },
-        show: { opacity: 1, y: 0, transition: { duration: 0.6, ease: "easeOut" } }
-    };
+    const more = [
+        { t: "The Quran", d: "Every verse, with the Ahl al-Bayt's commentary.", a: () => setActiveTab('quran') },
+        { t: "Du'a & Ziyarat", d: "Daily devotions and visitations, beautifully set.", a: () => setActiveTab('duas') },
+        { t: "Theological Glossary", d: "A plain A–Z of the tradition's language.", a: () => setActiveTab('glossary') },
+    ];
 
     return (
-        <div ref={mainScrollRef} className="w-full min-h-screen pt-20 sm:pt-28 pb-0 px-4 sm:px-6 md:px-8 overflow-y-auto hide-scroll flex flex-col items-center relative bg-[#FDFBF7] dark:bg-[#151518]">
+        <div ref={mainScrollRef} className="hx-home">
             <style>{`
-                @keyframes masterclassShimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
-                .run-shimmer { background: linear-gradient(120deg, transparent 30%, rgba(198, 168, 124, 0.15) 50%, transparent 70%); background-size: 200% 100%; animation: masterclassShimmer 2s linear forwards; animation-delay: 1.8s; }
+              .hx-home{
+                --hx-serif:"Fraunces",Georgia,serif; --hx-sans:"Inter",system-ui,sans-serif;
+                --ink:#231d15; --muted:#6d6151; --faint:#8a7f6e; --gold:#9c7327; --goldfill:#c9a14e; --btnink:#201a10;
+                --hair:rgba(35,29,21,.10); --hair2:rgba(35,29,21,.18); --surface:#fbf8f1; --bg:#f5efe4; --tint:rgba(156,115,39,.07);
+                font-family:var(--hx-sans); background:radial-gradient(120% 50% at 84% -6%, rgba(156,115,39,.06), transparent 55%), var(--bg);
+                color:var(--ink); min-height:100vh; width:100%; padding:88px 22px 60px; -webkit-font-smoothing:antialiased;
+              }
+              :where(.dark) .hx-home{
+                --ink:#efe9dd; --muted:#9b9486; --faint:#7f786b; --gold:#cda767; --goldfill:#cda767; --btnink:#16120a;
+                --hair:rgba(236,230,218,.10); --hair2:rgba(236,230,218,.20); --surface:#17181c; --bg:#0f1012; --tint:rgba(205,167,103,.08);
+                background:radial-gradient(110% 50% at 80% -6%, rgba(205,167,103,.10), transparent 52%), radial-gradient(90% 40% at 8% 120%, rgba(30,58,51,.22), transparent 60%), var(--bg);
+              }
+              .hx-wrap{ max-width:880px; margin:0 auto; }
+              .hx-eyebrow{ display:flex; align-items:center; gap:11px; margin-bottom:18px; }
+              .hx-eyebrow .ln{ width:30px; height:1px; background:var(--gold); opacity:.8; }
+              .hx-eyebrow span{ font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+
+              .hx-hero{ display:grid; grid-template-columns:1.32fr .88fr; gap:40px; align-items:center; padding:14px 0 30px; }
+              .hx-h1{ font-family:var(--hx-serif); font-weight:500; font-size:clamp(34px,5vw,50px); line-height:1.05; letter-spacing:-.025em; color:var(--ink); max-width:13ch; margin:0; }
+              .hx-h1 em{ font-style:normal; font-weight:600; color:var(--gold); }
+              .hx-lede{ font-size:15px; line-height:1.6; color:var(--muted); max-width:33em; margin:18px 0 26px; }
+              .hx-ctas{ display:flex; gap:13px; flex-wrap:wrap; }
+              .hx-ctas.center{ justify-content:center; }
+              .hx-btn{ font-size:13.5px; font-weight:600; padding:12px 22px; border-radius:10px; cursor:pointer; border:1px solid transparent; transition:transform .18s ease,border-color .18s ease,color .18s ease; }
+              .hx-btn-primary{ background:var(--goldfill); color:var(--btnink); }
+              .hx-btn-primary:hover{ transform:translateY(-1px); }
+              .hx-btn-ghost{ background:transparent; color:var(--ink); border-color:var(--hair2); font-weight:550; }
+              .hx-btn-ghost:hover{ border-color:var(--gold); color:var(--gold); }
+              .hx-trust{ display:flex; gap:18px 20px; flex-wrap:wrap; margin-top:22px; }
+              .hx-trust span{ display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--muted); }
+              .hx-trust svg{ width:14px; height:14px; color:var(--gold); }
+
+              .hx-course{ border-radius:16px; overflow:hidden; border:1px solid var(--hair); background:var(--surface); box-shadow:0 16px 40px -26px rgba(0,0,0,.55); cursor:pointer; }
+              .hx-cover{ position:relative; height:128px; background:radial-gradient(120% 120% at 80% 0%, #2a2722, #14130f); display:flex; align-items:flex-end; padding:13px; overflow:hidden; }
+              .hx-cover-motif{ position:absolute; right:-22px; top:-22px; width:128px; height:128px; color:#cda767; opacity:.22; }
+              .hx-free{ position:relative; font-size:10px; letter-spacing:.1em; text-transform:uppercase; font-weight:700; color:#16120a; background:#c9a14e; border-radius:6px; padding:4px 9px; }
+              .hx-cbody{ padding:18px 20px 20px; }
+              .hx-kicker{ font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); font-weight:600; }
+              .hx-cbody h3{ font-family:var(--hx-serif); font-weight:500; font-size:24px; color:var(--ink); margin:8px 0; }
+              .hx-cbody p{ font-size:12.5px; color:var(--muted); line-height:1.5; margin:0 0 16px; }
+              .hx-start{ display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:700; color:var(--gold); }
+
+              .hx-litwrap{ display:flex; justify-content:center; margin-bottom:18px; }
+              .hx-lit{ display:inline-flex; align-items:center; gap:10px; padding:9px 16px; border-radius:999px; background:var(--surface); border:1px solid var(--hair); cursor:pointer; font-size:11.5px; }
+              .hx-lit .m{ font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ink); }
+              .hx-lit .dot{ color:var(--faint); }
+              .hx-lit .rec{ color:var(--muted); }
+
+              .hx-daily{ position:relative; padding:26px 30px; border-radius:14px; background:var(--tint); border:1px solid var(--hair); margin-bottom:6px; }
+              .hx-daily-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+              .hx-daily-actions{ display:flex; gap:8px; }
+              .hx-daily-actions button{ width:30px; height:30px; border-radius:8px; border:1px solid var(--hair2); background:transparent; color:var(--muted); display:grid; place-items:center; cursor:pointer; }
+              .hx-daily-actions button:hover{ color:var(--gold); border-color:var(--gold); }
+              .hx-daily-actions svg{ width:14px; height:14px; }
+              .hx-quote{ font-family:var(--hx-serif); font-style:italic; font-size:22px; line-height:1.42; color:var(--ink); margin:0; max-width:42ch; }
+              .hx-attr{ margin-top:12px; font-size:12.5px; color:var(--muted); } .hx-attr b{ color:var(--ink); font-weight:600; }
+              .hx-readfull{ margin-top:12px; background:none; border:none; padding:0; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--gold); cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
+
+              .hx-manifesto{ position:relative; margin:30px -22px; padding:54px 22px; background:radial-gradient(120% 90% at 80% -10%, rgba(205,167,103,.13), transparent 60%), #14130f; color:#efe9dd; overflow:hidden; border-top:1px solid var(--hair); border-bottom:1px solid var(--hair); }
+              .hx-mani-motif{ position:absolute; right:24px; top:50%; transform:translateY(-50%); width:230px; height:230px; color:#cda767; opacity:.09; }
+              .hx-mani-in{ max-width:880px; margin:0 auto; position:relative; }
+              .hx-mani-in .hx-eyebrow span{ color:#cda767; } .hx-mani-in .hx-eyebrow .ln{ background:#cda767; }
+              .hx-mani-in h2{ font-family:var(--hx-serif); font-weight:500; font-size:clamp(24px,3.4vw,30px); line-height:1.3; color:#f3eee2; max-width:26ch; margin:0; }
+              .hx-mani-in h2 em{ font-style:italic; color:#cda767; }
+              .hx-rule{ height:1px; background:rgba(236,230,218,.16); margin:24px 0 18px; max-width:110px; }
+              .hx-zahra{ font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:#cda767; font-weight:600; margin-bottom:9px; }
+              .hx-zline{ font-family:var(--hx-serif); font-style:italic; font-size:17px; color:#d8d1c2; line-height:1.5; max-width:44ch; }
+
+              .hx-explore{ padding-top:8px; }
+              .hx-ehead{ display:flex; align-items:baseline; gap:14px; margin-bottom:20px; }
+              .hx-ehead span:first-child{ font-family:var(--hx-serif); font-style:italic; font-size:18px; color:var(--ink); }
+              .hx-ehead .ln{ flex:1; height:1px; background:var(--hair); }
+              .hx-pillars{ display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:30px; }
+              .hx-pillar{ position:relative; border:1px solid var(--hair); border-radius:15px; background:var(--surface); padding:26px; overflow:hidden; box-shadow:0 12px 30px -24px rgba(0,0,0,.5); cursor:pointer; }
+              .hx-pillar-motif{ position:absolute; right:-26px; bottom:-26px; width:120px; height:120px; color:var(--ink); opacity:.06; }
+              .hx-pic{ width:38px; height:38px; border-radius:10px; background:rgba(156,115,39,.12); display:grid; place-items:center; color:var(--gold); margin-bottom:14px; }
+              .hx-pic svg{ width:20px; height:20px; }
+              .hx-pk{ font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--gold); font-weight:600; }
+              .hx-pillar h3{ font-family:var(--hx-serif); font-weight:500; font-size:24px; color:var(--ink); margin:6px 0 8px; }
+              .hx-pillar p{ font-size:13px; color:var(--muted); line-height:1.55; margin:0 0 16px; }
+              .hx-link{ font-size:12.5px; font-weight:600; color:var(--ink); border-bottom:1px solid var(--gold); padding-bottom:2px; }
+
+              .hx-mlabel{ font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--faint); font-weight:600; margin-bottom:6px; }
+              .hx-mrow{ display:flex; align-items:center; gap:16px; padding:16px 8px; border-bottom:1px solid var(--hair); cursor:pointer; border-radius:9px; transition:background .15s ease, padding .15s ease; }
+              .hx-mrow:hover{ background:var(--tint); padding-left:14px; }
+              .hx-mt{ font-family:var(--hx-serif); font-size:17px; color:var(--ink); min-width:170px; }
+              .hx-md{ font-size:12.5px; color:var(--muted); flex:1; }
+              .hx-mrow svg{ width:16px; height:16px; color:var(--gold); }
+
+              .hx-closing{ text-align:center; padding:50px 0 20px; }
+              .hx-closing h2{ font-family:var(--hx-serif); font-weight:500; font-size:clamp(24px,3.4vw,30px); color:var(--ink); margin:0 0 8px; }
+              .hx-closing p{ font-size:14px; color:var(--muted); margin:0 0 20px; }
+
+              @media(max-width:740px){
+                .hx-hero{ grid-template-columns:1fr; gap:24px; }
+                .hx-pillars{ grid-template-columns:1fr; }
+                .hx-quote{ font-size:20px; }
+                .hx-mrow{ flex-wrap:wrap; gap:4px; } .hx-mt{ min-width:0; }
+                .hx-mani-motif{ display:none; }
+              }
             `}</style>
 
-            {/* --- DAILY HADITH FOCUS MODAL --- */}
+            {/* --- DAILY HADITH FOCUS MODAL (unchanged) --- */}
             <AnimatePresence>
                 {showFocusModal && dailyHadith && (
                     <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4">
@@ -227,6 +235,7 @@ export default function Home({
                 )}
             </AnimatePresence>
 
+            {/* --- ANNOUNCEMENT (unchanged) --- */}
             <AnimatePresence>
                 {showAnnouncement && (
                     <motion.div
@@ -253,149 +262,123 @@ export default function Home({
                 )}
             </AnimatePresence>
 
-            <div className="w-full max-w-6xl mx-auto flex flex-col relative z-10">
+            <div className="hx-wrap">
+                {/* HERO */}
+                <motion.section className="hx-hero"
+                    initial={shouldReduceMotion ? false : { opacity: 0, y: 14 }}
+                    animate={shouldReduceMotion ? {} : { opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
+                    <div className="hx-hl">
+                        <div className="hx-eyebrow"><span className="ln" /><span>A Twelver Shia learning platform</span></div>
+                        <h1 className="hx-h1">Know the <em>Ahl al-Bayt</em> as they asked to be known.</h1>
+                        <p className="hx-lede">Learn the faith from its source — guided courses and the full hadith library, in the words of the Imams. No background needed.</p>
+                        <div className="hx-ctas">
+                            <button className="hx-btn hx-btn-primary" onClick={() => setActiveTab('library')}>Start here</button>
+                            <button className="hx-btn hx-btn-ghost" onClick={() => setActiveTab('hadith')}>Explore the hadith →</button>
+                        </div>
+                        <div className="hx-trust">
+                            <span><Check /> Verified primary sources</span>
+                            <span><Check /> Reviewed by Shia experts</span>
+                            <span><Check /> Free — no sign-up to read</span>
+                        </div>
+                    </div>
 
-                {/* Title Animations */}
-                <div className="flex flex-col items-center text-center mb-8 mt-2 sm:mt-0">
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 0.8 }} transition={{ duration: 1.8, ease: "easeInOut" }} className="font-arabic text-xl sm:text-2xl md:text-3xl text-[#c6a87c] mb-3 sm:mb-4" dir="rtl">﷽</motion.p>
-                    <motion.h1 variants={titleContainer} initial="hidden" animate="show" className="text-4xl sm:text-5xl md:text-6xl font-serif font-normal text-[#2D241C] dark:text-[#FAFAFA] tracking-tight mb-2 flex gap-3 overflow-hidden justify-center flex-wrap">
-                        {["Welcome", "to", "Al-Kisa"].map((word, i) => (
-                            <motion.span key={i} variants={titleWord} className={word === "Al-Kisa" ? "italic text-[#c6a87c]" : ""}>{word}</motion.span>
-                        ))}
-                    </motion.h1>
-                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.8, delay: 0.7, ease: "easeOut" }} className="text-sm sm:text-base text-[#5C4A3D]/70 dark:text-[#c6a87c]/70 font-sans tracking-wide">
-                        Master Twelver Shia belief through structured learning and primary sources
-                    </motion.p>
-                </div>
-
-                {/* Liturgical Card Animation */}
-                <motion.div initial={{ opacity: 0, x: shouldReduceMotion ? 0 : -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6, delay: 0.9, ease: "easeOut" }} className="mb-3 sm:mb-6 flex justify-center w-full px-2">
-                    <TouchableCard onClick={() => { setQuranTarget(liturgicalContext.targetSurah); setQuranVerseTarget(1); setActiveTab('quran'); }} className="w-full max-w-lg flex items-center justify-center gap-3 sm:gap-4 px-5 py-3 sm:py-2.5 rounded-2xl sm:rounded-full bg-[#FDFBF7]/80 dark:bg-[#c6a87c]/10 border border-[#5C4A3D]/15 dark:border-[#c6a87c]/30 backdrop-blur-md shadow-sm">
-                        <span className="text-2xl sm:text-xl shrink-0 origin-center animate-[pulse_3s_ease-in-out_infinite] inline-block">{liturgicalContext.icon}</span>
-                        <div className="flex flex-col sm:flex-row sm:items-center text-center sm:text-left">
-                            <span className="text-[11px] sm:text-xs font-bold uppercase tracking-widest text-[#2D241C] dark:text-[#FAFAFA] leading-tight mb-0.5 sm:mb-0">{liturgicalContext.message}</span>
-                            <span className="hidden sm:block text-[#5C4A3D]/30 dark:text-[#c6a87c]/40 mx-2 shrink-0">•</span>
-                            <span className="text-[10px] sm:text-xs font-mono text-[#5C4A3D]/80 dark:text-[#c6a87c]/80 transition-colors leading-tight">{liturgicalContext.recommendation}</span>
+                    <TouchableCard shouldReduceMotion={shouldReduceMotion} className="hx-course" onClick={() => { setActiveTab('library'); setTranscriptTarget('the-third-testimony-ep1'); }}>
+                        <div className="hx-cover">
+                            <KisaMotif className="hx-cover-motif" />
+                            <span className="hx-free">Lesson 1 · Free</span>
+                        </div>
+                        <div className="hx-cbody">
+                            <div className="hx-kicker">Featured masterclass</div>
+                            <h3>The Third Testimony</h3>
+                            <p>The testimony of the Wilayah of Ali (a) — explained simply, from the sources.</p>
+                            <span className="hx-start">Start lesson 1 <ChevronRight className="w-4 h-4" /></span>
                         </div>
                     </TouchableCard>
-                </motion.div>
+                </motion.section>
 
-                <div className="flex flex-col lg:flex-row gap-6 lg:gap-10 w-full mb-8 sm:mb-12 lg:items-stretch">
-
-                    {/* Daily Hadith Card */}
-                    <motion.div layout initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 20 }} animate={{ opacity: 1, y: 0 }} transition={{ opacity: { duration: 0.6, delay: 1.1, ease: "easeOut" }, y: { duration: 0.6, delay: 1.1, ease: "easeOut" } }} className="w-full lg:w-[35%] order-1 lg:order-2 flex flex-col h-[320px] lg:h-[380px]">
-                        <div className="flex-1 relative flex flex-col items-start justify-start text-left p-6 sm:p-8 rounded-[2rem] bg-[#FDFBF7]/80 dark:bg-[#151518]/60 border border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 shadow-[0_4px_20px_rgba(0,0,0,0.03)] backdrop-blur-md overflow-hidden">
-                            <motion.div layout="position" className="flex items-center justify-between w-full mb-4 relative z-20 shrink-0">
-                                <div className="flex items-center gap-2">
-                                    <motion.span initial={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.5, rotate: shouldReduceMotion ? 0 : -30 }} animate={{ opacity: 1, scale: 1, rotate: 0 }} transition={{ type: "spring", stiffness: 200, damping: 15, delay: 1.4 }} className="font-serif text-3xl font-black text-[#c6a87c] leading-none translate-y-[3px] origin-center inline-block">“</motion.span>
-                                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }} className="text-[10px] font-bold uppercase tracking-widest text-[#c6a87c] mt-1">Daily Hadith</motion.span>
-                                </div>
-                                <div className="flex items-center gap-2 z-30">
-                                    <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }} onClick={handleCopy} className="p-2 rounded-full bg-[#c6a87c]/10 text-[#c6a87c] border border-[#c6a87c]/20 hover:bg-[#c6a87c]/20 transition-colors cursor-pointer">{isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}</motion.button>
-                                    <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.6 }} onClick={handleShuffle} disabled={isShuffling} className="p-2 rounded-full bg-[#c6a87c]/10 text-[#c6a87c] border border-[#c6a87c]/20 hover:bg-[#c6a87c]/20 transition-colors cursor-pointer"><motion.div animate={{ rotate: iconRotation }}><RefreshCw className="w-3.5 h-3.5" /></motion.div></motion.button>
-                                </div>
-                            </motion.div>
-                            <div className="flex-1 w-full flex flex-col relative z-10">
-                                <AnimatePresence mode="wait">
-                                    <motion.div key={`content-${dailyHadith?.english}`} initial={{ opacity: 0, filter: "blur(4px)" }} animate={{ opacity: 1, filter: "blur(0px)" }} exit={{ opacity: 0, filter: "blur(4px)", transition: { duration: 0.15 } }} transition={{ duration: 0.3, ease: "easeOut" }} className="flex flex-col w-full flex-1">
-                                        {/* We conditionally make the parent container text-transparent while typing to hide the browser's ellipsis */}
-                                        <p className={`font-editorial text-xl sm:text-2xl leading-[1.6] antialiased line-clamp-4 mb-2 transition-colors duration-500 ${isTypingDone ? 'text-[#2D241C] dark:text-[#FAFAFA]' : 'text-transparent dark:text-transparent'}`}>
-
-                                            {/* This inner span forces the typed characters to remain fully visible, overriding the parent's transparency */}
-                                            <span className="text-[#2D241C] dark:text-[#FAFAFA]">
-                                                <TrueGhostTypewriter
-                                                    text={dailyHadith?.english}
-                                                    delayMs={1200}
-                                                    speedMs={15}
-                                                    shouldReduceMotion={shouldReduceMotion}
-                                                    isInstant={!isInitialLoad}
-                                                    onComplete={() => setIsTypingDone(true)}
-                                                />
-                                            </span>
-                                        </p>
-
-                                        {/* CRITICAL FIX: Restored "Read Full Hadith" Button */}
-                                        {dailyHadith?.english?.length > 95 && (
-                                            <div className="h-6 flex items-center w-full shrink-0 mt-3">
-                                                <button
-                                                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowFocusModal(true); }}
-                                                    className="text-[10px] uppercase tracking-widest font-bold text-[#c6a87c] hover:text-[#5C4A3D] dark:hover:text-[#FAFAFA] transition-colors cursor-pointer inline-flex items-center gap-1 w-max relative z-30"
-                                                >
-                                                    Read Full Hadith <ChevronRight className="w-3 h-3" />
-                                                </button>
-                                            </div>
-                                        )}
-
-                                        <div className="mt-4 lg:mt-5 flex flex-col w-full shrink-0">
-                                            <div className="w-20 h-px bg-gradient-to-r from-[#c6a87c]/60 to-transparent mb-3 sm:mb-4 shrink-0" />
-                                            <div className="flex flex-col gap-1.5 text-[10px] font-bold uppercase tracking-widest w-full shrink-0">
-                                                <span className="text-[#5C4A3D] dark:text-[#FAFAFA]/90">{dailyHadith?.source}</span>
-                                                <span className="text-[#5C4A3D]/50 dark:text-[#c6a87c]/60 font-mono">{dailyHadith?.book}</span>
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                </AnimatePresence>
-                            </div>
-                        </div>
-                    </motion.div>
-
-                    {/* Masterclass Hero Card */}
-                    <motion.div initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 1.3, ease: "easeOut" }} className="w-full lg:w-[65%] order-2 lg:order-1 flex flex-col h-[320px] lg:h-[380px]">
-                        <TouchableCard onClick={() => { setActiveTab('library'); setTranscriptTarget('know-your-imam-ep1'); }} className="w-full flex-1 relative rounded-[2rem] bg-[#1A1A1A] dark:bg-[#0E0E11] border border-[#c6a87c]/30 p-6 sm:p-8 lg:p-10 group overflow-hidden shadow-xl">
-                            <div className="absolute inset-0 z-20 pointer-events-none run-shimmer rounded-[inherit] overflow-hidden" />
-                            <div className="absolute inset-[-20%] z-0 pointer-events-none opacity-40 group-hover:opacity-80 transition-opacity duration-1000 flex items-center justify-end pr-10">
-                                <svg className="w-full h-full max-w-sm" viewBox="0 0 300 400" fill="none"><path d="M 250 -50 C 20 150, 20 300, 200 450" stroke="#c6a87c" strokeWidth="1.5" strokeLinecap="round" className="group-hover:stroke-[2px] transition-all duration-1000" /></svg>
-                            </div>
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent z-10 pointer-events-none" />
-                            <div className="relative z-30 w-full h-full flex flex-col justify-center items-start text-left">
-                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#c6a87c]/20 text-[#c6a87c] text-[10px] uppercase font-bold tracking-widest mb-4 border border-[#c6a87c]/30 backdrop-blur-md shadow-sm"><Play className="w-3 h-3 fill-current" /> Featured Masterclass</span>
-                                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-white mb-2 tracking-tight transition-colors duration-700">Know Your Imam</h2>
-                                <p className="text-slate-300 text-sm sm:text-base leading-relaxed mb-5 font-sans max-w-xl">Explore an exclusive 50-lesson guided series on Knowing Your Imam — backed by primary sources and scholarly commentary.</p>
-                                <div className="flex items-center gap-2 text-white/60 bg-white/5 w-fit px-5 py-2.5 rounded-full border border-white/10 backdrop-blur-md">
-                                    <span className="text-xs font-bold uppercase tracking-widest">Start Lesson 1 (Free)</span>
-                                    <ChevronRight className="w-4 h-4 transition-transform" />
-                                </div>
-                            </div>
-                        </TouchableCard>
-                    </motion.div>
+                {/* LITURGICAL RECITATION */}
+                <div className="hx-litwrap">
+                    <TouchableCard shouldReduceMotion={shouldReduceMotion} className="hx-lit" onClick={() => { setQuranTarget(liturgicalContext.targetSurah); setQuranVerseTarget(1); setActiveTab('quran'); }}>
+                        <span className="m">{liturgicalContext.message}</span>
+                        <span className="dot">•</span>
+                        <span className="rec">{liturgicalContext.recommendation}</span>
+                    </TouchableCard>
                 </div>
 
-                {/* Section Divider */}
-                <motion.div initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 1.4, ease: "easeOut" }} className="w-full flex items-center justify-center mb-8 sm:mb-10 relative z-10">
-                    <div className="absolute w-full h-px bg-gradient-to-r from-transparent via-[#5C4A3D]/20 dark:via-[#c6a87c]/20 to-transparent" />
-                    <div className="relative px-6 py-2 bg-[#FDFBF7]/80 dark:bg-[#151518]/80 backdrop-blur-md border border-[#5C4A3D]/10 dark:border-[#c6a87c]/20 rounded-full flex items-center gap-2 shadow-sm">
-                        <LibraryIcon className="w-3.5 h-3.5 text-[#5C4A3D]/60 dark:text-[#c6a87c]/70" />
-                        <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-[#5C4A3D]/80 dark:text-[#FAFAFA]/70">The Core Collections</span>
+                {/* DAILY HADITH */}
+                <motion.div className="hx-daily" {...reveal}>
+                    <div className="hx-daily-head">
+                        <span className="hx-kicker">Daily Hadith</span>
+                        <div className="hx-daily-actions">
+                            <button onClick={handleCopy} aria-label="Copy hadith">{isCopied ? <Check /> : <Copy />}</button>
+                            <button onClick={handleShuffle} disabled={isShuffling} aria-label="Show another hadith">
+                                <motion.span style={{ display: 'grid' }} animate={{ rotate: iconRotation }}><RefreshCw /></motion.span>
+                            </button>
+                        </div>
                     </div>
+                    <blockquote className="hx-quote">“{dailyHadith?.english}”</blockquote>
+                    <div className="hx-attr"><b>{dailyHadith?.source}</b> · {dailyHadith?.book}</div>
+                    {dailyHadith?.english?.length > 95 && (
+                        <button className="hx-readfull" onClick={() => setShowFocusModal(true)}>Read full hadith <ChevronRight className="w-3 h-3" /></button>
+                    )}
                 </motion.div>
 
-                {/* Core Collections Grid */}
-                <motion.div initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 1.6, ease: "easeOut" }} className="grid grid-cols-2 md:grid-cols-6 lg:grid-cols-5 gap-3 sm:gap-4 w-full mb-10">
-                    {[
-                        { id: 'quran', title: "Quran", icon: <BookOpen />, telemetry: "Divine Revelation", action: () => setActiveTab('quran') },
-                        { id: 'duas', title: "Duas", icon: <Moon />, telemetry: "Sacred Supplications", action: () => setActiveTab('duas') },
-                        { id: 'ziyarats', title: "Ziyarats", icon: <Sparkles />, telemetry: "Holy Visitations", action: () => setActiveTab('ziyarats') },
-                        { id: 'library', title: "Scholarly Library", icon: <LibraryIcon />, telemetry: "Lectures & Commentary", action: () => setActiveTab('library') },
-                        { id: 'hadith', title: "Hadith Library", icon: <Book />, telemetry: "14,500+ Narrations", action: () => setActiveTab('hadith') }
-                    ].map((pillar, index) => {
-                        let spanClass = index < 3 ? "col-span-1 md:col-span-2 lg:col-span-1" : index === 3 ? "col-span-1 md:col-span-3 lg:col-span-1" : "col-span-2 md:col-span-3 lg:col-span-1";
-                        return (
-                            <TouchableCard key={pillar.id} onClick={pillar.action} className={`flex flex-col xl:flex-row items-center xl:items-start text-center xl:text-left gap-3 xl:gap-4 p-4 sm:p-5 rounded-2xl bg-[#FDFBF7]/60 dark:bg-[#151518]/60 backdrop-blur-md border border-[#5C4A3D]/15 dark:border-[#c6a87c]/20 hover:border-[#c6a87c]/50 transition-colors group h-full ${spanClass}`}>
-                                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#c6a87c]/10 text-[#c6a87c] flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                                    {React.cloneElement(pillar.icon, { className: 'w-4 h-4 sm:w-5 sm:h-5' })}
-                                </div>
-                                <div className="flex flex-col gap-1 xl:gap-0.5 justify-center">
-                                    <h3 className="font-serif text-sm sm:text-base text-[#2D241C] dark:text-[#FAFAFA] font-medium leading-tight">{pillar.title}</h3>
-                                    <p className="text-[9px] sm:text-[10px] font-mono uppercase tracking-widest text-[#5C4A3D]/60 dark:text-[#c6a87c]/60 leading-tight">{pillar.telemetry}</p>
-                                </div>
-                            </TouchableCard>
-                        );
-                    })}
-                </motion.div>
+                {/* MANIFESTO — the distinction */}
+                <motion.section className="hx-manifesto" {...reveal}>
+                    <KisaMotif className="hx-mani-motif" />
+                    <div className="hx-mani-in">
+                        <div className="hx-eyebrow"><span className="ln" /><span>Why Al-Kisa</span></div>
+                        <h2>Go straight to the source. Al-Kisa presents the faith in the words of the <em>Ahl al-Bayt</em> — the Imams' own teachings, not only what was later written about them.</h2>
+                        <div className="hx-rule" />
+                        <div className="hx-zahra">The Zahra'i approach</div>
+                        <div className="hx-zline">Learning the religion as the household of the Prophet ﷺ themselves defined it — known as they asked to be known.</div>
+                    </div>
+                </motion.section>
+
+                {/* WHERE TO BEGIN */}
+                <section className="hx-explore">
+                    <motion.div className="hx-ehead" {...reveal}><span>Where to begin</span><span className="ln" /></motion.div>
+                    <motion.div className="hx-pillars" {...reveal}>
+                        <TouchableCard shouldReduceMotion={shouldReduceMotion} className="hx-pillar" onClick={() => setActiveTab('library')}>
+                            <KisaMotif className="hx-pillar-motif" />
+                            <div className="hx-pic"><LibraryIcon /></div>
+                            <div className="hx-pk">The Academy</div>
+                            <h3>Study in sequence.</h3>
+                            <p>Guided courses that build lesson by lesson — with revision and a scholarly library alongside.</p>
+                            <span className="hx-link">Start learning →</span>
+                        </TouchableCard>
+                        <TouchableCard shouldReduceMotion={shouldReduceMotion} className="hx-pillar" onClick={() => setActiveTab('hadith')}>
+                            <KisaMotif className="hx-pillar-motif" />
+                            <div className="hx-pic"><Sparkles /></div>
+                            <div className="hx-pk">Concept Search</div>
+                            <h3>Ask by meaning.</h3>
+                            <p>Search the whole hadith library by theme, not just keywords — and follow a narration to its kin.</p>
+                            <span className="hx-link">Search the hadith →</span>
+                        </TouchableCard>
+                    </motion.div>
+                    <motion.div {...reveal}>
+                        <div className="hx-mlabel">Also on Al-Kisa</div>
+                        {more.map((r) => (
+                            <div key={r.t} className="hx-mrow" onClick={r.a}>
+                                <span className="hx-mt">{r.t}</span>
+                                <span className="hx-md">{r.d}</span>
+                                <ChevronRight />
+                            </div>
+                        ))}
+                    </motion.div>
+                </section>
+
+                {/* CLOSING */}
+                <motion.section className="hx-closing" {...reveal}>
+                    <h2>Begin where the knowledge begins.</h2>
+                    <p>Pick a course and start learning — no account needed to read.</p>
+                    <div className="hx-ctas center">
+                        <button className="hx-btn hx-btn-primary" onClick={() => setActiveTab('library')}>Start here</button>
+                        <button className="hx-btn hx-btn-ghost" onClick={() => setActiveTab('hadith')}>Explore the hadith →</button>
+                    </div>
+                </motion.section>
             </div>
-
-            {/* CRITICAL FIX: Pass mainScrollRef to the engine */}
-            {/* <TheKisaExperience setActiveTab={setActiveTab} setTranscriptTarget={setTranscriptTarget} mainScrollRef={mainScrollRef} /> */}
         </div>
     );
 }
