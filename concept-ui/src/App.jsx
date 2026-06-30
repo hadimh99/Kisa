@@ -117,6 +117,18 @@ function AppContent() {
           });
         }
 
+        // Merge in Basa'ir al-Darajat (staged static library — appears as its own book)
+        try {
+          const bRes = await fetch('/basair_complete.json', { cache: 'no-cache' });
+          if (bRes.ok) {
+            const bRaw = await bRes.json();
+            const bData = Array.isArray(bRaw) ? bRaw : (Object.values(bRaw).find(Array.isArray) || []);
+            if (bData.length) staticData = staticData.concat(bData);
+          }
+        } catch (e) {
+          console.warn("Basa'ir library skipped:", e);
+        }
+
         setAlKafiData(staticData);
       } catch (error) {
         console.error("Error loading hybrid data:", error);

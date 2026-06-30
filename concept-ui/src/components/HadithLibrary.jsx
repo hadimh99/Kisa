@@ -33,10 +33,11 @@ const splitText = (text) => {
         if (text.includes(marker)) {
             const parts = text.split(marker);
             let rawChain = parts[0] + marker;
-            let bodyPart = parts.slice(1).join(marker).trim();
+            // Trim surrounding spaces but PRESERVE a leading newline (intentional matn line-break)
+            let bodyPart = parts.slice(1).join(marker).replace(/^[ \t]+|[ \t\n]+$/g, '');
             const segments = rawChain.split(/(\s+(?:from|narrated that|narrated from|who heard|who has said that|who said that|has said that|said that)\s+)/i);
             let chainSegments = [], bodySegments = [], foundNonImam = false;
-            const blessingRegex = /\(\s*(as|a\.s\.?|s\.a\.?|sawa|s\.a\.w\.w\.?|r\.a\.?)\s*\)/i;
+            const blessingRegex = /\(\s*(as|a\.s\.?|s\.a\.?|sawa|s\.a\.w\.w\.?|r\.a\.?)\s*\)|\{\{AS\}\}|\{\{SAW\}\}/i;
             for (let i = segments.length - 1; i >= 0; i -= 2) {
                 let chunk = segments[i], delimiter = i > 0 ? segments[i - 1] : "", hasBlessing = blessingRegex.test(chunk);
                 if (hasBlessing && !foundNonImam) {
@@ -90,6 +91,52 @@ const formatHadithText = (text) => {
     const { body } = splitText(text);
     return body;
 };
+
+// --- HONORIFIC CALLIGRAPHY RENDERING ---
+// {{AS}} -> recoloured "alayhi al-salaam" calligraphy (public/alayhi-salam.svg) for the Imams.
+// {{SAW}} -> the ﷺ glyph (U+FDFA, Amiri) for the Prophet.
+const HONORIFIC_RE = /(\{\{AS\}\}|\{\{SAW\}\})/g;
+
+const renderHonorifics = (text) => {
+    if (text === null || text === undefined) return text;
+    const str = String(text);
+    if (!str.includes('{{')) return str;
+    return str.split(HONORIFIC_RE).map((part, i) => {
+        if (part === '{{AS}}') {
+            return (
+                <span
+                    key={i}
+                    role="img"
+                    aria-label="ʿalayhi al-salām (peace be upon him)"
+                    style={{
+                        display: 'inline-block', width: '1.5em', height: '0.9em',
+                        verticalAlign: '-0.08em', margin: '0 0.04em',
+                        backgroundColor: 'currentColor',
+                        WebkitMaskImage: 'url(/alayhi-salam.svg)', maskImage: 'url(/alayhi-salam.svg)',
+                        WebkitMaskRepeat: 'no-repeat', maskRepeat: 'no-repeat',
+                        WebkitMaskPosition: 'center', maskPosition: 'center',
+                        WebkitMaskSize: 'contain', maskSize: 'contain',
+                    }}
+                />
+            );
+        }
+        if (part === '{{SAW}}') {
+            return (
+                <span
+                    key={i}
+                    aria-label="ṣallā Allāhu ʿalayhi wa-ālihi wa-sallam"
+                    style={{ fontFamily: "'Scheherazade New', 'Amiri', serif", fontSize: '0.95em', lineHeight: 1, verticalAlign: '0.02em', margin: '0 0.06em' }}
+                >&#xFDFA;</span>
+            );
+        }
+        return part;
+    });
+};
+
+// Plain-text fallback for clipboard / Vault storage (no JSX).
+const tokensToPlain = (text) => String(text || '')
+    .replace(/\{\{AS\}\}/g, '(alayhi al-salaam)')
+    .replace(/\{\{SAW\}\}/g, 'ﷺ');
 
 // --- THE NEW ADMIN-ENABLED LIBRARY NODE ---
 const LibraryHadithNode = ({ hadith, copiedId, handleCopyId, isAdmin }) => {
@@ -216,8 +263,8 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId, isAdmin }) => {
         if (!session?.user) return alert("Please Sign In from the top menu to save to your Vault.");
 
         const { error } = await supabase.from('vault_items').insert([{
-            user_id: session.user.id, content: currentBody, arabic_text: arabicText,
-            source: preciseReference, type: 'hadith', chain: currentChain
+            user_id: session.user.id, content: tokensToPlain(currentBody), arabic_text: arabicText,
+            source: preciseReference, type: 'hadith', chain: tokensToPlain(currentChain)
         }]);
 
         if (!error) {
@@ -252,8 +299,8 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId, isAdmin }) => {
 
         const LRM = '\u200E';
         const separator = "──────────";
-        const ltrBody = `${LRM}${currentBody}`;
-        const ltrChain = currentChain ? `${LRM}${currentChain}` : "";
+        const ltrBody = `${LRM}${tokensToPlain(currentBody)}`;
+        const ltrChain = currentChain ? `${LRM}${tokensToPlain(currentChain)}` : "";
         const ltrRef = `${LRM}${preciseReference}`;
 
         if (format === 'ar') {
@@ -418,7 +465,7 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId, isAdmin }) => {
                             {showChain && (
                                 <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
                                     <p className="mt-2 p-3 rounded-lg text-sm italic font-sans border bg-slate-50/50 dark:bg-slate-900/30 border-slate-100 dark:border-slate-800 text-slate-500 dark:text-slate-400 whitespace-pre-wrap">
-                                        {currentChain ? currentChain : "Chain information not explicitly found in English text."}
+                                        {currentChain ? renderHonorifics(currentChain) : "Chain information not explicitly found in English text."}
                                     </p>
                                 </motion.div>
                             )}
@@ -431,7 +478,7 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId, isAdmin }) => {
                                 {(idx === 0 && showNumber) && (
                                     <span className="font-bold text-[#c6a87c] dark:text-[#d4b78f] text-xl sm:text-2xl mr-2 select-none">{displayNum}.</span>
                                 )}
-                                {para}
+                                {renderHonorifics(para)}
                             </p>
                         ))}
                     </div>
@@ -1119,7 +1166,7 @@ const HadithLibrary = ({ hadithData = [], externalTarget, isAdmin = false }) => 
                                             <span className="text-[#c6a87c]">{chap}</span>
                                         </div>
                                         <p dir="ltr" className="text-left text-lg text-zinc-700 dark:text-zinc-300 font-serif leading-relaxed line-clamp-3">
-                                            {formatHadithText(hadith.englishText)}
+                                            {renderHonorifics(formatHadithText(hadith.englishText))}
                                         </p>
                                     </div>
                                 );
