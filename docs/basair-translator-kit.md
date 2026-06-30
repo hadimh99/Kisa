@@ -136,7 +136,7 @@ BODY: <attribution line>
 
 '<the saying, in plain English>'
 ARABIC: 1- <the full Arabic of this narration, read from the image, with the number prefix>
-NOTES: <leave blank, or note any uncertainty / nonImamReport / which Imam if ambiguous>
+NOTES: <flag ANY Arabic word/name you couldn't read clearly or had to guess, any place two readings are possible, any ambiguous Imam, and nonImamReport. Leave blank ONLY if you are fully confident. A flag here saves the reviewer time — when in doubt, note it.>
 
 --- HADITH 2 ---
 ...
@@ -157,6 +157,11 @@ NOTES:
 ### Don'ts
 - ❌ Don't copy the page's existing English. ❌ Don't copy/select the Arabic text (it's corrupt) — read it from the image.
 - ❌ Don't add commentary, summaries, or extra prose around the blocks. Output only the header + the hadith blocks.
-- ❌ Don't invent a chain or a saying you can't read. If a word is unclear, give your best reading and flag it in NOTES.
+- ❌ **Don't narrate your process.** No "Let me look at page 2", "Now I'll continue", "That's the end of the page", etc. — none of that. Just the blocks.
+- ❌ Don't invent a chain or a saying you can't read. If a word is unclear, give your best reading and **flag it in NOTES** (an empty NOTES means "I'm confident" — so only leave it empty when you truly are).
+- ❌ Don't silently "correct" Arabic to what you think it should say. Transcribe what's printed; if it looks wrong, transcribe it AND note your doubt.
+
+### Sub-sections ("Rare narrations" / نوادر)
+Some chapters end with an appendix headed **"Rare from the chapter"** (نوادر) whose narrations are **numbered separately from 1**. Keep that: emit a divider line `--- RARE NARRATIONS ---` before them and number them `RARE 1, RARE 2, …` so the reviewer knows they're the appendix, not a continuation.
 
 When given a chapter, work through **every** numbered narration in order and output the blocks. That's it.
