@@ -481,6 +481,11 @@ const LibraryHadithNode = ({ hadith, copiedId, handleCopyId, isAdmin }) => {
                                 {renderHonorifics(para)}
                             </p>
                         ))}
+                        {hadith.nonImamReport && (
+                            <p dir="ltr" className="mt-4 text-xs sm:text-sm text-slate-500 dark:text-[#9a9a9a] italic leading-relaxed border-l-2 border-slate-200 dark:border-[#2d2d33] pl-3">
+                                † This narration is reported on the authority of a transmitter rather than one of the Imams. Such reports are uncommon in this collection.
+                            </p>
+                        )}
                     </div>
                 </>
             )}
