@@ -41,6 +41,40 @@ Citations use the book's own numbering: **P1 = Part 1**, **Ch = chapter**, **H =
 - Question: Is treating "him" as an (unnamed) Imam correct? Is the intended Imam identifiable?
 - ➡ Ruling:
 
+### P1 Ch 9 H14 — the isnad names NO Imam
+- Arabic: `…عَنْ عَبْدِ الرَّحْمَنِ بْنِ الْحَجَّاجِ قَالَ إِنَّ اللَّهَ تَبَارَكَ وَ تَعَالَى خَلَقَ مُحَمَّداً وَ آلَ مُحَمَّدٍ…`
+- We have: rendered as **Abdul Rahman b. al-Hajjaj's own statement** — no Imam attribution, no
+  `{{AS}}` — because the chain stops at him and he states the creation-of-the-clays teaching as fact.
+- Question: This content is clearly Imam-teaching; is the Imam simply dropped from the isnad here
+  (so it should be read as *from* an Imam), or is it correctly a companion's own report? If an
+  Imam is intended, which one?
+- ➡ Ruling:
+
+### P1 Ch 9 H10 — "from his grandfather" + who is the speaker
+- Arabic: `…عَنْ جَعْفَرِ بْنِ مُحَمَّدٍ عَنْ أَبِيهِ عَنْ جَدِّهِ ع قَالَ قَالَ عَلِيُّ بْنُ الْحُسَيْنِ ع…`
+- We have: al-Sadiq → his father (al-Baqir) → **"his grandfather {{AS}}"** (left unspecified) →
+  who reports a saying of **Ali b. al-Husayn (al-Sajjad)**. (Note: "Musa b. Ja'far" earlier in
+  this isnad is the *narrator* Musa b. Ja'far, not Imam al-Kadhim — no `{{AS}}`.)
+- Question: Who is "his grandfather" here (al-Sajjad? al-Husayn?), given the matn is itself a
+  saying of al-Sajjad? Is the chain sound as printed?
+- ➡ Ruling:
+
+### P1 Ch 9 H5 & H17 — al-Sajjad narrated directly (chronological gap)
+- Arabic: H5 `…عَنْ رِبْعِيٍّ عَنْ عَلِيِّ بْنِ الْحُسَيْنِ ع…` · H17 `…عَنْ أَبِي بَكْرٍ الْحَضْرَمِيِّ عَنْ عَلِيِّ بْنِ الْحُسَيْنِ ع…`
+- We have: **Rib'i** (H5) and **Abu Bakr al-Hadrami** (H17) each leading directly from
+  **Ali b. al-Husayn (al-Sajjad) {{AS}}**, per the page.
+- Question: Both are of a later layer (companions of al-Sadiq/al-Kadhim); is a link dropped
+  between them and al-Sajjad, or is the chain as printed?
+- ➡ Ruling:
+
+### P1 Ch 9 Rare H1 — the embedded "Abu al-Hasan" is unspecified
+- Arabic: `…يَرْفَعُهُ إِلَى أَمِيرِ الْمُؤْمِنِينَ ع … فَقُلْتُ لِأَبِي الْحَسَنِ ع مَا الْجَبْلُ…`
+- We have: a **marfū'** (elevated) report to Amir al-Mu'minin (Imam Ali); mid-report the narrator
+  asks **"Abu al-Hasan {{AS}}"** (no ordinal — left unspecified) to explain "the moulding" (al-jabl).
+- Question: Which Imam is this "Abu al-Hasan" (al-Kadhim / al-Rida / al-Hadi)? And is the marfū'
+  attribution to Imam Ali acceptable as-is?
+- ➡ Ruling:
+
 ### P1 Ch 1 H5 — confirm this is NOT an Imam (a transmitter's own statement)
 - Arabic: `…عَنْ أَحْمَدَ بْنِ عُمَرَ بْنِ عَلِيِّ بْنِ أَبِي طَالِبٍ ع قَالَ طَلَبُ الْعِلْمِ فَرِيضَةٌ…`
 - We have: rendered as **Ahmad b. Umar b. Ali b. Abi Talib's own statement** (no `{{AS}}`,
@@ -52,6 +86,21 @@ Citations use the book's own numbering: **P1 = Part 1**, **Ch = chapter**, **H =
 ---
 
 ## Priority 2 — Isnad names (spelling / identity of a narrator)
+
+### P1 Ch 9 H1 — reconstructed (bracketed) chain
+- Arabic (as printed): `عَنْ بِشْرِ بْنِ [أَبِي عُقْبَةَ] [عَنْ] أَبِي جَعْفَرٍ وَ أَبِي عَبْدِ اللَّهِ ع`
+- We have: **"Bishr B. [Abi Uqba], [from] Abu Ja'far (al-Baqir) and Abu Abdullah (al-Sadiq)"** —
+  the page prints the two square-bracketed pieces as an editor's reconstruction.
+- Question: Confirm the reconstruction — is the narrator **Bishr b. Abi Uqba**, and does he narrate
+  from *both* al-Baqir and al-Sadiq?
+- ➡ Ruling:
+
+### P1 Ch 9 H8 — "al-Hasan b. Mahboub al-Hashimi"
+- Arabic (as printed): `عَنِ الْحَسَنِ بْنِ مَحْبُوبٍ الْهَاشِمِيِّ`
+- We have: **"al-Hasan B. Mahboub al-Hashimi"** (matching the page).
+- Question: al-Hasan b. Mahboub is normally *al-Sarrad / al-Zarrad*; the nisba **al-Hashimi** is
+  unusual here. Scribal variant, or a different narrator?
+- ➡ Ruling:
 
 ### P1 Ch 6 H2 — "al-Hasan" vs "al-Husayn" b. Saeed
 - Arabic (as printed): `عَنِ الْحَسَنِ بْنِ سَعِيدٍ`
